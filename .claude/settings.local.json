@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)",
+      "Bash(pnpm build:*)",
+      "Bash(netstat:*)",
+      "Bash(curl:*)",
+      "Bash(npx serve:*)",
+      "Bash(timeout:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)",
+      "WebFetch(domain:platform.minimaxi.com)",
+      "Bash(pnpm add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(go vet:*)",
+      "Bash(golangci-lint run:*)",
+      "Bash(go run:*)",
+      "Bash(cd \"D:\\\\goproject\\\\shadowsongAI\" && go version)",
+      "Bash(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin v1.62.2 2>&1 || echo \"install script failed\")",
+      "Bash(cd \"D:\\\\goproject\\\\shadowsongAI\" && /usr/local/bin/golangci-lint.exe run --out-format=line-number 2>&1)",
+      "Bash(curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin 2>&1)",
+      "Bash(cd \"D:\\\\goproject\\\\shadowsongAI\" && /usr/local/bin/golangci-lint.exe run --format=line-number 2>&1)",
+      "Bash(/usr/local/bin/golangci-lint.exe run:*)",
+      "Bash(cd D:/goproject/shadowsongAI && go test ./... 2>&1)",
+      "Bash(cd D:/goproject/shadowsongAI && staticcheck ./... 2>&1)"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run:*)",
+      "Bash(pnpm add:*)",
+      "Bash(ls:*)",
+      "Bash(sed:*)",
+      "Bash(go build:*)",
+      "Bash(go mod:*)",
+      "Bash(docker exec:*)",
+      "Bash(timeout 10 ./shadowsongai.exe:*)",
+      "Bash(curl:*)",
+      "Bash(start:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)"
+    ]
+  }
+}

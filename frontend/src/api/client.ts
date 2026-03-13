@@ -1,0 +1,212 @@
+import axios from 'axios'
+import type {
+  Alert,
+  DataSource,
+  Channel,
+  RouteRule,
+  SilenceRule,
+  OnDuty,
+} from '../types'
+
+const apiClient = axios.create({
+  baseURL: '/api/v1',
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Request interceptor
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+// Response interceptor
+apiClient.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+// ============ Alert API ============
+
+export const alertApi = {
+  list: (params?: {
+    page?: number
+    page_size?: number
+    severity?: string
+    source?: string
+    status?: string
+    start_time?: string
+    end_time?: string
+    label_selector?: string
+  }) => apiClient.get<{ list: Alert[]; total: number }>('/alerts', { params }),
+
+  get: (id: string) => apiClient.get<Alert>(`/alerts/${id}`),
+
+  ack: (id: string, data: { comment: string }) =>
+    apiClient.post<Alert>(`/alerts/${id}/ack`, data),
+
+  quickSilence: (id: string, data: { duration: number }) =>
+    apiClient.post(`/alerts/${id}/quick-silence`, data),
+
+  stats: () => apiClient.get<{
+    total: number
+    firing: number
+    acked: number
+    silenced: number
+    by_severity: Record<string, number>
+    trend: Array<{ time: string; count: number }>
+  }>('/alerts/stats'),
+
+  active: () => apiClient.get<Alert[]>('/alerts/active'),
+}
+
+// ============ DataSource API ============
+
+export const dataSourceApi = {
+  list: () => apiClient.get<DataSource[]>('/datasources'),
+
+  get: (id: number) => apiClient.get<DataSource>(`/datasources/${id}`),
+
+  create: (data: Partial<DataSource>) =>
+    apiClient.post<DataSource>('/datasources', data),
+
+  update: (id: number, data: Partial<DataSource>) =>
+    apiClient.put<DataSource>(`/datasources/${id}`, data),
+
+  delete: (id: number) => apiClient.delete(`/datasources/${id}`),
+
+  toggle: (id: number, enabled: boolean) =>
+    apiClient.patch(`/datasources/${id}/toggle`, { enabled }),
+
+  testInput: (id: number, payload: any) =>
+    apiClient.post<{ result: any }>(`/datasources/${id}/test-input`, payload),
+
+  testOutput: (id: number, data: { template: string; data: any }) =>
+    apiClient.post<{ result: string }>(`/datasources/${id}/test-output`, data),
+}
+
+// ============ Channel API ============
+
+export const channelApi = {
+  list: () => apiClient.get<Channel[]>('/channels'),
+
+  get: (id: number) => apiClient.get<Channel>(`/channels/${id}`),
+
+  create: (data: Partial<Channel>) =>
+    apiClient.post<Channel>('/channels', data),
+
+  update: (id: number, data: Partial<Channel>) =>
+    apiClient.put<Channel>(`/channels/${id}`, data),
+
+  delete: (id: number) => apiClient.delete(`/channels/${id}`),
+
+  toggle: (id: number, enabled: boolean) =>
+    apiClient.patch(`/channels/${id}/toggle`, { enabled }),
+
+  test: (id: number) => apiClient.post(`/channels/${id}/test`),
+}
+
+// ============ RouteRule API ============
+
+export const routeRuleApi = {
+  list: () => apiClient.get<RouteRule[]>('/routes'),
+
+  get: (id: number) => apiClient.get<RouteRule>(`/routes/${id}`),
+
+  create: (data: Partial<RouteRule>) =>
+    apiClient.post<RouteRule>('/routes', data),
+
+  update: (id: number, data: Partial<RouteRule>) =>
+    apiClient.put<RouteRule>(`/routes/${id}`, data),
+
+  delete: (id: number) => apiClient.delete(`/routes/${id}`),
+
+  reorder: (ids: number[]) => apiClient.post('/routes/reorder', { ids }),
+}
+
+// ============ SilenceRule API ============
+
+export const silenceRuleApi = {
+  list: (params?: { status?: 'active' | 'expired' }) =>
+    apiClient.get<SilenceRule[]>('/silences', { params }),
+
+  get: (id: number) => apiClient.get<SilenceRule>(`/silences/${id}`),
+
+  create: (data: Partial<SilenceRule>) =>
+    apiClient.post<SilenceRule>('/silences', data),
+
+  update: (id: number, data: Partial<SilenceRule>) =>
+    apiClient.put<SilenceRule>(`/silences/${id}`, data),
+
+  delete: (id: number) => apiClient.delete(`/silences/${id}`),
+
+  createFromAlert: (alertId: string, data: { duration: number }) =>
+    apiClient.post<SilenceRule>(`/silences/from-alert/${alertId}`, data),
+}
+
+// ============ OnDuty API ============
+
+export const onDutyApi = {
+  list: () => apiClient.get<OnDuty[]>('/onduty'),
+
+  get: (id: number) => apiClient.get<OnDuty>(`/onduty/${id}`),
+
+  create: (data: Partial<OnDuty>) =>
+    apiClient.post<OnDuty>('/onduty', data),
+
+  update: (id: number, data: Partial<OnDuty>) =>
+    apiClient.put<OnDuty>(`/onduty/${id}`, data),
+
+  delete: (id: number) => apiClient.delete(`/onduty/${id}`),
+
+  current: () => apiClient.get<OnDuty[]>('/onduty/current'),
+}
+
+// ============ AI API ============
+
+export const aiApi = {
+  chat: (data: {
+    message: string
+    context?: { alert_id?: string }
+  }) => apiClient.post<{
+    reply: string
+    suggestions?: string[]
+  }>('/ai/chat', data),
+
+  suggestions: (alertId: string) =>
+    apiClient.get<{ suggestions: string[] }>(`/ai/suggestions/${alertId}`),
+
+  logs: (params?: { page?: number; page_size?: number; accurate?: boolean }) =>
+    apiClient.get<{ list: any[]; total: number }>('/ai/logs', { params }),
+
+  markAccuracy: (id: number, accurate: boolean) =>
+    apiClient.patch(`/ai/logs/${id}/accuracy`, { accurate }),
+
+  deleteLog: (id: number) =>
+    apiClient.delete(`/ai/logs/${id}`),
+
+  silenceRecommendations: () =>
+    apiClient.get<any[]>('/ai/silence-recommendations'),
+
+  adoptSilenceRecommendation: (id: number) =>
+    apiClient.post(`/ai/silence-recommendations/${id}/adopt`),
+
+  ignoreSilenceRecommendation: (id: number) =>
+    apiClient.post(`/ai/silence-recommendations/${id}/ignore`),
+}
+
+export default apiClient

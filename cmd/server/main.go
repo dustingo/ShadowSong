@@ -1,0 +1,51 @@
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/game-ops/ai-alert-system/internal/config"
+	"github.com/game-ops/ai-alert-system/internal/database"
+	"github.com/game-ops/ai-alert-system/internal/router"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
+	// Load configuration
+	cfg := config.Load()
+
+	// Initialize database
+	db, err := database.InitDB(cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// Initialize Redis
+	redisClient, err := database.InitRedis(cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize Redis: %v", err)
+	}
+
+	// Set Gin mode
+	gin.SetMode(cfg.Server.Mode)
+
+	// Setup router
+	r := router.Setup(db, redisClient, cfg)
+
+	// Start server
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Starting server on port %s", port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}

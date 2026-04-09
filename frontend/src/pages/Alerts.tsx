@@ -13,7 +13,7 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { SearchOutlined, FilterOutlined, ReloadOutlined } from '@ant-design/icons'
+import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useAlertStore } from '../stores/alertStore'
 import { SeverityBadge } from '../components/SeverityBadge'
 import dayjs from 'dayjs'
@@ -256,13 +256,6 @@ export const Alerts: React.FC = () => {
                 {record.labels && Object.entries(record.labels).map(([k, v]) => (
                   <Tag key={k} style={{ marginLeft: 4 }}>{k}: {String(v)}</Tag>
                 ))}
-                {record.ai_summary && (
-                  <>
-                    <br /><br />
-                    <Text strong>AI 分析: </Text>
-                    <Text>{record.ai_summary}</Text>
-                  </>
-                )}
               </div>
             ),
           }}

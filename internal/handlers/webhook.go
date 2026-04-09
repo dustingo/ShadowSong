@@ -338,7 +338,7 @@ func (h *WebhookHandler) mapSeverity(v interface{}) string {
 	s := strings.ToLower(fmt.Sprintf("%v", v))
 
 	// 已经是 P0-P3
-	if match, _ := regexpMatch(`^p[0-3]$`, s); match {
+	if len(s) == 2 && s[0] == 'p' && s[1] >= '0' && s[1] <= '3' {
 		return strings.ToUpper(s)
 	}
 

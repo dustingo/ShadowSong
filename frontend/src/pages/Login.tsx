@@ -56,7 +56,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
       <Card style={{ width: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', borderRadius: 12 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <Title level={3} style={{ marginBottom: 8, color: '#333' }}>
-            游戏运维 AI 告警系统
+            游戏运维告警系统
           </Title>
           <Text type="secondary">请登录您的账户</Text>
         </div>

@@ -1,16 +1,12 @@
 import React, { useEffect, useRef } from 'react'
-import { Row, Col, Card, Statistic, Spin, Typography, Space, Alert, Modal, Input, Button, message } from 'antd'
+import { Row, Col, Card, Statistic, Spin, Typography, Space, Alert, message } from 'antd'
 import ReactECharts from 'echarts-for-react'
-import ReactMarkdown from 'react-markdown'
-import { useNavigate } from 'react-router-dom'
 import { useAlertStore } from '../stores/alertStore'
 import { AlertCard } from '../components/AlertCard'
-import { aiApi } from '../api/client'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 export const Dashboard: React.FC = () => {
-  const navigate = useNavigate()
   const {
     activeAlerts,
     stats,
@@ -22,17 +18,6 @@ export const Dashboard: React.FC = () => {
     ackAlert,
     quickSilence,
   } = useAlertStore()
-
-  const [aiModalVisible, setAiModalVisible] = React.useState(false)
-  const [aiLoading, setAiLoading] = React.useState(false)
-  const [currentAlert, setCurrentAlert] = React.useState<any>(null)
-  const [aiResponse, setAiResponse] = React.useState('')
-
-  const handleAskAI = async (alert: any) => {
-    setCurrentAlert(alert)
-    setAiModalVisible(true)
-    setAiResponse('')
-  }
 
   const handleAck = async (alert: any) => {
     try {
@@ -49,21 +34,6 @@ export const Dashboard: React.FC = () => {
       message.success('已静默')
     } catch (error) {
       message.error('静默失败')
-    }
-  }
-
-  const handleSendToAI = async () => {
-    if (!currentAlert || aiLoading) return
-
-    setAiLoading(true)
-    try {
-      const prompt = `请分析以下告警：\n告警名称: ${currentAlert.alert_name}\n级别: ${currentAlert.severity}\n消息: ${currentAlert.message}\n请给出处理建议和可能的原因。`
-      const res = await aiApi.chat({ message: prompt }) as unknown as { reply: string }
-      setAiResponse(res.reply)
-    } catch (error) {
-      message.error('AI 响应失败')
-    } finally {
-      setAiLoading(false)
     }
   }
 
@@ -281,58 +251,12 @@ export const Dashboard: React.FC = () => {
                   showActions={true}
                   onAck={handleAck}
                   onQuickSilence={handleQuickSilence}
-                  onAskAI={handleAskAI}
                 />
               ))}
             </div>
           )}
         </Card>
       </Space>
-
-      {/* AI 分析 Modal */}
-      <Modal
-        title={`AI 分析 - ${currentAlert?.alert_name}`}
-        open={aiModalVisible}
-        onCancel={() => setAiModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        {currentAlert && (
-          <div>
-            <Typography.Paragraph>
-              <Text strong>告警信息：</Text>
-              <br />
-              级别: {currentAlert.severity}
-              <br />
-              消息: {currentAlert.message}
-            </Typography.Paragraph>
-            <Input.TextArea
-              rows={4}
-              placeholder="输入您的问题..."
-              onPressEnter={(e) => {
-                if (e.ctrlKey) handleSendToAI()
-              }}
-            />
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <Button
-                type="primary"
-                onClick={handleSendToAI}
-                loading={aiLoading}
-              >
-                Ctrl + Enter 发送
-              </Button>
-            </div>
-            {aiResponse && (
-              <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
-                <Text strong>AI 响应：</Text>
-                <div style={{ marginTop: 8 }}>
-                  <ReactMarkdown>{aiResponse}</ReactMarkdown>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }

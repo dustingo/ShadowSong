@@ -1,17 +1,16 @@
 import React from 'react'
 import { Tag, Typography, Space, Button, Tooltip } from 'antd'
-import { CheckOutlined, AudioOutlined } from '@ant-design/icons'
+import { CheckOutlined } from '@ant-design/icons'
 import type { Alert } from '../types'
 import { SeverityBadge } from './SeverityBadge'
 import dayjs from 'dayjs'
 
-const { Text, Paragraph } = Typography
+const { Text } = Typography
 
 interface AlertCardProps {
   alert: Alert
   onAck?: (alert: Alert) => void
   onQuickSilence?: (alert: Alert) => void
-  onAskAI?: (alert: Alert) => void
   showActions?: boolean
 }
 
@@ -19,7 +18,6 @@ export const AlertCard: React.FC<AlertCardProps> = ({
   alert,
   onAck,
   onQuickSilence,
-  onAskAI,
   showActions = true,
 }) => {
   const isP0 = alert.severity === 'P0'
@@ -31,10 +29,6 @@ export const AlertCard: React.FC<AlertCardProps> = ({
 
   const handleQuickSilence = () => {
     onQuickSilence?.(alert)
-  }
-
-  const handleAskAI = () => {
-    onAskAI?.(alert)
   }
 
   return (
@@ -93,41 +87,9 @@ export const AlertCard: React.FC<AlertCardProps> = ({
             >
               静默
             </Button>
-            <Button
-              size="small"
-              icon={<AudioOutlined />}
-              onClick={handleAskAI}
-            >
-              问 AI
-            </Button>
           </Space>
         )}
       </div>
-
-      {(alert.ai_summary || alert.ai_root_cause) && (
-        <div style={{ marginTop: 12, padding: 12, background: '#fafafa', borderRadius: 4 }}>
-          <Text strong>AI 分析</Text>
-          {alert.ai_summary && (
-            <Paragraph ellipsis={{ rows: 2 }} style={{ marginTop: 8, marginBottom: 4 }}>
-              {alert.ai_summary}
-            </Paragraph>
-          )}
-          {alert.ai_root_cause && (
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary">根因: </Text>
-              <Text>{alert.ai_root_cause}</Text>
-            </div>
-          )}
-          {alert.ai_suggestions && alert.ai_suggestions.length > 0 && (
-            <div style={{ marginTop: 8 }}>
-              <Text type="secondary">建议: </Text>
-              {alert.ai_suggestions.map((s, i) => (
-                <Tag key={i} style={{ marginLeft: 4 }}>{s}</Tag>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {alert.acked_by && (
         <div style={{ marginTop: 8 }}>

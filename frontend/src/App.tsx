@@ -22,7 +22,6 @@ import {
   Login,
 } from './pages'
 import { useUserStore } from './stores/userStore'
-import { authApi } from './api/auth'
 import React from 'react'
 
 const { Header, Sider, Content } = Layout

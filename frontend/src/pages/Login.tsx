@@ -108,8 +108,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
 
         <div style={{ marginTop: 24, textAlign: 'center', color: '#999', fontSize: 12 }}>
           <Space direction="vertical" size={0}>
-            <span>默认管理员账户: admin / admin123</span>
-            <span>如需创建更多用户，请联系管理员</span>
+            <span>如需创建或重置账户，请联系管理员</span>
           </Space>
         </div>
       </Card>

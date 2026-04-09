@@ -7,9 +7,9 @@
 
 ### Backend Cleanup
 
-- [ ] **BEAI-01**: 服务启动后不再初始化或依赖任何 AI 客户端与 AI 专用配置结构
-- [ ] **BEAI-02**: 认证后的 API 中不再暴露任何 `/api/v1/ai` 相关接口
-- [ ] **BEAI-03**: 告警读取、统计、确认、快速静默、Webhook 接入和通知分发流程在移除 AI 后仍可正常工作
+- [x] **BEAI-01**: 服务启动后不再初始化或依赖任何 AI 客户端与 AI 专用配置结构
+- [x] **BEAI-02**: 认证后的 API 中不再暴露任何 `/api/v1/ai` 相关接口
+- [x] **BEAI-03**: 告警读取、统计、确认、快速静默、Webhook 接入和通知分发流程在移除 AI 后仍可正常工作
 
 ### Frontend Cleanup
 
@@ -24,7 +24,7 @@
 
 ### Verification
 
-- [ ] **VER-01**: 至少有一组后端验证证明非 AI 核心告警接口和启动流程在移除后仍然可用
+- [x] **VER-01**: 至少有一组后端验证证明非 AI 核心告警接口和启动流程在移除后仍然可用
 - [ ] **VER-02**: 至少有一组前端验证证明应用在无 AI 页面和无 AI 字段后仍能构建或通过静态检查
 
 ## v2 Requirements
@@ -46,15 +46,15 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BEAI-01 | Phase 1 | Pending |
-| BEAI-02 | Phase 1 | Pending |
-| BEAI-03 | Phase 1 | Pending |
+| BEAI-01 | Phase 1 | Complete |
+| BEAI-02 | Phase 1 | Complete |
+| BEAI-03 | Phase 1 | Complete |
 | FEAI-01 | Phase 2 | Pending |
 | FEAI-02 | Phase 2 | Pending |
 | FEAI-03 | Phase 2 | Pending |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |
-| VER-01 | Phase 3 | Pending |
+| VER-01 | Phase 1 | Complete |
 | VER-02 | Phase 3 | Pending |
 
 **Coverage:**
@@ -64,4 +64,4 @@
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 after initial definition*
+*Last updated: 2026-04-09 after Phase 1 completion*

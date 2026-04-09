@@ -12,7 +12,7 @@
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Remove Backend AI Runtime** - 下线后端 AI 路由、处理器、客户端和直接依赖
+- [x] **Phase 1: Remove Backend AI Runtime** - 下线后端 AI 路由、处理器、客户端和直接依赖
 - [ ] **Phase 2: Remove Frontend AI Surfaces** - 清除前端 AI 页面、导航、展示字段和调用链
 - [ ] **Phase 3: Align Docs And Verification** - 清理剩余配置与文案并补足移除后的验证
 
@@ -30,9 +30,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **UI hint**: no
 
 Plans:
-- [ ] 01-01-PLAN.md — Remove AI config, client, router, and handler wiring
-- [ ] 01-02-PLAN.md — Remove AI-only backend models, migrations, and runtime wording
-- [ ] 01-03-PLAN.md — Add non-AI backend regression tests and smoke verification
+- [x] 01-01-PLAN.md — Remove AI config, client, router, and handler wiring
+- [x] 01-02-PLAN.md — Remove AI-only backend models, migrations, and runtime wording
+- [x] 01-03-PLAN.md — Add non-AI backend regression tests and smoke verification
 
 ### Phase 2: Remove Frontend AI Surfaces
 **Goal**: 前端不再暴露任何 AI 页面、入口、字段或调用链，应用导航与核心页面保持可用。
@@ -73,6 +73,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Remove Backend AI Runtime | 0/3 | Not started | - |
+| 1. Remove Backend AI Runtime | 3/3 | Complete | 2026-04-09 |
 | 2. Remove Frontend AI Surfaces | 0/TBD | Not started | - |
 | 3. Align Docs And Verification | 0/TBD | Not started | - |

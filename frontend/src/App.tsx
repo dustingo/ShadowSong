@@ -8,7 +8,6 @@ import {
   BranchesOutlined,
   AudioOutlined,
   CalendarOutlined,
-  RobotOutlined,
   UserOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
@@ -20,7 +19,6 @@ import {
   RouteRules,
   Silences,
   OnDutyPage,
-  AIAssistant,
   Login,
 } from './pages'
 import { useUserStore } from './stores/userStore'
@@ -37,7 +35,6 @@ const menuItems = [
   { key: '/routes', icon: <BranchesOutlined />, label: '路由规则' },
   { key: '/silences', icon: <AudioOutlined />, label: '静默管理' },
   { key: '/onduty', icon: <CalendarOutlined />, label: '值班管理' },
-  { key: '/ai', icon: <RobotOutlined />, label: 'AI 助手' },
 ]
 
 // 菜单组件
@@ -119,7 +116,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           fontWeight: 600,
           fontSize: 16,
         }}>
-          游戏运维 AI 告警系统
+          游戏运维告警系统
         </div>
         <AppMenu />
       </Sider>
@@ -178,7 +175,6 @@ export default function App() {
         <Route path="/routes" element={<RequireAuth><RouteRules /></RequireAuth>} />
         <Route path="/silences" element={<RequireAuth><Silences /></RequireAuth>} />
         <Route path="/onduty" element={<RequireAuth><OnDutyPage /></RequireAuth>} />
-        <Route path="/ai" element={<RequireAuth><AIAssistant /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -12,11 +12,6 @@ export interface Alert {
   received_at: string
   status: 'pending' | 'firing' | 'acked' | 'silenced' | 'resolved' | 'deduplicated'
   raw: any
-  ai_summary?: string
-  ai_root_cause?: string
-  ai_severity?: string
-  ai_suggestions?: string[]
-  ai_tags?: string[]
   acked_by?: string
   acked_at?: string
   ack_comment?: string

@@ -176,37 +176,4 @@ export const onDutyApi = {
   current: () => apiClient.get<OnDuty[]>('/onduty/current'),
 }
 
-// ============ AI API ============
-
-export const aiApi = {
-  chat: (data: {
-    message: string
-    context?: { alert_id?: string }
-  }) => apiClient.post<{
-    reply: string
-    suggestions?: string[]
-  }>('/ai/chat', data),
-
-  suggestions: (alertId: string) =>
-    apiClient.get<{ suggestions: string[] }>(`/ai/suggestions/${alertId}`),
-
-  logs: (params?: { page?: number; page_size?: number; accurate?: boolean }) =>
-    apiClient.get<{ list: any[]; total: number }>('/ai/logs', { params }),
-
-  markAccuracy: (id: number, accurate: boolean) =>
-    apiClient.patch(`/ai/logs/${id}/accuracy`, { accurate }),
-
-  deleteLog: (id: number) =>
-    apiClient.delete(`/ai/logs/${id}`),
-
-  silenceRecommendations: () =>
-    apiClient.get<any[]>('/ai/silence-recommendations'),
-
-  adoptSilenceRecommendation: (id: number) =>
-    apiClient.post(`/ai/silence-recommendations/${id}/adopt`),
-
-  ignoreSilenceRecommendation: (id: number) =>
-    apiClient.post(`/ai/silence-recommendations/${id}/ignore`),
-}
-
 export default apiClient

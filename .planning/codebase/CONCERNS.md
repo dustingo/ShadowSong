@@ -1,193 +1,172 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-03-13
+**Analysis Date:** 2026-04-09
 
 ## Tech Debt
 
-**AI Recommendation Generation:**
-- Issue: `GenerateRecommendations` handler is a stub that only returns a success message
-- Files: `internal/handlers/ai.go:232`
-- Impact: AI-based silence recommendations cannot be automatically generated
-- Fix approach: Implement the recommendation generation logic using AI to analyze recent alerts
+**Monolithic backend handlers:**
+- Issue: CRUD, validation, persistence, templating, routing, deduplication, and notification dispatch are concentrated in a few oversized handlers instead of smaller services.
+- Files: `internal/handlers/webhook.go`, `internal/handlers/config.go`, `internal/handlers/ai.go`, `internal/handlers/user.go`
+- Impact: Small changes carry high regression risk because unrelated behaviors share the same functions and database coupling. The largest hotspot is `internal/handlers/webhook.go` at 879 lines; `internal/handlers/config.go` is 455 lines.
+- Fix approach: Extract template rendering, deduplication, routing, channel secret handling, and AI logging into dedicated packages under `internal/`. Keep HTTP handlers thin and focused on binding plus response formatting.
 
-**Ignored Error Handling in Notifier:**
-- Issue: JSON marshal errors are silently ignored in DingTalk and WeCom senders
-- Files: `internal/notifier/notifier.go:152`, `internal/notifier/notifier.go:202`
-- Impact: Notification content may be empty or malformed without any indication
-- Fix approach: Handle marshal errors explicitly and return meaningful errors
+**Business logic duplicated across handlers and frontend state:**
+- Issue: Alert acknowledgement, quick silence, AI suggestions, and config refresh behavior are implemented ad hoc in multiple places instead of through a shared service contract.
+- Files: `internal/handlers/alert.go`, `internal/handlers/ai.go`, `frontend/src/stores/alertStore.ts`, `frontend/src/stores/configStore.ts`, `frontend/src/pages/Dashboard.tsx`
+- Impact: Backend behavior changes can silently desynchronize frontend optimistic updates and polling/websocket logic.
+- Fix approach: Centralize alert mutations and config fetch flows behind explicit backend service methods and typed frontend API helpers with invariant checks.
 
-**Missing Database Indexes:**
-- Issue: No explicit indexes on frequently queried fields (status, severity, trigger_time, fingerprint)
-- Files: `internal/models/models.go`
-- Impact: Alert queries may become slow as data grows
-- Fix approach: Add GORM indexes on Alert table for status, severity, trigger_time, fingerprint
-
-**Incomplete AI Alert Analysis:**
-- Issue: `AnalyzeAlert` function returns empty strings for root_cause and suggestions
-- Files: `internal/ai/client.go:165`
-- Impact: AI suggestions feature does not populate structured data
-- Fix approach: Parse the JSON response from AI to extract structured analysis
+**Dead or half-integrated features remain in active code paths:**
+- Issue: The codebase exposes configuration for grouped notifications and AI recommendation generation, but key execution paths are missing or unfinished.
+- Files: `internal/models/models.go`, `internal/handlers/webhook.go`, `internal/handlers/ai.go`, `frontend/src/pages/DataSources.tsx`
+- Impact: Operators can configure features that the system does not actually execute, which creates false confidence and support burden.
+- Fix approach: Either remove the unused UI/API surface or finish the implementation before exposing the feature flags.
 
 ## Known Bugs
 
-**WebSocket Reconnection Race Condition:**
-- Issue: Multiple WebSocket connection attempts can occur during rapid reconnect cycles
-- Files: `frontend/src/pages/Dashboard.tsx:80-130`
-- Trigger: When network briefly disconnects, multiple timers may fire
-- Workaround: Current code uses `isConnecting` flag but race condition still possible
+**Data source template testing UI is wired to non-existent backend endpoints:**
+- Symptoms: The frontend defines `/datasources/:id/test-input` and `/datasources/:id/test-output` clients, but the backend only exposes `/webhook/test-template`.
+- Files: `frontend/src/api/client.ts`, `frontend/src/pages/DataSources.tsx`, `internal/router/router.go`, `internal/handlers/webhook.go`
+- Trigger: Any future call to `dataSourceApi.testInput` or `dataSourceApi.testOutput` returns 404. The current drawer button in `frontend/src/pages/DataSources.tsx` only reopens the drawer instead of invoking an API, so the feature is visibly unfinished.
+- Workaround: Use `POST /webhook/test-template` directly. Do not rely on the data source test drawer as a working feature.
 
-**Template Validation Returns 200 on Invalid JSON:**
-- Issue: `TestInputTemplate` returns HTTP 200 even when validation errors exist
-- Files: `internal/handlers/webhook.go:686-694`
-- Trigger: When alert_name, severity, or message fields are missing
-- Workaround: None - this is unexpected behavior
+**AI alert analysis does not parse structured output and drops suggestions/root cause data:**
+- Symptoms: `AnalyzeAlert` asks the model for JSON, then calls `Chat(prompt, "")` and returns the raw response as the first string while returning empty root cause and `nil` suggestions.
+- Files: `internal/ai/client.go`, `internal/handlers/ai.go`
+- Trigger: `GET /api/v1/ai/suggestions/:alertId` with a configured AI key stores only `AISummary`; `AIRootCause` and suggestion list stay incomplete unless the fallback branch runs.
+- Workaround: Treat AI suggestions as best-effort text only until the response is parsed into a typed structure.
 
-**Alert Stats Runs N+1 Queries:**
-- Issue: Stats endpoint runs separate Count queries for each severity level
-- Files: `internal/handlers/alert.go:173-199`
-- Impact: Performance degrades with additional severity levels
-- Fix approach: Use SQL GROUP BY aggregation
+**Quick silence can report success even if silence rule persistence fails:**
+- Symptoms: The alert status is saved first, then `h.db.Create(&silence)` is called without error handling.
+- Files: `internal/handlers/alert.go`
+- Trigger: Database write failure during quick silence creation leaves the alert marked `silenced` without a corresponding `SilenceRule`.
+- Workaround: Verify the silence rule exists after using quick silence; manual correction may be required.
 
 ## Security Considerations
 
-**Hardcoded CORS Origin:**
-- Risk: CORS allows only `http://127.0.0.1` - not usable in production
-- Files: `internal/router/router.go:19`
-- Current mitigation: None - will break in production
-- Recommendations: Make CORS origin configurable via environment variable
+**Bootstrap admin password is printed to logs:**
+- Risk: First-run credentials are emitted directly through `log.Printf("Default admin user created: admin / %s", pwd)`.
+- Files: `internal/database/postgres.go`
+- Current mitigation: The generated password is random and the user model hashes it before storage.
+- Recommendations: Replace log emission with one-time secure delivery or require explicit admin bootstrap input. Never print credentials in application logs.
 
-**API Key Stored in Plaintext:**
-- Risk: API keys stored in database are compared as plaintext strings
-- Files: `internal/handlers/webhook.go:81`
-- Current mitigation: API key validation exists
-- Recommendations: Consider hashing API keys or using a secrets manager
+**Channel secrets are masked in list responses but fully exposed on detail fetch:**
+- Risk: `ListChannels` masks configs through `maskChannelConfig`, while `GetChannel` intentionally returns the raw config for editing.
+- Files: `internal/handlers/config.go`
+- Current mitigation: The list endpoint hides common secret keys by returning `{"masked": true}`.
+- Recommendations: Return redacted detail payloads plus explicit secret rotation/update fields. Avoid sending stored webhook secrets back to the browser.
 
-**No Rate Limiting:**
-- Risk: Webhook endpoints have no rate limiting
-- Files: `internal/router/router.go:161-165`
-- Current mitigation: None
-- Recommendations: Add rate limiting middleware for webhook endpoints
+**Data source API keys are retrievable and copyable in the browser:**
+- Risk: Editing a data source performs `dataSourceApi.get(record.id)` and stores the returned `api_key` in local component state; the UI also exposes clipboard copy.
+- Files: `frontend/src/pages/DataSources.tsx`, `internal/handlers/config.go`, `internal/models/models.go`
+- Current mitigation: None beyond requiring authentication on config endpoints.
+- Recommendations: Treat data source API keys as write-only secrets. Return placeholders and rotation controls instead of the stored secret value.
 
-**No Input Sanitization on User Comments:**
-- Risk: User-provided comments in alert acknowledgment are stored directly
-- Files: `internal/handlers/alert.go:107`
-- Current mitigation: None
-- Recommendations: Sanitize user input to prevent XSS if displayed in notifications
+**JWT is stored in `localStorage`:**
+- Risk: The frontend reads and writes the bearer token from `localStorage`, which is vulnerable to token theft if any XSS is introduced.
+- Files: `frontend/src/api/client.ts`
+- Current mitigation: None. Logout only deletes the local token.
+- Recommendations: Move auth to `HttpOnly` secure cookies or introduce a hardened token storage/refresh strategy with CSRF protection.
+
+**Fallback alerts can echo raw inbound payload data into persisted alert messages:**
+- Risk: On template render failures, `createFallbackAlert` embeds truncated raw request content into `Alert.Message`.
+- Files: `internal/handlers/webhook.go`
+- Current mitigation: The message is truncated to 500 characters.
+- Recommendations: Store a sanitized diagnostic code instead of raw payload fragments, especially if external systems may include secrets or PII.
 
 ## Performance Bottlenecks
 
-**Dashboard Polling Every 10 Seconds:**
-- Problem: Frontend polls for alerts and stats every 10 seconds regardless of WebSocket connection
-- Files: `frontend/src/pages/Dashboard.tsx:135-138`
-- Cause: Redundant polling when WebSocket is connected
-- Improvement path: Disable polling when WebSocket is connected, or increase poll interval
+**Webhook ingestion performs synchronous per-alert database lookups and writes:**
+- Problem: Every inbound alert runs fingerprint generation, a deduplication lookup, potential update/save, insert, Redis publish, route matching, and per-channel notification work.
+- Files: `internal/handlers/webhook.go`
+- Cause: The handler loops alert-by-alert and performs multiple DB operations inside the loop rather than batching or offloading work.
+- Improvement path: Move ingestion to a queue or worker model, batch deduplication checks when possible, and isolate notification fan-out from request latency.
 
-**Notification Processing Runs in Background Without Queue:**
-- Problem: `processAlertNotifications` runs in goroutine without proper job queue
-- Files: `internal/handlers/webhook.go:184`
-- Cause: If notification sending fails, no retry mechanism
-- Improvement path: Use a job queue (Redis queue or dedicated worker) for reliable delivery
+**Alert statistics endpoint scales with many serial count queries:**
+- Problem: `Stats` issues separate counts for totals, status buckets, each severity, and 24 hourly trend slices.
+- Files: `internal/handlers/alert.go`
+- Cause: The endpoint performs many sequential queries instead of aggregating in SQL.
+- Improvement path: Use grouped SQL queries or pre-aggregated metrics. Cache dashboard stats if near-real-time precision is not required.
 
-**Large Alert List Without Pagination on Active Endpoint:**
-- Problem: `Active` endpoint returns all firing alerts without limit
-- Files: `internal/handlers/alert.go:205-214`
-- Cause: No pagination on active alerts endpoint
-- Improvement path: Add optional limit parameter
+**Dashboard duplicates real-time and polling traffic:**
+- Problem: The frontend opens a websocket and also polls `fetchActiveAlerts` plus `fetchStats` every 10 seconds.
+- Files: `frontend/src/pages/Dashboard.tsx`, `frontend/src/stores/alertStore.ts`
+- Cause: Real-time delivery is not trusted as the single source of truth, likely because websocket integration is incomplete.
+- Improvement path: Make websocket updates authoritative for active alerts and use targeted refreshes instead of unconditional interval polling.
 
 ## Fragile Areas
 
-**Template Rendering is All-or-Nothing:**
-- Why fragile: Template errors create fallback alerts that may not contain meaningful data
-- Files: `internal/handlers/webhook.go:116-121`
-- Safe modification: Test templates thoroughly before deployment
-- Test coverage: Unit tests for template rendering needed
+**Webhook matching uses a custom pseudo-regex helper:**
+- Files: `internal/handlers/webhook.go`
+- Why fragile: `regexpMatch` only simulates prefix/suffix/contains behavior. Route rule authors may expect real regex semantics from `LabelMatcher.Pattern`, but many patterns will behave incorrectly.
+- Safe modification: Replace the helper with the Go `regexp` package behind validation and pre-compilation. Add tests for exact, prefix, suffix, alternation, and escaped patterns before changing behavior.
+- Test coverage: No handler tests cover route matching, fingerprinting, template rendering, or deduplication.
 
-**Webhook Handler Has Many Responsibilities:**
-- Why fragile: Single handler handles parsing, validation, deduplication, routing, and notification
-- Files: `internal/handlers/webhook.go:41-204`
-- Safe modification: Extract smaller functions for each responsibility
-- Test coverage: Integration tests for webhook flow needed
+**WebSocket stack is only partially wired:**
+- Files: `internal/handlers/websocket.go`, `internal/router/router.go`, `frontend/src/pages/Dashboard.tsx`
+- Why fragile: `BroadcastAlert` exists but has no callers, so the dashboard relies on polling for freshness. The heartbeat goroutine writes pings until failure without explicit cancellation.
+- Safe modification: Introduce a single publisher path from alert creation to websocket fan-out and add lifecycle management for per-connection goroutines.
+- Test coverage: No websocket tests or frontend connection-state tests are present.
 
-**Manual JWT Secret Validation:**
-- Why fragile: Application exits immediately if JWT_SECRET is missing with no graceful handling
-- Files: `internal/config/config.go:51-55`
-- Safe modification: Use proper error handling with logging
-- Test coverage: Config validation tests needed
+**Config CRUD writes trust bound input too broadly:**
+- Files: `internal/handlers/config.go`
+- Why fragile: Multiple update handlers call `ShouldBindJSON` and then overwrite model fields directly with limited validation or no error handling around `Save`/`Delete`.
+- Safe modification: Add request DTOs per endpoint, validate every mutable field, and fail closed when optional payload fields are omitted.
+- Test coverage: No tests cover config mutation, secret masking, route reorder, silence creation, or on-duty scheduling.
 
 ## Scaling Limits
 
-**PostgreSQL Connection Pool:**
-- Current capacity: Default GORM connection pool (uses database defaults)
-- Limit: Not configured - may exhaust connections under load
-- Scaling path: Configure `SetMaxOpenConns`, `SetMaxIdleConns` in database setup
+**Single-process in-memory websocket registry:**
+- Current capacity: One process holds all active websocket clients in `map[*websocket.Conn]bool`.
+- Limit: Horizontal scaling breaks broadcast visibility because connections and broadcasts are not shared across instances.
+- Scaling path: Back websocket fan-out with Redis pub/sub or a broker so alerts can be broadcast across replicas.
 
-**Redis as Message Bus:**
-- Current capacity: Single Redis connection
-- Limit: Single point of failure, limited throughput
-- Scaling path: Use Redis Cluster for high availability
-
-**In-Memory Alert Sorting:**
-- Current capacity: All active alerts loaded into memory on frontend
-- Limit: Will cause memory issues with thousands of active alerts
-- Scaling path: Implement virtual scrolling or server-side pagination
+**Notification execution is best-effort and unbounded per request burst:**
+- Current capacity: New alerts spawn asynchronous notification processing directly from the request handler.
+- Limit: Large inbound batches can create many downstream HTTP sends without backpressure, retries, or worker limits.
+- Scaling path: Push notification jobs to a queue with bounded worker concurrency, retry policy, and delivery metrics.
 
 ## Dependencies at Risk
 
-**golang-jwt/jwt v5:**
-- Risk: Older JWT library - ensure latest patches applied
-- Impact: Token validation depends on this
-- Migration plan: Consider migrate to `github.com/golang-jwt/jwt/v5` for better support
-
-**echarts and echarts-for-react:**
-- Risk: Large bundle size (echarts is ~600KB minified)
-- Impact: Frontend load time affected
-- Migration plan: Consider lighter alternatives or tree-shaking
-
-**No Dedicated Testing Framework:**
-- Risk: Only basic test file exists (`internal/models/alert_test.go`)
-- Impact: No regression detection
-- Migration plan: Add comprehensive unit and integration tests
+**OpenAI-compatible client contract is brittle:**
+- Risk: The request schema includes `reasoning_split`, defaults the model to `gpt-4`, and manually appends `/v1` plus `/chat/completions`. Compatibility depends on the target API matching this exact shape.
+- Impact: Provider or model changes can fail at runtime without compile-time protection, and `AnalyzeAlert` already demonstrates schema drift by not parsing the JSON it requests.
+- Migration plan: Introduce provider-specific adapters or use the official SDK/typed schema for the chosen provider. Parse model responses into structs before persisting them.
 
 ## Missing Critical Features
 
-**No Alert Resolution Tracking:**
-- Problem: System receives alerts but has no mechanism to track when alert conditions clear
-- Blocks: Cannot auto-resolve alerts or show resolved state
+**Grouped alert aggregation is exposed but not implemented:**
+- Problem: `DataSource` includes `group_enabled` and `group_window`, and the frontend lets operators configure them, but webhook processing only implements deduplication and never aggregates grouped notifications.
+- Blocks: Operators cannot rely on the advertised group-aggregation workflow to reduce noise.
 
-**No User Audit Log:**
-- Problem: No tracking of who acknowledged alerts or made changes
-- Blocks: Compliance requirements, incident post-mortems
+**AI recommendation generation has no execution path:**
+- Problem: `GenerateRecommendations` is a TODO and no route or scheduler invokes it, while the UI exposes silence recommendation management.
+- Blocks: The recommendation list cannot populate from live system behavior without manual database insertion.
 
-**No Backup/Restore:**
-- Problem: No database backup mechanism
-- Blocks: Disaster recovery
+**Secret rotation and audit controls are absent:**
+- Problem: API keys, webhook configs, and channel secrets can be viewed/edited, but there is no rotation history, no reveal audit, and no permission separation for secret access.
+- Blocks: Safer operational handoff and compliance-friendly secret management.
 
 ## Test Coverage Gaps
 
-**Backend Handlers:**
-- What's not tested: Handler HTTP endpoints (no HTTP-level tests)
-- Files: `internal/handlers/*.go`
-- Risk: Breaking changes go undetected
+**Handler and integration behavior is effectively untested:**
+- What's not tested: Authentication flows, user authorization, webhook ingestion, deduplication, routing, websocket delivery, AI handlers, notifier behavior, and config CRUD.
+- Files: `internal/handlers/*.go`, `internal/router/router.go`, `internal/notifier/notifier.go`, `internal/middleware/auth.go`, `internal/auth/jwt.go`
+- Risk: High-risk operational paths can regress without detection; the only detected Go test file is `internal/models/alert_test.go`.
 - Priority: High
 
-**Frontend API Client:**
-- What's not tested: API client error handling, response parsing
-- Files: `frontend/src/api/client.ts`
-- Risk: API changes break frontend silently
-- Priority: Medium
-
-**Webhook Processing:**
-- What's not tested: End-to-end webhook flow with templates
-- Files: `internal/handlers/webhook.go`
-- Risk: Template errors in production
+**Frontend has no automated test setup:**
+- What's not tested: Stores, pages, token handling, websocket reconnection, and form flows.
+- Files: `frontend/package.json`, `frontend/src/pages/*.tsx`, `frontend/src/stores/*.ts`, `frontend/src/api/client.ts`
+- Risk: UI regressions and API contract mismatches can ship unnoticed. `frontend/package.json` has no `test` script.
 - Priority: High
 
-**Authentication Flow:**
-- What's not tested: Login, token refresh, token expiry handling
-- Files: `internal/auth/`, `frontend/src/api/auth.ts`
-- Risk: Auth edge cases undetected
-- Priority: Medium
+**Security-sensitive secret handling is unverified:**
+- What's not tested: Masking behavior in channel lists, raw secret exposure on detail fetch, data source API key retrieval, and fallback alert content sanitization.
+- Files: `internal/handlers/config.go`, `internal/handlers/webhook.go`, `frontend/src/pages/DataSources.tsx`
+- Risk: Secret leakage can persist as an accidental feature because no tests lock down the expected redaction behavior.
+- Priority: High
 
 ---
 
-*Concerns audit: 2026-03-13*
+*Concerns audit: 2026-04-09*

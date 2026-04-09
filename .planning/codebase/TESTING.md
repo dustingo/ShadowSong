@@ -1,470 +1,181 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-03-13
+**Analysis Date:** 2026-04-09
 
 ## Test Framework
 
-### Backend (Go)
+**Runner:**
+- Backend tests use Go's built-in `testing` package plus `github.com/stretchr/testify/assert`, as shown in `internal/models/alert_test.go`.
+- Config: no custom Go test config file detected; tests run through standard `go test` behavior from the module root defined by `go.mod`.
+- Frontend: no test runner configuration detected. There is no `vitest.config.*`, `jest.config.*`, `playwright.config.*`, or `cypress.config.*` in the repository root or `frontend/`.
 
-**Test Runner:**
-- Framework: Go's built-in `testing` package
-- Assertion Library: `github.com/stretchr/testify` v1.11.1
-- Config: Standard Go test configuration
+**Assertion Library:**
+- `assert` from `github.com/stretchr/testify/assert` in `internal/models/alert_test.go`.
+- Frontend assertion library: not detected.
 
 **Run Commands:**
 ```bash
-go test ./...                 # Run all tests
-go test -v ./internal/models  # Run with verbose output
-go test -cover ./...          # Run with coverage
+go test ./...          # Run all backend tests from repository root
+make test              # Wrapper around go test -v ./...
+go test -cover ./...   # Coverage command pattern supported by Go, not wired into Makefile
 ```
-
-### Frontend (React + TypeScript)
-
-**Status: NO TEST FRAMEWORK INSTALLED**
-
-The frontend currently has no testing infrastructure:
-- No Jest, Vitest, or other test runners
-- No React Testing Library
-- No test scripts in `package.json`
-
-**To add testing, install:**
-```bash
-pnpm add -D vitest @testing-library/react @testing-library/jest-dom jsdom
-# or
-npm install --save-dev vitest @testing-library/react @testing-library/jest-dom jsdom
-```
-
----
 
 ## Test File Organization
 
-### Backend
-
 **Location:**
-- Co-located with source files in same package
-- Test file naming: `*_test.go`
+- Backend tests are colocated with production code. The only committed test file is `internal/models/alert_test.go`.
+- Frontend has no colocated or separate test directories under `frontend/src/`.
+
+**Naming:**
+- Backend follows the standard Go `_test.go` suffix, for example `internal/models/alert_test.go`.
+- Frontend naming pattern is not established because no `.test.ts`, `.test.tsx`, `.spec.ts`, or `.spec.tsx` files were found.
 
 **Structure:**
-```
-internal/
-├── models/
-│   ├── alert.go
-│   └── alert_test.go    # Tests in same package
-├── handlers/
-│   ├── alert.go
-│   └── alert_test.go    # Optional integration tests
+```text
+internal/models/alert.go
+internal/models/alert_test.go
+frontend/src/...       # no test files detected
 ```
 
-### Frontend
+## Test Structure
 
-**Recommended Structure (not currently implemented):**
-```
-src/
-├── components/
-│   ├── AlertCard.tsx
-│   └── AlertCard.test.tsx   # or AlertCard.spec.tsx
-├── pages/
-│   ├── Dashboard.tsx
-│   └── Dashboard.test.tsx
-└── __tests__/               # Optional centralized tests
-```
-
----
-
-## Backend Test Patterns
-
-### Test File Structure
-
+**Suite Organization:**
 ```go
-package models
-
-import (
-    "testing"
-    "time"
-
-    "github.com/stretchr/testify/assert"
-    "gorm.io/datatypes"
-)
-
 func TestAlert_Validation(t *testing.T) {
-    tests := []struct {
-        name    string
-        alert   Alert
-        wantErr bool
-    }{
-        // test cases
-    }
+	tests := []struct {
+		name    string
+		alert   Alert
+		wantErr bool
+	}{ ... }
 
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            err := tt.alert.Validate()
-            if tt.wantErr {
-                assert.Error(t, err)
-            } else {
-                assert.NoError(t, err)
-            }
-        })
-    }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.alert.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 ```
 
-### Test Organization
+**Patterns:**
+- Use table-driven tests with a `tests := []struct{...}` slice and `t.Run(...)`, as in `internal/models/alert_test.go`.
+- Prefer direct method calls on domain models instead of heavy test setup; the existing suite instantiates `Alert` structs inline and calls `Validate`, `IsValidSeverity`, and `IsValidStatus`.
+- Assertions are straightforward equality and error checks through `assert.Equal`, `assert.Error`, and `assert.NoError`.
 
-**Pattern: Table-Driven Tests**
-- Use `tests := []struct{...}{}` for test cases
-- Use `t.Run()` for subtests
-- Clear test case names in Chinese or English
+## Mocking
 
-### Example: Model Validation Tests
+**Framework:** No mocking framework detected.
 
-From `internal/models/alert_test.go`:
-
+**Patterns:**
 ```go
-func TestAlert_IsValidSeverity(t *testing.T) {
-    tests := []struct {
-        severity string
-        want     bool
-    }{
-        {"P0", true},
-        {"P1", true},
-        {"P2", true},
-        {"P3", true},
-        {"INVALID", false},
-        {"", false},
-    }
+alert := Alert{Severity: tt.severity}
+assert.Equal(t, tt.want, alert.IsValidSeverity())
+```
 
-    for _, tt := range tests {
-        t.Run(tt.severity, func(t *testing.T) {
-            alert := Alert{Severity: tt.severity}
-            assert.Equal(t, tt.want, alert.IsValidSeverity())
-        })
-    }
+**What to Mock:**
+- No established mocking pattern exists in the codebase.
+- For new backend tests, prefer exercising pure model logic directly before introducing mocks.
+- For handler, notifier, AI client, and database tests, local seams would need to be introduced first because current code stores concrete dependencies like `*gorm.DB`, `*ai.Client`, and HTTP clients in `internal/handlers/*.go` and `internal/notifier/notifier.go`.
+
+**What NOT to Mock:**
+- Domain validation methods in `internal/models/alert.go` and `internal/models/models.go` should be tested directly, matching the existing pattern in `internal/models/alert_test.go`.
+
+## Fixtures and Factories
+
+**Test Data:**
+```go
+alert: Alert{
+	AlertID:     "test-alert-1",
+	Source:      "prometheus",
+	AlertName:   "HighMemory",
+	Severity:    "P0",
+	Message:     "Memory usage is high",
+	Labels:      datatypes.JSON(`{"host": "server-01"}`),
+	Fingerprint: "abc123",
+	TriggerTime: time.Now(),
+	ReceivedAt:  time.Now(),
+	Status:      "pending",
 }
 ```
 
-### Assertion Patterns
-
-**Using testify/assert:**
-```go
-import "github.com/stretchr/testify/assert"
-
-// Common assertions
-assert.NoError(t, err)
-assert.Error(t, err)
-assert.Equal(t, expected, actual)
-assert.Nil(t, value)
-assert.NotNil(t, value)
-assert.True(t, condition)
-assert.False(t, condition)
-assert.Contains(t, string, substring)
-```
-
-### Mocking
-
-**Database Mocking:**
-- GORM's `gorm.DB` can be mocked using custom GORM callbacks
-- For unit tests, consider using `github.com/DATA-DOG/go-sqlmock`
-
-**Example Pattern:**
-```go
-// Create a mock DB for testing handlers
-func setupTestDB(t *testing.T) *gorm.DB {
-    // Use in-memory SQLite or mock
-    db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-    assert.NoError(t, err)
-    return db
-}
-```
-
----
-
-## Frontend Test Patterns (Recommended)
-
-### Test Framework Setup
-
-**Recommended: Vitest + React Testing Library**
-
-Install:
-```bash
-pnpm add -D vitest @testing-library/react @testing-library/jest-dom jsdom @types/jest
-```
-
-Configure `vite.config.ts`:
-```typescript
-/// <reference types="vitest" />
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
-  },
-})
-```
-
-Create `src/test/setup.ts`:
-```typescript
-import '@testing-library/jest-dom'
-```
-
-### Test Structure
-
-```typescript
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
-
-describe('AlertCard', () => {
-  it('renders alert information correctly', () => {
-    const alert = {
-      alert_id: 'test-1',
-      alert_name: 'HighMemory',
-      severity: 'P0' as const,
-      message: 'Memory usage is high',
-      status: 'firing' as const,
-    }
-
-    render(<AlertCard alert={alert} />)
-    expect(screen.getByText('HighMemory')).toBeInTheDocument()
-    expect(screen.getByText('P0')).toBeInTheDocument()
-  })
-
-  it('calls onAck when acknowledge button is clicked', async () => {
-    const onAck = vi.fn()
-    const alert = { /* ... */ }
-
-    render(<AlertCard alert={alert} onAck={onAck} />)
-    fireEvent.click(screen.getByText('Acknowledge'))
-
-    await waitFor(() => {
-      expect(onAck).toHaveBeenCalled()
-    })
-  })
-})
-```
-
-### Mocking Patterns
-
-**API Mocking:**
-```typescript
-import { vi } from 'vitest'
-
-// Mock API module
-vi.mock('./api/client', () => ({
-  alertApi: {
-    list: vi.fn().mockResolvedValue({ list: [], total: 0 }),
-    ack: vi.fn().mockResolvedValue({}),
-  },
-}))
-```
-
-**Store Mocking:**
-```typescript
-import { useUserStore } from './stores/userStore'
-
-// Reset store before each test
-beforeEach(() => {
-  useUserStore.setState({ user: null, token: null })
-})
-```
-
-**Component Mocking:**
-```typescript
-// Mock child components
-vi.mock('./components/SeverityBadge', () => ({
-  default: ({ severity }: { severity: string }) => (
-    <span data-testid="severity">{severity}</span>
-  ),
-}))
-```
-
-### Testing Hooks
-
-```typescript
-import { renderHook, act } from '@testing-library/react'
-import { useUserStore } from './stores/userStore'
-
-describe('useUserStore', () => {
-  it('sets user correctly', () => {
-    const { result } = renderHook(() => useUserStore())
-
-    act(() => {
-      result.current.setUser({ id: 1, username: 'test', name: 'Test', role: 'admin' })
-    })
-
-    expect(result.current.user?.username).toBe('test')
-  })
-
-  it('clears state on logout', () => {
-    // Setup state first
-    // ...
-    act(() => {
-      result.current.logout()
-    })
-
-    expect(result.current.user).toBeNull()
-    expect(result.current.token).toBeNull()
-  })
-})
-```
-
----
+**Location:**
+- Inline fixtures live directly inside `internal/models/alert_test.go`.
+- No shared fixture or factory package exists.
 
 ## Coverage
 
-### Backend
+**Requirements:** None enforced.
+
+**Current Coverage Shape:**
+- `go test ./...` passes on 2026-04-09.
+- Only `internal/models` is covered by committed tests; `cmd/server`, `internal/ai`, `internal/auth`, `internal/config`, `internal/database`, `internal/handlers`, `internal/middleware`, `internal/notifier`, and `internal/router` reported `[no test files]` when `go test ./...` ran.
+- The frontend has no automated test coverage at all. `frontend/package.json` contains `dev`, `build`, `preview`, `lint`, and `format` scripts, but no `test` script.
 
 **View Coverage:**
 ```bash
 go test -cover ./...
 go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+go tool cover -func=coverage.out
 ```
-
-**Coverage Target:** Not currently enforced - recommend 70%+ for new code
-
-### Frontend
-
-**View Coverage (with Vitest):**
-```bash
-vitest --coverage
-```
-
-**Recommended Coverage:**
-- Components: 70%+
-- Utils/Helpers: 90%+
-- Critical paths: 100%
-
----
 
 ## Test Types
 
-### Unit Tests
+**Unit Tests:**
+- Present only for model validation helpers in `internal/models/alert_test.go`.
+- Current unit testing style favors pure logic over integration with Gin, Gorm, Redis, or external APIs.
 
-**Backend:**
-- Model validation (`alert_test.go`)
-- Utility functions
-- Business logic
+**Integration Tests:**
+- Not detected.
+- No database-backed handler tests, router tests, or end-to-end webhook ingestion tests are committed for `internal/handlers/webhook.go`, `internal/handlers/config.go`, or `internal/router/router.go`.
 
-**Frontend (recommended):**
-- Component rendering
-- Hook behavior
-- Utility functions
-
-### Integration Tests
-
-**Backend:**
-- Handler tests with real database
-- API endpoint tests
-- Database transactions
-
-**Frontend (recommended):**
-- Page-level component tests
-- Store integration tests
-- API client integration
-
-### E2E Tests
-
-**Not implemented.** Recommended to add:
-- Playwright or Cypress for end-to-end testing
-- Critical user flows (login, view alerts, acknowledge)
-
----
+**E2E Tests:**
+- Not used.
+- No Playwright, Cypress, or browser automation configuration was found for `frontend/`.
 
 ## Common Patterns
 
-### Async Testing (Backend)
-
+**Async Testing:**
 ```go
-func TestAsyncOperation(t *testing.T) {
-    done := make(chan bool)
-
-    go func() {
-        // async operation
-        done <- true
-    }()
-
-    select {
-    case <-done:
-        // success
-    case <-time.After(time.Second):
-        t.Fatal("timeout")
-    }
-}
+// No async-specific pattern is established in committed tests.
+// Existing tests are synchronous and deterministic.
 ```
 
-### Async Testing (Frontend - Vitest)
-
-```typescript
-import { act } from '@testing-library/react'
-
-it('fetches alerts async', async () => {
-  // For API calls mocked with vi.fn()
-  const promise = Promise.resolve({ list: alerts, total: 1 })
-
-  render(<AlertsPage />)
-
-  await act(async () => {
-    await promise
-  })
-
-  expect(screen.getByText('Alert 1')).toBeInTheDocument()
-})
+**Error Testing:**
+```go
+err := tt.alert.Validate()
+assert.Error(t, err)
 ```
 
-### Error Testing
+## Current Gaps
+
+**Backend Gaps:**
+- `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/user.go`, and `internal/handlers/ai.go` have no request/response tests for status codes, auth failures, or malformed payloads.
+- `internal/handlers/webhook.go` has no coverage for template parsing, deduplication, fallback alert creation, routing, or notification dispatch, despite being the most behavior-dense backend file.
+- `internal/middleware/auth.go` has no tests for bearer token parsing, role enforcement, or context population.
+- `internal/ai/client.go`, `internal/notifier/notifier.go`, and `internal/database/*.go` have no tests around external service failures or configuration edge cases.
+
+**Frontend Gaps:**
+- `frontend/src/pages/*.tsx` has no component, interaction, or route-guard tests.
+- `frontend/src/stores/*.ts` has no tests for loading-state transitions, optimistic updates, or localStorage persistence.
+- `frontend/src/api/client.ts` and `frontend/src/api/auth.ts` have no tests for interceptors, 401 handling, or token propagation.
+- `frontend/src/App.tsx` has no route protection tests for `RequireAuth` or login redirect behavior.
+
+## Recommended Organization For New Tests
 
 **Backend:**
-```go
-func TestAlert_Validate_MissingFields(t *testing.T) {
-    alert := Alert{}
-    err := alert.Validate()
-
-    assert.Error(t, err)
-    assert.Contains(t, err.Error(), "alert_id is required")
-}
-```
+- Continue colocated Go tests beside the package under test, for example `internal/middleware/auth_test.go`, `internal/handlers/user_test.go`, and `internal/notifier/notifier_test.go`.
+- Follow the existing table-driven style used in `internal/models/alert_test.go`.
+- Start with model and middleware units, then add handler tests using `httptest` against `internal/router/router.go` or isolated handlers.
 
 **Frontend:**
-```typescript
-it('displays error message on API failure', async () => {
-  apiClient.get.mockRejectedValue(new Error('Network error'))
-
-  render(<Dashboard />)
-
-  await waitFor(() => {
-    expect(screen.getByText('Failed to load')).toBeInTheDocument()
-  })
-})
-```
+- Introduce a dedicated runner in `frontend/` before adding tests.
+- Once a runner exists, colocate tests beside pages/stores/components using names like `Alerts.test.tsx`, `userStore.test.ts`, and `client.test.ts`.
+- Prioritize `frontend/src/stores/alertStore.ts`, `frontend/src/App.tsx`, and form-heavy pages such as `frontend/src/pages/Login.tsx` and `frontend/src/pages/Alerts.tsx`.
 
 ---
 
-## Missing Testing Infrastructure
-
-### Frontend Gaps
-
-1. **No test framework** - Vitest recommended
-2. **No test utilities** - Need @testing-library/react
-3. **No test scripts** - Add to package.json
-4. **No E2E tests** - Recommend Playwright
-5. **No CI integration** - Add test step to pipeline
-
-### Recommended package.json Scripts
-
-```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
-  }
-}
-```
-
----
-
-*Testing analysis: 2026-03-13*
+*Testing analysis: 2026-04-09*

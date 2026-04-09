@@ -1,184 +1,207 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-03-13
+**Analysis Date:** 2026-04-09
 
 ## Directory Layout
 
-```
-D:\goproject\shadowsongAI/
-├── cmd/                          # Application entry points
-│   └── server/
-│       └── main.go               # Main server entry point
-├── internal/                     # Private application code
-│   ├── ai/                       # AI client implementation
-│   │   └── client.go
-│   ├── auth/                     # Authentication (JWT)
-│   │   └── jwt.go
-│   ├── config/                   # Configuration loading
-│   │   └── config.go
-│   ├── database/                 # Database connections
-│   │   ├── postgres.go
-│   │   └── redis.go
-│   ├── handlers/                 # HTTP request handlers
-│   │   ├── alert.go
-│   │   ├── ai.go
-│   │   ├── config.go
-│   │   ├── user.go
-│   │   ├── webhook.go
-│   │   └── websocket.go
-│   ├── middleware/               # HTTP middleware
-│   │   └── auth.go
-│   ├── models/                   # Data models
-│   │   ├── models.go
-│   │   ├── alert.go
-│   │   ├── user.go
-│   │   └── alert_test.go
-│   ├── notifier/                 # Notification senders
-│   │   └── notifier.go
-│   └── router/                   # Route definitions
-│       └── router.go
-├── frontend/                     # React frontend application
+```text
+shadowsongAI/
+├── cmd/                 # Go process entrypoints
+│   └── server/          # HTTP server bootstrap
+├── internal/            # Backend application code
+│   ├── ai/              # OpenAI-compatible client wrapper
+│   ├── auth/            # JWT token utilities
+│   ├── config/          # Environment-backed config loading
+│   ├── database/        # PostgreSQL and Redis setup
+│   ├── handlers/        # Gin handlers for API, webhook, and WebSocket endpoints
+│   ├── middleware/      # Gin auth middleware
+│   ├── models/          # GORM models and tests
+│   ├── notifier/        # Feishu/DingTalk/WeCom/webhook senders
+│   └── router/          # Route registration
+├── frontend/            # Vite React SPA
 │   ├── src/
-│   │   ├── main.tsx              # Frontend entry point
-│   │   ├── App.tsx               # Main app component with routing
-│   │   ├── api/                  # API client layer
-│   │   │   ├── client.ts         # Axios instance
-│   │   │   └── auth.ts           # Auth endpoints
-│   │   ├── components/           # Reusable UI components
-│   │   │   ├── index.ts
-│   │   │   ├── AlertCard.tsx
-│   │   │   ├── CodeEditor.tsx
-│   │   │   └── SeverityBadge.tsx
-│   │   ├── pages/                # Page components
-│   │   │   ├── index.ts
-│   │   │   ├── Alerts.tsx
-│   │   │   ├── Channels.tsx
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── DataSources.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── OnDuty.tsx
-│   │   │   ├── RouteRules.tsx
-│   │   │   ├── Silences.tsx
-│   │   │   └── AIAssistant.tsx
-│   │   ├── stores/               # Zustand state stores
-│   │   │   ├── alertStore.ts
-│   │   │   ├── configStore.ts
-│   │   │   └── userStore.ts
-│   │   ├── types/                # TypeScript type definitions
-│   │   │   └── index.ts
-│   │   ├── utils/                # Utility functions
-│   │   │   └── formatter.ts
-│   │   └── hooks/                # Custom React hooks (empty)
-│   └── package.json
-├── .env                          # Environment configuration
-├── go.mod                        # Go module definition
-├── go.sum                        # Go dependencies lock
-├── docker-compose.yml            # Docker Compose config
-└── Makefile                      # Build automation
+│   │   ├── api/         # Axios clients and endpoint wrappers
+│   │   ├── components/  # Shared presentational UI
+│   │   ├── pages/       # Route-level screens
+│   │   ├── stores/      # Zustand state containers
+│   │   ├── types/       # Shared TypeScript interfaces
+│   │   ├── App.tsx      # Route shell and auth guard
+│   │   └── main.tsx     # Browser mount point
+│   ├── dist/            # Generated frontend build output
+│   ├── package.json     # Frontend dependencies and scripts
+│   └── vite.config.ts   # Dev server proxy and alias config
+├── docs/                # Ad hoc project documentation
+├── .planning/           # Planning and codebase maps
+├── docker-compose.yml   # Local Postgres and Redis services
+├── go.mod               # Backend module definition
+├── Makefile             # Common dev commands
+└── README.md            # Project overview and quick start
 ```
 
 ## Directory Purposes
 
-**cmd/server:**
-- Purpose: Application entry point
-- Contains: `main.go` - Server bootstrap
+**`cmd/`:**
+- Purpose: Hold executable entrypoints only.
+- Contains: `cmd/server/main.go`
+- Key files: `cmd/server/main.go`
+- Guidance: Add new processes here only when introducing another binary. Keep reusable logic in `internal/`.
 
-**internal/ai:**
-- Purpose: AI API client implementation
-- Contains: OpenAI-compatible client for alert analysis
+**`internal/`:**
+- Purpose: Hold all non-exported backend application code.
+- Contains: Config, infra setup, handlers, models, middleware, routing, integrations.
+- Key files: `internal/router/router.go`, `internal/config/config.go`, `internal/database/postgres.go`
+- Guidance: Place new backend business logic in a focused package under `internal/`; wire it into `cmd/server/main.go` through constructors instead of adding logic to the bootstrap.
 
-**internal/auth:**
-- Purpose: JWT token generation and validation
-- Contains: JWT implementation
+**`internal/handlers/`:**
+- Purpose: Own HTTP, webhook, and WebSocket endpoint behavior.
+- Contains: `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/ai.go`, `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/websocket.go`
+- Key files: `internal/handlers/webhook.go`, `internal/handlers/config.go`
+- Guidance: Add a new handler file here when exposing a new endpoint group. Keep route registration in `internal/router/router.go`.
 
-**internal/config:**
-- Purpose: Configuration management
-- Contains: Environment variable loading
+**`internal/models/`:**
+- Purpose: Centralize GORM-backed entities and model validation.
+- Contains: `internal/models/alert.go`, `internal/models/models.go`, `internal/models/user.go`, `internal/models/alert_test.go`
+- Key files: `internal/models/alert.go`, `internal/models/models.go`, `internal/models/user.go`
+- Guidance: Add new persistent entities here, including hooks and validation helpers, before migrating them from `internal/database/postgres.go`.
 
-**internal/database:**
-- Purpose: Database connection management
-- Contains: PostgreSQL and Redis initialization
+**`frontend/src/pages/`:**
+- Purpose: Route-level UI features.
+- Contains: `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/DataSources.tsx`, `frontend/src/pages/Channels.tsx`, `frontend/src/pages/RouteRules.tsx`, `frontend/src/pages/Silences.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/AIAssistant.tsx`, `frontend/src/pages/Login.tsx`
+- Key files: `frontend/src/pages/index.ts`, `frontend/src/pages/Dashboard.tsx`
+- Guidance: Put new navigable screens here and export them through `frontend/src/pages/index.ts`.
 
-**internal/handlers:**
-- Purpose: HTTP request handling
-- Contains: Business logic for each domain
+**`frontend/src/components/`:**
+- Purpose: Shared UI pieces reused by pages.
+- Contains: `frontend/src/components/AlertCard.tsx`, `frontend/src/components/CodeEditor.tsx`, `frontend/src/components/SeverityBadge.tsx`
+- Key files: `frontend/src/components/index.ts`
+- Guidance: Put reusable presentational units here; keep page-specific orchestration in `frontend/src/pages/`.
 
-**internal/middleware:**
-- Purpose: HTTP middleware
-- Contains: Authentication middleware
+**`frontend/src/api/`:**
+- Purpose: Define all browser-to-backend HTTP contracts.
+- Contains: `frontend/src/api/client.ts`, `frontend/src/api/auth.ts`
+- Key files: `frontend/src/api/client.ts`, `frontend/src/api/auth.ts`
+- Guidance: Add new REST methods here first, then consume them from stores or pages.
 
-**internal/models:**
-- Purpose: Data models
-- Contains: GORM model definitions
+**`frontend/src/stores/`:**
+- Purpose: Hold shared client state and async actions.
+- Contains: `frontend/src/stores/alertStore.ts`, `frontend/src/stores/configStore.ts`, `frontend/src/stores/userStore.ts`
+- Key files: `frontend/src/stores/userStore.ts`
+- Guidance: Add a new store when state must be shared across pages; avoid duplicating API orchestration in multiple screens.
 
-**internal/notifier:**
-- Purpose: Notification delivery
-- Contains: Channel-specific senders
-
-**internal/router:**
-- Purpose: Route registration
-- Contains: All API route definitions
-
-**frontend/src:**
-- Purpose: Frontend application source
-- Contains: React components, pages, stores
+**`frontend/dist/`:**
+- Purpose: Store generated production assets.
+- Generated: Yes
+- Committed: Yes
+- Guidance: Do not place source files here. Source belongs under `frontend/src/`.
 
 ## Key File Locations
 
 **Entry Points:**
-- `cmd/server/main.go` - Backend server entry
-- `frontend/src/main.tsx` - Frontend entry
+- `cmd/server/main.go`: Backend composition root and server startup.
+- `frontend/src/main.tsx`: Frontend browser bootstrap.
+- `frontend/src/App.tsx`: Client route map and auth gate.
 
 **Configuration:**
-- `internal/config/config.go` - Backend config
-- `.env` - Environment variables
-- `docker-compose.yml` - Container orchestration
+- `internal/config/config.go`: Backend environment variable loading and typed config.
+- `frontend/vite.config.ts`: Frontend alias and dev proxy configuration.
+- `docker-compose.yml`: Local infrastructure topology for PostgreSQL and Redis.
+- `Makefile`: Standard project run/build/test commands.
 
 **Core Logic:**
-- `internal/handlers/` - Business logic
-- `internal/models/models.go` - Data models
+- `internal/router/router.go`: HTTP surface area and dependency assembly for handlers.
+- `internal/handlers/webhook.go`: Alert ingestion, normalization, deduplication, Redis publish, and notification routing.
+- `internal/handlers/alert.go`: Alert queries, stats, and acknowledgement workflows.
+- `internal/handlers/config.go`: CRUD for data sources, channels, route rules, silence rules, and on-duty schedules.
+- `internal/notifier/notifier.go`: Channel-type-specific notification delivery.
+- `frontend/src/stores/alertStore.ts`: Dashboard and alert list state.
+- `frontend/src/stores/configStore.ts`: Configuration management state.
 
-**Frontend State:**
-- `frontend/src/stores/` - Zustand stores
+**Testing:**
+- `internal/models/alert_test.go`: Existing backend model tests.
+- `docs/CODE_REVIEW.md`: Review notes, not executable tests.
+
+## Ownership Boundaries
+
+**Backend HTTP boundary:**
+- `internal/router/router.go` owns path registration.
+- `internal/handlers/*.go` own request/response behavior.
+- `internal/middleware/auth.go` owns request authentication checks.
+
+**Backend data boundary:**
+- `internal/models/*.go` own persisted schema and validation rules.
+- `internal/database/postgres.go` owns DB connection creation and schema migration.
+- `internal/database/redis.go` owns Redis connection creation only.
+
+**Backend integration boundary:**
+- `internal/ai/client.go` owns outbound AI API calls.
+- `internal/notifier/notifier.go` owns outbound notification-channel protocols.
+- `internal/handlers/webhook.go` is the only place where inbound webhook payloads are translated into internal alerts.
+
+**Frontend routing boundary:**
+- `frontend/src/App.tsx` owns route registration and navigation shell.
+- `frontend/src/pages/*.tsx` own route-specific UI behavior.
+
+**Frontend state and transport boundary:**
+- `frontend/src/api/*.ts` own HTTP request details.
+- `frontend/src/stores/*.ts` own shared async state transitions.
+- `frontend/src/types/index.ts` owns the frontend-facing data contracts.
 
 ## Naming Conventions
 
-**Backend:**
-- Files: snake_case (e.g., `alert_handler.go`)
-- Functions: PascalCase (e.g., `func List() {}`)
-- Variables: camelCase (e.g., `alertHandler`)
-- Types/Structs: PascalCase (e.g., `AlertHandler`)
-- Packages: snake_case (e.g., `internal/handlers`)
+**Files:**
+- Go backend files use lowercase package-oriented names such as `internal/handlers/webhook.go` and `internal/database/postgres.go`.
+- React page and component files use PascalCase names such as `frontend/src/pages/DataSources.tsx` and `frontend/src/components/AlertCard.tsx`.
+- Store and utility files use camelCase names such as `frontend/src/stores/userStore.ts` and `frontend/src/utils/formatter.ts`.
+- Barrel exports use `index.ts` in `frontend/src/pages/index.ts` and `frontend/src/components/index.ts`.
 
-**Frontend:**
-- Files: PascalCase for components (e.g., `AlertCard.tsx`), camelCase for utilities (e.g., `formatter.ts`)
-- Components: PascalCase (e.g., `function AlertCard()`)
-- Hooks: camelCase starting with use (e.g., `useUserStore`)
-- Variables: camelCase
+**Directories:**
+- Backend directories are lowercase nouns by concern: `internal/router`, `internal/models`, `internal/notifier`.
+- Frontend feature directories are grouped by technical role: `frontend/src/pages`, `frontend/src/components`, `frontend/src/stores`, `frontend/src/api`, `frontend/src/types`.
 
 ## Where to Add New Code
 
-**New Backend Feature:**
-- Handler: `internal/handlers/`
-- Model: `internal/models/models.go`
-- Route: `internal/router/router.go`
+**New Backend API Feature:**
+- Primary code: `internal/handlers/` for the endpoint, `internal/models/` for schema additions, and `internal/router/router.go` for route registration.
+- Supporting integrations: `internal/ai/`, `internal/notifier/`, or a new `internal/<package>/` directory if the feature introduces a new external boundary.
+- Tests: Place backend tests next to the package, following `internal/models/alert_test.go`.
 
-**New Notification Channel:**
-- Implementation: `internal/notifier/notifier.go`
-- Add new sender type following the Sender interface pattern
+**New Frontend Screen:**
+- Implementation: `frontend/src/pages/<FeatureName>.tsx`
+- Route registration: `frontend/src/pages/index.ts` and `frontend/src/App.tsx`
+- Shared page state: `frontend/src/stores/`
+- Backend calls: `frontend/src/api/client.ts` or `frontend/src/api/auth.ts`
 
-**New Frontend Feature:**
-- Page: `frontend/src/pages/`
-- Component: `frontend/src/components/`
-- API endpoint: `frontend/src/api/client.ts`
-- State: `frontend/src/stores/`
+**New Shared Frontend Component:**
+- Implementation: `frontend/src/components/<ComponentName>.tsx`
+- Re-export: `frontend/src/components/index.ts` if the component should be part of the shared component surface.
 
-**New API Endpoint:**
-- Backend handler: `internal/handlers/`
-- Route registration: `internal/router/router.go`
-- Frontend API client: `frontend/src/api/client.ts`
-- Frontend store: `frontend/src/stores/`
+**New Utility or Shared Types:**
+- Shared frontend helpers: `frontend/src/utils/`
+- Shared frontend interfaces: `frontend/src/types/index.ts`
+- Shared backend helpers: a focused package under `internal/` rather than adding helpers to `cmd/`
+
+## Special Directories
+
+**`.planning/codebase/`:**
+- Purpose: Machine-consumable repository maps for planning and execution.
+- Generated: Yes
+- Committed: Intended to be committed with planning artifacts.
+
+**`frontend/dist/`:**
+- Purpose: Vite build output.
+- Generated: Yes
+- Committed: Yes
+
+**`.claude/` and `.kiro/`:**
+- Purpose: Tooling and specification artifacts used outside the runtime application path.
+- Generated: No
+- Committed: Yes
+
+**`docs/`:**
+- Purpose: Human-authored supplementary documentation.
+- Generated: No
+- Committed: Yes
 
 ---
 
-*Structure analysis: 2026-03-13*
+*Structure analysis: 2026-04-09*

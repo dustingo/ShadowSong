@@ -51,8 +51,6 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		&models.RouteRule{},
 		&models.SilenceRule{},
 		&models.OnDuty{},
-		&models.AILog{},
-		&models.SilenceRecommendation{},
 	}
 
 	for _, table := range tables {

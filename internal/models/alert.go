@@ -24,14 +24,7 @@ type Alert struct {
 
 	// 去重/聚合信息
 	DeduplicateUntil *time.Time `json:"deduplicate_until"` // 去重截止时间
-	LastRepeatAt     *time.Time `json:"last_repeat_at"`     // 最后重复时间
-
-	// AI 分析结果
-	AISummary     string         `json:"ai_summary"`
-	AIRootCause   string         `json:"ai_root_cause"`
-	AISeverity    string         `json:"ai_severity"`
-	AISuggestions datatypes.JSON `json:"ai_suggestions"` // []string
-	AITags        datatypes.JSON `json:"ai_tags"`        // []string
+	LastRepeatAt     *time.Time `json:"last_repeat_at"`    // 最后重复时间
 
 	// 确认信息
 	AckedBy    string     `json:"acked_by"`

@@ -10,16 +10,16 @@ import (
 
 // DataSource represents a data source configuration
 type DataSource struct {
-	ID              uint           `gorm:"primaryKey" json:"id"`
-	Name            string         `gorm:"uniqueIndex;size:64;not null" json:"name"`
-	DisplayName     string         `gorm:"size:128;not null" json:"display_name"`
-	APIKey          string         `gorm:"size:128" json:"api_key"` // API Key for webhook authentication
+	ID          uint   `gorm:"primaryKey" json:"id"`
+	Name        string `gorm:"uniqueIndex;size:64;not null" json:"name"`
+	DisplayName string `gorm:"size:128;not null" json:"display_name"`
+	APIKey      string `gorm:"size:128" json:"api_key"` // API Key for webhook authentication
 
 	// 去重/聚合配置
-	DeduplicateEnabled bool          `gorm:"default:true" json:"deduplicate_enabled"` // 是否启用去重
-	DeduplicateWindow  int           `gorm:"default:3600" json:"deduplicate_window"`   // 去重窗口时间（秒），默认1小时
-	GroupEnabled      bool          `gorm:"default:false" json:"group_enabled"`        // 是否启用分组聚合
-	GroupWindow       int           `gorm:"default:300" json:"group_window"`            // 分组窗口时间（秒），默认5分钟
+	DeduplicateEnabled bool `gorm:"default:true" json:"deduplicate_enabled"` // 是否启用去重
+	DeduplicateWindow  int  `gorm:"default:3600" json:"deduplicate_window"`  // 去重窗口时间（秒），默认1小时
+	GroupEnabled       bool `gorm:"default:false" json:"group_enabled"`      // 是否启用分组聚合
+	GroupWindow        int  `gorm:"default:300" json:"group_window"`         // 分组窗口时间（秒），默认5分钟
 
 	InputTemplate  string         `gorm:"type:text;not null" json:"input_template"`
 	OutputTemplate string         `gorm:"type:text;not null" json:"output_template"`
@@ -87,10 +87,10 @@ func (c *Channel) Validate() error {
 		return errors.New("type is required")
 	}
 	validTypes := map[string]bool{
-		"feishu":  true,
+		"feishu":   true,
 		"dingtalk": true,
-		"wecom":   true,
-		"webhook": true,
+		"wecom":    true,
+		"webhook":  true,
 	}
 	if !validTypes[c.Type] {
 		return errors.New("invalid channel type")
@@ -100,22 +100,22 @@ func (c *Channel) Validate() error {
 
 // RouteRule represents a routing rule
 type RouteRule struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"size:64;not null" json:"name"`
-	Priority    int            `gorm:"default:0" json:"priority"`
-	Severities  datatypes.JSON `json:"severities"`   // []string
-	Sources     datatypes.JSON `json:"sources"`      // []string
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	Name          string         `gorm:"size:64;not null" json:"name"`
+	Priority      int            `gorm:"default:0" json:"priority"`
+	Severities    datatypes.JSON `json:"severities"`     // []string
+	Sources       datatypes.JSON `json:"sources"`        // []string
 	LabelMatchers datatypes.JSON `json:"label_matchers"` // []LabelMatcher
-	ChannelIDs  datatypes.JSON `json:"channel_ids"`  // []uint
-	TimeRanges  datatypes.JSON `json:"time_ranges"`  // []TimeRange
-	Enabled     bool           `gorm:"default:true" json:"enabled"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ChannelIDs    datatypes.JSON `json:"channel_ids"`    // []uint
+	TimeRanges    datatypes.JSON `json:"time_ranges"`    // []TimeRange
+	Enabled       bool           `gorm:"default:true" json:"enabled"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
 type LabelMatcher struct {
-	Key      string `json:"key"`
-	Pattern  string `json:"pattern"`
+	Key     string `json:"key"`
+	Pattern string `json:"pattern"`
 }
 
 type TimeRange struct {
@@ -151,18 +151,18 @@ func (r *RouteRule) Validate() error {
 
 // SilenceRule represents a silence rule
 type SilenceRule struct {
-	ID              uint           `gorm:"primaryKey" json:"id"`
-	Name            string         `gorm:"size:64;not null" json:"name"`
-	Comment         string         `gorm:"size:256" json:"comment"`
-	Source          string         `gorm:"size:64" json:"source"`
-	AlertNamePattern string        `gorm:"size:128" json:"alert_name_pattern"`
-	Severities      datatypes.JSON `json:"severities"`
-	LabelMatchers   datatypes.JSON `json:"label_matchers"`
-	StartsAt        time.Time      `gorm:"index" json:"starts_at"`
-	EndsAt          time.Time      `gorm:"index" json:"ends_at"`
-	CreatedBy       string         `gorm:"size:64" json:"created_by"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	Name             string         `gorm:"size:64;not null" json:"name"`
+	Comment          string         `gorm:"size:256" json:"comment"`
+	Source           string         `gorm:"size:64" json:"source"`
+	AlertNamePattern string         `gorm:"size:128" json:"alert_name_pattern"`
+	Severities       datatypes.JSON `json:"severities"`
+	LabelMatchers    datatypes.JSON `json:"label_matchers"`
+	StartsAt         time.Time      `gorm:"index" json:"starts_at"`
+	EndsAt           time.Time      `gorm:"index" json:"ends_at"`
+	CreatedBy        string         `gorm:"size:64" json:"created_by"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
 }
 
 func (s *SilenceRule) BeforeCreate(tx *gorm.DB) error {
@@ -190,14 +190,14 @@ func (s *SilenceRule) Validate() error {
 
 // OnDuty represents an on-duty schedule
 type OnDuty struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	UserID     string    `gorm:"size:64;not null" json:"user_id"`
-	UserName   string    `gorm:"size:64;not null" json:"user_name"`
-	ChannelID  uint      `gorm:"not null" json:"channel_id"`
-	StartTime  time.Time `gorm:"index" json:"start_time"`
-	EndTime    time.Time `gorm:"index" json:"end_time"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    string    `gorm:"size:64;not null" json:"user_id"`
+	UserName  string    `gorm:"size:64;not null" json:"user_name"`
+	ChannelID uint      `gorm:"not null" json:"channel_id"`
+	StartTime time.Time `gorm:"index" json:"start_time"`
+	EndTime   time.Time `gorm:"index" json:"end_time"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (o *OnDuty) Validate() error {
@@ -214,38 +214,4 @@ func (o *OnDuty) Validate() error {
 		return errors.New("end_time is required")
 	}
 	return nil
-}
-
-// AILog represents AI processing log
-type AILog struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	AlertID   string    `gorm:"index;size:64" json:"alert_id"`
-	AlertName string    `gorm:"size:128" json:"alert_name"`
-	Input     string    `gorm:"type:text" json:"input"`
-	Output    string    `gorm:"type:text" json:"output"`
-	Accurate  *bool     `json:"accurate"` // null = not rated, true = accurate, false = inaccurate
-	CreatedAt time.Time `json:"created_at"`
-}
-
-func (a *AILog) Validate() error {
-	if a.Input == "" {
-		return errors.New("input is required")
-	}
-	if a.Output == "" {
-		return errors.New("output is required")
-	}
-	return nil
-}
-
-// SilenceRecommendation represents AI-generated silence recommendation
-type SilenceRecommendation struct {
-	ID                  uint      `gorm:"primaryKey" json:"id"`
-	AlertName           string    `gorm:"size:128" json:"alert_name"`
-	Source              string    `gorm:"size:64" json:"source"`
-	Frequency           int       `json:"frequency"`
-	SuggestedDuration   int       `json:"suggested_duration"` // in seconds
-	Reason              string    `gorm:"type:text" json:"reason"`
-	Status              string    `gorm:"size:32;default:'pending'" json:"status"` // pending, adopted, ignored
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
 }

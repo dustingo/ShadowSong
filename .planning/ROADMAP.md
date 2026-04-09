@@ -13,7 +13,7 @@
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Remove Backend AI Runtime** - 下线后端 AI 路由、处理器、客户端和直接依赖
-- [ ] **Phase 2: Remove Frontend AI Surfaces** - 清除前端 AI 页面、导航、展示字段和调用链
+- [x] **Phase 2: Remove Frontend AI Surfaces** - 清除前端 AI 页面、导航、展示字段和调用链
 - [ ] **Phase 3: Align Docs And Verification** - 清理剩余配置与文案并补足移除后的验证
 
 ## Phase Details
@@ -46,9 +46,9 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01-PLAN.md — Remove AI page, route, and navigation entry points
-- [ ] 02-02-PLAN.md — Remove AI data rendering from alerts and dashboard flows
-- [ ] 02-03-PLAN.md — Remove AI API client and type dependencies plus frontend build verification
+- [x] 02-01-PLAN.md — Remove AI page, route, and navigation entry points
+- [x] 02-02-PLAN.md — Remove AI data rendering from alerts and dashboard flows
+- [x] 02-03-PLAN.md — Remove AI API client and type dependencies plus frontend build verification
 
 ### Phase 3: Align Docs And Verification
 **Goal**: 项目文档、品牌文案、环境配置和基本验证与“无 AI 版本”的实际状态保持一致。
@@ -74,5 +74,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Remove Backend AI Runtime | 3/3 | Complete | 2026-04-09 |
-| 2. Remove Frontend AI Surfaces | 0/TBD | Not started | - |
+| 2. Remove Frontend AI Surfaces | 3/3 | Complete | 2026-04-09 |
 | 3. Align Docs And Verification | 0/TBD | Not started | - |

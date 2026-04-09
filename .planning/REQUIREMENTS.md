@@ -13,9 +13,9 @@
 
 ### Frontend Cleanup
 
-- [ ] **FEAI-01**: 前端导航、路由和页面中不再出现 AI 助手、AI 聊天、AI 日志或 AI 静默推荐入口
-- [ ] **FEAI-02**: 告警详情、列表和仪表盘中不再展示 AI 分析、AI 根因、AI 建议或“问 AI”操作
-- [ ] **FEAI-03**: 前端 API 客户端、类型定义和状态使用中不再依赖 AI 相关请求或字段
+- [x] **FEAI-01**: 前端导航、路由和页面中不再出现 AI 助手、AI 聊天、AI 日志或 AI 静默推荐入口
+- [x] **FEAI-02**: 告警详情、列表和仪表盘中不再展示 AI 分析、AI 根因、AI 建议或“问 AI”操作
+- [x] **FEAI-03**: 前端 API 客户端、类型定义和状态使用中不再依赖 AI 相关请求或字段
 
 ### Data and Config Cleanup
 
@@ -49,9 +49,9 @@
 | BEAI-01 | Phase 1 | Complete |
 | BEAI-02 | Phase 1 | Complete |
 | BEAI-03 | Phase 1 | Complete |
-| FEAI-01 | Phase 2 | Pending |
-| FEAI-02 | Phase 2 | Pending |
-| FEAI-03 | Phase 2 | Pending |
+| FEAI-01 | Phase 2 | Complete |
+| FEAI-02 | Phase 2 | Complete |
+| FEAI-03 | Phase 2 | Complete |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |
 | VER-01 | Phase 1 | Complete |
@@ -64,4 +64,4 @@
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 after Phase 1 completion*
+*Last updated: 2026-04-09 after Phase 2 completion*

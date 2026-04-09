@@ -16,7 +16,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	// CORS middleware
 	r.Use(func(c *gin.Context) {
 		// 测试阶段暂时只允许本机
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "127.0.0.1")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
@@ -32,7 +32,6 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(db)
 	configHandler := handlers.NewConfigHandler(db)
-	aiHandler := handlers.NewAIHandler(db, cfg)
 	wsHandler := handlers.NewWSHandler(db)
 	webhookHandler := handlers.NewWebhookHandler(db, redisClient)
 
@@ -142,19 +141,6 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			onduty.DELETE("/:id", configHandler.DeleteOnDuty)
 		}
 
-		// AI routes (protected)
-		ai := v1.Group("/ai")
-		ai.Use(middleware.JWTAuth(jwtAuth))
-		{
-			ai.POST("/chat", aiHandler.Chat)
-			ai.GET("/suggestions/:alertId", aiHandler.Suggestions)
-			ai.GET("/logs", aiHandler.ListLogs)
-			ai.PATCH("/logs/:id/accuracy", aiHandler.MarkAccuracy)
-			ai.DELETE("/logs/:id", aiHandler.DeleteLog)
-			ai.GET("/silence-recommendations", aiHandler.ListRecommendations)
-			ai.POST("/silence-recommendations/:id/adopt", aiHandler.AdoptRecommendation)
-			ai.POST("/silence-recommendations/:id/ignore", aiHandler.IgnoreRecommendation)
-		}
 	}
 
 	// Webhook routes

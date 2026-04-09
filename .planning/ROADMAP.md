@@ -42,13 +42,13 @@ Plans:
   1. Navigation and routes no longer include the AI assistant page or related icons and labels.
   2. Dashboard, alerts, and shared components no longer render AI summaries, root-cause text, suggestions, or AI-trigger buttons.
   3. Frontend API clients and TypeScript types no longer include AI endpoints or AI-only fields.
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01: Remove AI page, route, and navigation entry points
-- [ ] 02-02: Remove AI data rendering from alerts and dashboard flows
-- [ ] 02-03: Remove AI API client and type dependencies
+- [ ] 02-01-PLAN.md — Remove AI page, route, and navigation entry points
+- [ ] 02-02-PLAN.md — Remove AI data rendering from alerts and dashboard flows
+- [ ] 02-03-PLAN.md — Remove AI API client and type dependencies plus frontend build verification
 
 ### Phase 3: Align Docs And Verification
 **Goal**: 项目文档、品牌文案、环境配置和基本验证与“无 AI 版本”的实际状态保持一致。

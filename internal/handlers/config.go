@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -197,10 +197,10 @@ func (h *ConfigHandler) UpdateChannel(c *gin.Context) {
 	}
 
 	var input struct {
-		Name      string          `json:"name"`
-		Type      string          `json:"type"`
-		Config    json.RawMessage `json:"config"`
-		Enabled   bool            `json:"enabled"`
+		Name    string          `json:"name"`
+		Type    string          `json:"type"`
+		Config  json.RawMessage `json:"config"`
+		Enabled bool            `json:"enabled"`
 	}
 	c.ShouldBindJSON(&input)
 
@@ -256,7 +256,7 @@ func (h *ConfigHandler) TestChannel(c *gin.Context) {
 	}
 
 	testTitle := "测试通知"
-	testContent := "这是一条来自 AI Alert System 的测试消息。"
+	testContent := "这是一条来自游戏运维告警系统的测试消息。"
 
 	if err := notifier.SendToChannel(&ch, testTitle, testContent); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -438,12 +438,12 @@ func (h *ConfigHandler) CreateSilenceFromAlert(c *gin.Context) {
 	c.ShouldBindJSON(&input)
 
 	rule := models.SilenceRule{
-		Name:              "Quick Silence - " + alert.AlertName,
+		Name:             "Quick Silence - " + alert.AlertName,
 		AlertNamePattern: alert.AlertName,
-		Severities:        []byte(`["` + alert.Severity + `"]`),
-		StartsAt:          time.Now(),
-		EndsAt:            time.Now().Add(time.Duration(input.Duration) * time.Second),
-		CreatedBy:         "system",
+		Severities:       []byte(`["` + alert.Severity + `"]`),
+		StartsAt:         time.Now(),
+		EndsAt:           time.Now().Add(time.Duration(input.Duration) * time.Second),
+		CreatedBy:        "system",
 	}
 
 	h.db.Create(&rule)

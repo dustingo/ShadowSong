@@ -1,0 +1,67 @@
+# Requirements: 游戏运维告警系统
+
+**Defined:** 2026-04-09
+**Core Value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
+
+## v1 Requirements
+
+### Backend Cleanup
+
+- [ ] **BEAI-01**: 服务启动后不再初始化或依赖任何 AI 客户端与 AI 专用配置结构
+- [ ] **BEAI-02**: 认证后的 API 中不再暴露任何 `/api/v1/ai` 相关接口
+- [ ] **BEAI-03**: 告警读取、统计、确认、快速静默、Webhook 接入和通知分发流程在移除 AI 后仍可正常工作
+
+### Frontend Cleanup
+
+- [ ] **FEAI-01**: 前端导航、路由和页面中不再出现 AI 助手、AI 聊天、AI 日志或 AI 静默推荐入口
+- [ ] **FEAI-02**: 告警详情、列表和仪表盘中不再展示 AI 分析、AI 根因、AI 建议或“问 AI”操作
+- [ ] **FEAI-03**: 前端 API 客户端、类型定义和状态使用中不再依赖 AI 相关请求或字段
+
+### Data and Config Cleanup
+
+- [ ] **DATA-01**: 环境变量、配置项、README、页面标题和测试文案不再要求或宣传 AI 配置
+- [ ] **DATA-02**: 仅供 AI 使用的模型、记录或推荐数据结构在代码中被移除或明确与运行路径脱钩
+
+### Verification
+
+- [ ] **VER-01**: 至少有一组后端验证证明非 AI 核心告警接口和启动流程在移除后仍然可用
+- [ ] **VER-02**: 至少有一组前端验证证明应用在无 AI 页面和无 AI 字段后仍能构建或通过静态检查
+
+## v2 Requirements
+
+### Follow-up Hardening
+
+- **HARD-01**: 为更多配置管理与告警处理路径补充自动化测试
+- **HARD-02**: 评估是否需要对数据库中历史 AI 字段或表做迁移清理
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| 用规则引擎替代 AI 建议 | 不属于本轮“移除 AI”范围 |
+| 重构整个前端视觉设计 | 本轮只做 AI 相关入口与文案清理 |
+| 重写通知、路由或 Webhook 处理架构 | 与 AI 移除无直接关系，风险过高 |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| BEAI-01 | Phase 1 | Pending |
+| BEAI-02 | Phase 1 | Pending |
+| BEAI-03 | Phase 1 | Pending |
+| FEAI-01 | Phase 2 | Pending |
+| FEAI-02 | Phase 2 | Pending |
+| FEAI-03 | Phase 2 | Pending |
+| DATA-01 | Phase 3 | Pending |
+| DATA-02 | Phase 3 | Pending |
+| VER-01 | Phase 3 | Pending |
+| VER-02 | Phase 3 | Pending |
+
+**Coverage:**
+- v1 requirements: 10 total
+- Mapped to phases: 10
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-04-09*
+*Last updated: 2026-04-09 after initial definition*

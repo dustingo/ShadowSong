@@ -58,13 +58,13 @@ Plans:
   1. README, page title, and user-facing copy no longer describe the product as an AI alert system.
   2. Environment/config documentation no longer requires AI-related variables for normal setup.
   3. Backend and frontend each have at least one verification path confirming the non-AI build still works.
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
 
 Plans:
-- [ ] 03-01: Clean docs, naming, and environment/config references
-- [ ] 03-02: Remove or isolate remaining AI-only schema/data references
-- [ ] 03-03: Add and run basic backend/frontend verification
+- [ ] 03-01-PLAN.md — Clean README, user-facing naming, and local env/config references
+- [ ] 03-02-PLAN.md — Refresh codebase maps and isolate remaining AI-only schema/data references
+- [ ] 03-03-PLAN.md — Add explicit non-AI backend/frontend verification paths and final evidence
 
 ## Progress
 

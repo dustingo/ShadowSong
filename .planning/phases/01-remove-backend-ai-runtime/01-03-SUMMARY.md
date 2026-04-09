@@ -16,7 +16,7 @@ tech-stack:
   patterns: ["用轻量单测锁定配置/路由回归点", "用单命令脚本验证真实后端告警闭环"]
 key-files:
   created: [".planning/phases/01-remove-backend-ai-runtime/01-03-SUMMARY.md", "scripts/verify_backend_no_ai.ps1"]
-  modified: ["internal/config/config_test.go", "internal/router/router_test.go"]
+  modified: ["internal/config/config_test.go", "internal/router/router_test.go", "internal/handlers/webhook.go", "internal/handlers/webhook_test.go"]
 key-decisions:
   - "保留 Wave 3 的单元级回归测试，脚本则专注验证真实 webhook、通知分发与 ack/quick silence 闭环"
   - "将临时通知接收器改为 PowerShell HttpListener，避免 go run 子进程在当前环境下不稳定导致假阴性"
@@ -45,6 +45,7 @@ completed: 2026-04-09
 - 新增 `internal/config/config_test.go`，锁定 `config.Load()` 在没有任何 AI 环境变量时仍可返回有效配置。
 - 新增 `internal/router/router_test.go`，断言核心路由仍存在且 `/api/v1/ai` 已从路由表中移除。
 - 新增 `scripts/verify_backend_no_ai.ps1`，自动启动依赖、创建最小测试数据、验证 webhook 接入、通知分发、告警读取、统计、ack、quick silence 与 `/api/v1/ai/chat=404`。
+- 修复 `internal/handlers/webhook.go` 中 `P0-P3` 严重级别被错误重映射的问题，并新增回归测试避免闭环脚本再次被假阴性阻塞。
 
 ## Task Commits
 
@@ -52,12 +53,15 @@ Each task was committed atomically:
 
 1. **Task 1: 为无 AI 配置和路由裁剪补充回归测试** - `ad3fa77` (test)
 2. **Task 2: 增加无 AI 启动与核心告警闭环验证脚本** - `66ac0cb` (test)
+3. **Rule 1 Auto-fix: 修复 webhook severity 归一化阻塞问题** - `9fe3258` (fix)
 
 ## Files Created/Modified
 
 - `internal/config/config_test.go` - 覆盖无 AI 环境变量场景下的配置加载回归。
 - `internal/router/router_test.go` - 覆盖核心路由保留与 AI 路由移除回归。
 - `scripts/verify_backend_no_ai.ps1` - 自动化验证非 AI 后端启动与核心告警闭环。
+- `internal/handlers/webhook.go` - 修正 `P0-P3` 输入在 webhook 接入阶段被误降级的问题。
+- `internal/handlers/webhook_test.go` - 锁定 webhook severity 归一化行为。
 - `.planning/phases/01-remove-backend-ai-runtime/01-03-SUMMARY.md` - 记录本计划执行结果、提交和验证结论。
 
 ## Verification
@@ -83,11 +87,20 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan intent was preserved. The listener implementation was adjusted during execution to make the scripted verification reliable in this runtime.
+### Auto-fixed Issues
+
+**1. [Rule 1 - Bug] 修复 `P0-P3` severity 在 webhook 接入时被误降级**
+- **Found during:** Task 2
+- **Issue:** `WebhookHandler.mapSeverity` 不能正确保留已经是 `P0-P3` 的输入，`P1` 会被错误映射成 `P2`，导致脚本里的路由规则不命中、通知分发假失败。
+- **Fix:** 在 `internal/handlers/webhook.go` 中直接识别 `p0-p3`，并新增 `internal/handlers/webhook_test.go` 回归测试覆盖该分支。
+- **Files modified:** `internal/handlers/webhook.go`, `internal/handlers/webhook_test.go`
+- **Commit:** `9fe3258`
 
 ## Issues Encountered
 
-- 初版脚本中的临时通知接收器未稳定监听目标端口，导致 `notification_dispatch` 观察失败；改为 PowerShell `HttpListener` 后闭环验证通过。
+- 初版脚本中的健康检查轮询把连接拒绝当成致命错误，修正后才能稳定等待服务 ready。
+- 真实 webhook 验证暴露了 severity 归一化 bug；修复后通知路由才按预期命中。
+- 脚本清理阶段需要用 `taskkill /T /F` 回收 `go run` 产生的进程树，避免 Windows 下遗留 server/listener 进程。
 
 ## User Setup Required
 
@@ -103,6 +116,7 @@ None - script provisions the required local data and uses existing `docker-compo
 - Summary file exists: `.planning/phases/01-remove-backend-ai-runtime/01-03-SUMMARY.md`
 - Commit `ad3fa77` found in git history
 - Commit `66ac0cb` found in git history
+- Commit `9fe3258` found in git history
 - Verification commands passed in the current working tree
 
 ---

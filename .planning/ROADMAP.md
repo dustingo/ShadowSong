@@ -26,13 +26,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Server startup no longer depends on AI config or `internal/ai` runtime wiring.
   2. Authenticated API no longer exposes `/api/v1/ai` routes or related handler registrations.
   3. Alert listing, stats, ack, quick silence, webhook ingestion, and notification paths still work after the AI removal changes.
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: no
 
 Plans:
-- [ ] 01-01: Remove AI config, client, router, and handler wiring
-- [ ] 01-02: Remove backend model/runtime references tied only to AI features
-- [ ] 01-03: Verify alert core paths still boot and respond without AI
+- [ ] 01-01-PLAN.md — Remove AI config, client, router, and handler wiring
+- [ ] 01-02-PLAN.md — Remove AI-only backend models, migrations, and runtime wording
+- [ ] 01-03-PLAN.md — Add non-AI backend regression tests and smoke verification
 
 ### Phase 2: Remove Frontend AI Surfaces
 **Goal**: 前端不再暴露任何 AI 页面、入口、字段或调用链，应用导航与核心页面保持可用。
@@ -73,6 +73,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Remove Backend AI Runtime | 0/TBD | Not started | - |
+| 1. Remove Backend AI Runtime | 0/3 | Not started | - |
 | 2. Remove Frontend AI Surfaces | 0/TBD | Not started | - |
 | 3. Align Docs And Verification | 0/TBD | Not started | - |

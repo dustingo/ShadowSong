@@ -11,7 +11,6 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	Server   ServerConfig
-	AI       AIConfig
 	Security SecurityConfig
 }
 type DatabaseConfig struct {
@@ -33,13 +32,6 @@ type RedisConfig struct {
 type ServerConfig struct {
 	Port string
 	Mode string
-}
-
-type AIConfig struct {
-	APIKey  string
-	APIBase string
-	Model   string
-	Timeout time.Duration
 }
 
 type SecurityConfig struct {
@@ -71,12 +63,6 @@ func Load() *Config {
 		Server: ServerConfig{
 			Port: getEnv("SERVER_PORT", "8080"),
 			Mode: getEnv("SERVER_MODE", "debug"),
-		},
-		AI: AIConfig{
-			APIKey:  getEnv("OPENAI_API_KEY", ""),
-			APIBase: getEnv("OPENAI_API_BASE", "https://api.openai.com/v1"),
-			Model:   getEnv("AI_MODEL", "gpt-4"),
-			Timeout: getEnvAsDuration("AI_TIMEOUT", 15*time.Second),
 		},
 		Security: SecurityConfig{
 			JWTSecret:   jwtSecret,

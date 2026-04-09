@@ -1,10 +1,11 @@
 ---
 phase: 02
 slug: remove-frontend-ai-surfaces
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-04-09
+reviewed_at: 2026-04-09T17:40:00+08:00
 ---
 
 # Phase 02 — UI Design Contract
@@ -90,6 +91,7 @@ Product naming contract for this phase: all retained visible labels in touched s
 - Remove the `/ai` route, its sidebar menu item, related icon usage, and `AIAssistant` page exports without leaving empty navigation slots or broken redirects.
 - Keep the current authenticated shell intact: same sider/header/content structure, same navigation order, same light theme, with the AI item simply removed.
 - Dashboard active-alert cards must retain only operational actions that still exist after backend AI removal: `确认` and `静默`. Do not replace the removed AI action with a new workflow.
+- Visual hierarchy on the dashboard remains anchored by the active-alert section: after AI removal, the user's eye should land first on connection warnings and P0/high-severity alerts, then on the active-alert cards/list, with charts and secondary statistics remaining supporting context.
 - Dashboard modal behavior must not be repurposed for analysis. Remove the AI modal entirely; the default alert interaction becomes list review plus direct operational actions.
 - Alert list expanded rows must continue to show operational data such as message and labels only. Remove AI summary/root-cause sections instead of substituting speculative text.
 - When AI-derived fields are absent, no placeholder, badge, chip, or empty container should remain. The layout should collapse cleanly with existing card/table spacing.
@@ -118,4 +120,4 @@ Reason: project uses existing Ant Design components and explicitly avoids introd
 - [ ] Dimension 5 Spacing: PASS
 - [ ] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-04-09

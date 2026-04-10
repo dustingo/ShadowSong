@@ -19,10 +19,12 @@
 - ✓ 移除后端 AI 路由、处理器、客户端和环境配置，服务在无 AI 配置下仍可启动 — Validated in Phase 1
 - ✓ AI 移除后的后端关键路径已有自动化验证，Webhook、通知分发、告警确认与快速静默闭环可跑通 — Validated in Phase 1
 - ✓ 移除前端 AI 页面、入口、调用链和 AI 展示字段，界面不再残留 AI 功能 — Validated in Phase 2
+- ✓ 清理 AI 相关文案、README、本地配置基线和 codebase map，使项目表述与当前能力一致 — Validated in Phase 3
+- ✓ 前端与后端均具备显式的无 AI 验证脚本与阶段证据 — Validated in Phase 3
 
 ### Active
 
-- [ ] 清理 AI 相关数据库模型使用、文案、文档和品牌命名，使项目表述与实际能力一致
+None.
 
 ### Out of Scope
 
@@ -35,11 +37,11 @@
 - 仓库是 brownfield 项目，已经有可运行的 Go 后端和 React 前端。
 - 后端主要位于 `cmd/server/main.go`、`internal/router/router.go`、`internal/handlers/`、`internal/models/`、`internal/notifier/`。
 - 前端主要位于 `frontend/src/App.tsx`、`frontend/src/pages/`、`frontend/src/components/`、`frontend/src/api/client.ts`、`frontend/src/types/index.ts`。
-- 现有 AI 能力分散在 `internal/ai/client.go`、`internal/handlers/ai.go`、`internal/config/config.go`、`internal/models/alert.go`、`internal/models/models.go`、`frontend/src/pages/AIAssistant.tsx`、`frontend/src/components/AlertCard.tsx`、`frontend/src/pages/Dashboard.tsx`、`frontend/src/pages/Alerts.tsx` 等位置。
 - `.planning/codebase/` 已完成代码库地图，可作为后续 phase 规划输入。
 - 当前工作树存在用户未提交改动，初始化与后续规划必须避免覆盖这些改动。
 - Phase 1 已完成：后端 AI 运行时、路由和主要持久化残留已移除。
 - Phase 2 已完成：前端 AI 页面、导航入口、AI 展示字段、共享 API 合同和触达品牌文案已清理，并通过前端构建验证。
+- Phase 3 已完成：README、`.env`、codebase map 和验证资产已与无 AI 产品状态对齐，且前后端验证脚本已落地。
 
 ## Constraints
 
@@ -57,6 +59,7 @@
 | 当前主动工作定义为“移除项目中的 AI 能力，包括前端” | 这是用户当前明确提出的目标，后续 roadmap 与 plan 都围绕该目标展开 | ✓ Good |
 | 保留现有告警主流程，AI 只做删减不做替代实现 | 降低范围扩张风险，保证本轮工作可控 | ✓ Good |
 | 先完成后端 AI 下线与闭环验证，再继续前端清理 | 先锁定服务启动、Webhook、通知和告警处理主链路，减少后续前端阶段的回归面 | ✓ Good |
+| 文档、codebase map 和验证入口必须在 milestone 结束前与无 AI 当前态对齐 | 防止后续规划继续读取过时 AI 信息，并为 phase closure 提供可重复证据 | ✓ Good |
 
 ## Evolution
 
@@ -76,4 +79,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-09 after Phase 2 completion*
+*Last updated: 2026-04-10 after Phase 3 completion*

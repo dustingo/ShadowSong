@@ -34,6 +34,12 @@
 - **HARD-01**: 为更多配置管理与告警处理路径补充自动化测试
 - **HARD-02**: 评估是否需要对数据库中历史 AI 字段或表做迁移清理
 
+### Template Flexibility
+
+- **TMPL-01**: 数据源输出模板在通知渲染时可同时访问标准告警字段与原始 webhook 事件字段
+- **TMPL-02**: 模板上下文与字段访问方式对用户可预期且易用，至少包含清晰的命名约定、示例或测试入口
+- **TMPL-03**: 现有只依赖标准字段的输入/输出模板保持兼容，原有通知链路在开启透传能力后仍可工作
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -56,12 +62,16 @@
 | DATA-02 | Phase 3 | Pending |
 | VER-01 | Phase 1 | Complete |
 | VER-02 | Phase 3 | Pending |
+| TMPL-01 | Phase 4 | Planned |
+| TMPL-02 | Phase 4 | Planned |
+| TMPL-03 | Phase 4 | Planned |
 
 **Coverage:**
 - v1 requirements: 10 total
-- Mapped to phases: 10
+- v2 requirements: 5 total
+- Mapped to phases: 13
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-09*
-*Last updated: 2026-04-09 after Phase 2 completion*
+*Last updated: 2026-04-10 after Phase 4 was added*

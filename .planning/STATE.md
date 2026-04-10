@@ -66,6 +66,10 @@ Recent decisions affecting current work:
 - Phase 2 completed: frontend AI route, rendering, contracts, and branding entry points removed with build verification
 - Phase 3 completed: docs/codebase maps aligned to non-AI product state and backend/frontend verification entrypoints added
 
+### Roadmap Evolution
+
+- Phase 4 added: Enable raw event passthrough in notification templates
+
 ### Pending Todos
 
 None.

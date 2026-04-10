@@ -86,7 +86,9 @@ Phases execute in numeric order: 1 -> 2 -> 3
   1. 数据源 `output_template` 在保留现有标准字段的同时，可以访问原始事件字段或扩展上下文。
   2. 用户可以通过稳定、可预期的模板变量写法引用嵌套 JSON 字段，而不必反向推测后端内部 `Alert` 模型。
   3. 现有仅依赖标准字段的通知模板继续可用，且至少有一条验证路径证明原始字段透传后的通知内容完整。
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 4 to break down)
+- [ ] 04-01-PLAN.md — Lock the backend output-template contract for standard fields plus raw event passthrough
+- [ ] 04-02-PLAN.md — Add datasource preview APIs and in-product template guidance for the new contract
+- [ ] 04-03-PLAN.md — Script end-to-end passthrough verification and record Phase 04 evidence

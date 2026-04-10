@@ -900,27 +900,42 @@ func (h *WebhookHandler) renderNotificationPreview(alert *models.Alert, tmplStr 
 }
 
 func (h *WebhookHandler) buildNotificationRenderContext(alert *models.Alert) map[string]interface{} {
-	data := map[string]interface{}{
-		"alert_id":     alert.AlertID,
-		"alert_name":   alert.AlertName,
-		"severity":     alert.Severity,
-		"message":      alert.Message,
-		"source":       alert.Source,
-		"status":       alert.Status,
-		"trigger_time": alert.TriggerTime.Format(time.RFC3339),
-		"labels":       decodeJSONMap(alert.Labels),
+	event := decodeJSONMap(alert.Raw)
+	severityRaw := ""
+	if raw := lookupString(event, "severity", "level", "priority"); raw != "" {
+		severityRaw = raw
+	}
+	if severityRaw == "" {
+		if labels, ok := event["labels"].(map[string]interface{}); ok {
+			severityRaw = lookupString(labels, "severity", "level", "priority")
+		}
 	}
 
-	data["event"] = decodeJSONMap(alert.Raw)
+	data := map[string]interface{}{
+		"alert_id":      alert.AlertID,
+		"alert_name":    alert.AlertName,
+		"severity":      alert.Severity,
+		"severity_code": alert.Severity,
+		"severity_raw":  severityRaw,
+		"message":       alert.Message,
+		"source":        alert.Source,
+		"status":        alert.Status,
+		"trigger_time":  alert.TriggerTime.Format(time.RFC3339),
+		"labels":        decodeJSONMap(alert.Labels),
+	}
+
+	data["event"] = event
 	data["alert"] = map[string]interface{}{
-		"id":           alert.AlertID,
-		"name":         alert.AlertName,
-		"severity":     alert.Severity,
-		"message":      alert.Message,
-		"source":       alert.Source,
-		"status":       alert.Status,
-		"trigger_time": alert.TriggerTime.Format(time.RFC3339),
-		"labels":       data["labels"],
+		"id":            alert.AlertID,
+		"name":          alert.AlertName,
+		"severity":      alert.Severity,
+		"severity_code": alert.Severity,
+		"severity_raw":  severityRaw,
+		"message":       alert.Message,
+		"source":        alert.Source,
+		"status":        alert.Status,
+		"trigger_time":  alert.TriggerTime.Format(time.RFC3339),
+		"labels":        data["labels"],
 	}
 
 	return data
@@ -998,6 +1013,20 @@ func marshalRawAlertData(data map[string]interface{}, fallback []byte) []byte {
 	}
 
 	return encoded
+}
+
+func lookupString(m map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		value, ok := m[key]
+		if !ok || value == nil {
+			continue
+		}
+		result := strings.TrimSpace(fmt.Sprintf("%v", value))
+		if result != "" && result != "<nil>" {
+			return result
+		}
+	}
+	return ""
 }
 
 // contains 检查切片是否包含元素

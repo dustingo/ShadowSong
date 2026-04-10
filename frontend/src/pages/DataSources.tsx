@@ -351,12 +351,18 @@ export const DataSources: React.FC = () => {
           <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <Text strong>模板字段契约</Text>
-              <Text>旧模板继续使用顶层字段：`alert_name`、`severity`、`message`、`source`、`status`、`trigger_time`、`labels`。</Text>
-              <Text>原始 webhook JSON 通过 `event` 暴露，适合直接读取 `event.summary`、`event.annotations.runbook` 这类嵌套字段。</Text>
+              <Text>{'旧模板继续使用顶层字段：`alert_name`、`severity`、`message`、`source`、`status`、`trigger_time`、`labels`。'}</Text>
+              <Text>{'其中 `severity` / `severity_code` 是系统标准化后的等级：`critical -> P0`、`warning/error -> P1`、`info -> P2`、`debug -> P3`。'}</Text>
+              <Text>{'如果你想判断原始 webhook 值，直接用 `severity_raw` 或 `event.severity`。原始 webhook JSON 也会完整暴露在 `event` 上。'}</Text>
               <Paragraph style={{ marginBottom: 0 }}>
-                示例：
+                标准化等级示例：
                 <br />
-                <Text code>{`{"title":"[{{.severity}}] {{.alert_name}}","content":"{{default .event.annotations.runbook \"无 runbook\"}}"}`}</Text>
+                <Text code>{`{"title":"[{{.severity_code}}] {{.alert_name}}","content":"{{default .event.annotations.runbook \"无 runbook\"}}"}`}</Text>
+              </Paragraph>
+              <Paragraph style={{ marginBottom: 0 }}>
+                原始 severity 示例：
+                <br />
+                <Text code>{`{{ if eq .severity_raw "critical" }}严重告警{{ else if eq .severity_raw "warning" }}一般告警{{ else }}提示信息{{ end }}`}</Text>
               </Paragraph>
             </Space>
           </Card>

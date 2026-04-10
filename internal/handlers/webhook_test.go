@@ -104,8 +104,40 @@ func TestWebhookHandler_renderNotification(t *testing.T) {
 			assert.Contains(t, renderContext, "alert")
 			assert.Contains(t, renderContext, "alert_name")
 			assert.Contains(t, renderContext, "labels")
+			assert.Contains(t, renderContext, "severity_code")
+			assert.Contains(t, renderContext, "severity_raw")
+			assert.Equal(t, "P1", renderContext["severity_code"])
+			assert.Equal(t, "P1", renderContext["severity"])
+			if tt.name == "exposes raw event payload" {
+				assert.Equal(t, "cpu high", renderContext["event"].(map[string]interface{})["summary"])
+			}
 		})
 	}
+}
+
+func TestWebhookHandler_buildNotificationRenderContext_ExposesSeverityAliases(t *testing.T) {
+	handler := &WebhookHandler{}
+	alert := &models.Alert{
+		AlertID:     "alert-2",
+		AlertName:   "CPUHigh",
+		Severity:    "P0",
+		Message:     "CPU usage above 95%",
+		Source:      "prometheus",
+		Status:      "firing",
+		TriggerTime: time.Date(2026, 4, 10, 7, 0, 0, 0, time.UTC),
+		Labels:      datatypes.JSON(`{"instance":"game-02"}`),
+		Raw:         datatypes.JSON(`{"severity":"critical","labels":{"severity":"critical"}}`),
+	}
+
+	renderContext := handler.buildNotificationRenderContext(alert)
+	alertContext := renderContext["alert"].(map[string]interface{})
+
+	assert.Equal(t, "P0", renderContext["severity"])
+	assert.Equal(t, "P0", renderContext["severity_code"])
+	assert.Equal(t, "critical", renderContext["severity_raw"])
+	assert.Equal(t, "P0", alertContext["severity"])
+	assert.Equal(t, "P0", alertContext["severity_code"])
+	assert.Equal(t, "critical", alertContext["severity_raw"])
 }
 
 func TestMarshalRawAlertData_PrefersIndividualAlertObject(t *testing.T) {

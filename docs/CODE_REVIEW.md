@@ -1,7 +1,7 @@
 # Go 代码审查报告
 
-**项目**: AI Alert System (shadowsongAI)
-**审查日期**: 2026-03-12
+**项目**: 游戏运维告警系统 (shadowsongAI)
+**审查日期**: 2026-03-16
 **审查范围**: 全部Go源文件
 
 ---
@@ -22,111 +22,119 @@
 
 | 序号 | 文件 | 行号 | 问题类型 | 描述 |
 |------|------|------|----------|------|
-| 1 | `config.go` | 77 | 安全风险 | JWT Secret 使用默认值 "default-secret-change-in-production" |
-| 2 | `postgres.go` | 95 | 安全风险 | 硬编码默认管理员密码 "admin123" |
-| 3 | `router.go` | 18 | 安全风险 | CORS 允许所有来源 (`*`) |
+| 1 | `config.go` | 51-55 | 安全风险 | JWT Secret 已在上一版本修复为必填，但需确认无默认值 |
+| 2 | `postgres.go` | 82 | 安全风险 | 使用密码生成器生成随机密码，但仍需确认安全性 |
+| 3 | `router.go` | 19 | 安全风险 | CORS 只允许 `http://127.0.0.1`，生产环境需可配置 |
 
 ### 🟠 HIGH (应该修复)
 
 | 序号 | 文件 | 行号 | 问题类型 | 描述 |
 |------|------|------|----------|------|
-| 1 | `handlers/user.go` | 90 | 逻辑错误 | Token 验证逻辑有误，`parts` 被赋值为字符串长度而非分割结果 |
-| 2 | `webhook.go` | 184 | 潜在问题 | Goroutine 没有错误传播机制 |
-| 3 | `alert.go` | 150 | 错误处理 | 创建 SilenceRule 错误被忽略 |
-| 4 | `alert.go` | 27-40 | 输入验证 | Query 参数未做验证直接用于 SQL 查询 |
-| 5 | `handlers/ai.go` | 74 | 错误处理 | 查询 Alert 错误被忽略 |
-| 6 | `webhook.go` | 523 | 错误处理 | json.Unmarshal 错误被忽略 |
+| 1 | `user.go` | 186 | 权限漏洞 | 非管理员可修改其他用户角色 |
+| 2 | `webhook.go` | 184 | Goroutine | 异步处理无错误传播机制，panic会导致崩溃 |
+| 3 | `alert.go` | 153 | 错误处理 | 创建 SilenceRule 错误被忽略 |
+| 4 | `alert.go` | 52 | 错误处理 | 查询错误后未 return，继续执行 |
+| 5 | `alert.go` | 27-40 | 输入验证 | Query参数未做验证直接用于SQL查询 |
+| 6 | `webhook.go` | 523, 767 | 错误处理 | json.Unmarshal 错误被忽略 |
+| 7 | `config.go` | 52 | 用户体验 | JWT缺失时直接os.Exit，缺少友好提示 |
 
 ### 🟡 MEDIUM (建议改进)
 
 | 序号 | 文件 | 行号 | 问题类型 | 描述 |
 |------|------|------|----------|------|
 | 1 | 多个文件 | - | 代码注释 | 缺少导出函数的 Godoc 注释 |
-| 2 | `postgres.go` | 40-41 | 性能 | 未配置连接池超时和连接生命周期 |
-| 3 | `redis.go` | 20 | 最佳实践 | 使用 context.Background() 而非带超时的 context |
-| 4 | `handlers/alert.go` | 44-45 | 最佳实践 | 分页参数未限制最大值 |
-| 5 | `webhook.go` | 444-458 | 代码简化 | 自定义正则匹配函数可以移除（Go 有标准库） |
-| 6 | `handlers/user.go` | 66, 121, 134 | 最佳实践 | 重复的密码哈希清除逻辑可以提取为方法 |
-| 7 | `middleware/auth.go` | 29 | 最佳实践 | 使用 strings.Cut 更简洁 |
+| 2 | `postgres.go` | 40-42 | 性能 | 连接池参数可优化 |
+| 3 | `redis.go` | 20 | 最佳实践 | 使用带超时的 context |
+| 4 | `alert.go` | 44-45 | 最佳实践 | 分页参数未限制最大值 |
+| 5 | `webhook.go` | 444-458 | 代码简化 | 自定义正则匹配可使用标准库 |
+| 6 | `user.go` | 66, 121, 134 | 代码复用 | 重复的密码哈希清除逻辑可提取 |
+| 7 | `middleware/auth.go` | 29 | 代码优化 | 使用 strings.Cut 更简洁 |
+| 8 | 多处 | - | 日志规范 | 使用 fmt.Println/log.Printf，建议统一使用 slog |
+| 9 | `websocket.go` | 102-109 | 资源泄漏 | goroutine未正确退出机制 |
+| 10 | `webhook.go` | 1003-1013 | 未使用 | CleanAlerts 函数未被调用 |
 
 ---
 
-## 详细问题说明
+## 新增问题详细说明
 
-### 1. CRITICAL - JWT Secret 默认值
+### 1. CRITICAL - CORS 配置不灵活
 
-**文件**: `internal/config/config.go:77`
+**文件**: `internal/router/router.go:19`
 
 ```go
-JWTSecret: getEnv("JWT_SECRET", "default-secret-change-in-production"),
+c.Writer.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1")
 ```
 
-**问题**: 生产环境使用默认 secret 会导致 JWT 安全风险。
+**问题**: 硬编码只允许本机访问，生产环境需要可配置的允许源列表。
 
 **建议**:
 ```go
-func Load() *Config {
-    jwtSecret := getEnv("JWT_SECRET", "")
-    if jwtSecret == "" {
-        log.Fatal("JWT_SECRET environment variable is required")
-    }
-    // ...
+// config.go 添加
+type ServerConfig struct {
+    Port            string
+    Mode            string
+    AllowedOrigins []string
 }
-```
 
----
-
-### 2. CRITICAL - 硬编码默认密码
-
-**文件**: `internal/database/postgres.go:95`
-
-```go
-log.Println("Default admin user created: admin / admin123")
-```
-
-**问题**: 硬编码密码在代码库中，且日志会输出密码。
-
-**建议**: 使用环境变量或配置生成随机密码。
-
----
-
-### 3. CRITICAL - CORS 允许所有来源
-
-**文件**: `internal/router/router.go:18`
-
-```go
-c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-```
-
-**问题**: 生产环境不应允许所有来源。
-
-**建议**:
-```go
-allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+// router.go
+allowedOrigins := cfg.Server.AllowedOrigins
+if len(allowedOrigins) == 0 {
+    allowedOrigins = []string{"http://127.0.0.1"}
+}
+origin := c.Request.Header.Get("Origin")
 // 验证 origin 是否在允许列表中
 ```
 
 ---
 
-### 4. HIGH - Token 验证逻辑错误
+### 2. HIGH - 用户权限漏洞
 
-**文件**: `internal/handlers/user.go:90-91`
+**文件**: `internal/handlers/user.go:186`
 
 ```go
-parts := len(authHeader)
-if parts < 8 || authHeader[:7] != "Bearer " {
+if currentUserID != uint(id) && currentUserRole != "admin" {
+    c.JSON(http.StatusForbidden, gin.H{"error": "cannot update other users"})
+    return
+}
+// ...
+if input.Role != "" {
+    user.Role = input.Role  // 任何登录用户都可以修改自己的角色！
+}
 ```
 
-**问题**: `parts` 被赋值为字符串长度（int），而非分割结果。应该是 `strings.Split`。
+**问题**: 代码逻辑允许任何用户修改自己的角色为 admin。
 
+**建议**:
 ```go
-parts := strings.SplitN(authHeader, " ", 2)
-if len(parts) != 2 || parts[0] != "Bearer" {
+if input.Role != "" {
+    if currentUserRole != "admin" {
+        c.JSON(http.StatusForbidden, gin.H{"error": "only admin can change role"})
+        return
+    }
+    user.Role = input.Role
+}
 ```
 
 ---
 
-### 5. HIGH - Goroutine 错误处理
+### 3. HIGH - 错误后未 return
+
+**文件**: `internal/handlers/alert.go:52`
+
+```go
+if err := query.Find(&alerts).Error; err != nil {
+    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    // 缺少 return，会继续执行并返回空列表
+}
+```
+
+**问题**: 错误处理后未 return，导致后续代码继续执行。
+
+**建议**: 添加 `return`
+
+---
+
+### 4. HIGH - Goroutine 缺少 recover
 
 **文件**: `internal/handlers/webhook.go:184`
 
@@ -134,40 +142,56 @@ if len(parts) != 2 || parts[0] != "Bearer" {
 go h.processAlertNotifications(newAlerts)
 ```
 
-**问题**: 异步处理无法返回错误，且 panic 会导致程序崩溃。
-
-**建议**: 使用 errgroup 或通道传递错误。
-
----
-
-### 6. HIGH - 忽略的错误
-
-**文件**: `internal/handlers/alert.go:150`
-
-```go
-h.db.Create(&silence)  // 错误被忽略
-```
+**问题**: 异步处理 panic 会导致程序崩溃。
 
 **建议**:
 ```go
-if err := h.db.Create(&silence).Error; err != nil {
-    log.Printf("Warning: failed to create silence rule: %v", err)
-}
+go func() {
+    defer func() {
+        if r := recover(); r != nil {
+            log.Printf("panic in processAlertNotifications: %v", r)
+        }
+    }()
+    h.processAlertNotifications(newAlerts)
+}()
 ```
 
 ---
 
-### 7. MEDIUM - Query 参数未验证
+### 5. MEDIUM - 日志不统一
 
-**文件**: `internal/handlers/alert.go:27-40`
+多个文件使用 `fmt.Println` 和 `log.Printf`，建议统一使用 Go 1.21+ 的 `slog` 包。
 
+**示例**:
 ```go
-if severity := c.Query("severity"); severity != "" {
-    query = query.Where("severity = ?", severity)  // 直接使用未验证
-}
+// 替换前
+log.Printf("Starting server on port %s", port)
+
+// 替换后
+slog.Info("starting server", "port", port)
 ```
 
-**建议**: 添加输入验证，确保 severity 在允许的值范围内。
+---
+
+### 6. MEDIUM - WebSocket goroutine 泄漏
+
+**文件**: `internal/handlers/websocket.go:102-109`
+
+```go
+go func() {
+    for {
+        time.Sleep(30 * time.Second)
+        err := conn.WriteMessage(websocket.PingMessage, []byte{})
+        if err != nil {
+            break  // 只退出 for 循环，未关闭 goroutine
+        }
+    }
+}()
+```
+
+**问题**: 当连接断开时，goroutine 不会自动退出。
+
+**建议**: 添加 context 或 signal 机制管理 goroutine 生命周期。
 
 ---
 
@@ -177,26 +201,38 @@ if severity := c.Query("severity"); severity != "" {
 2. **GORM Hooks**: 使用 BeforeCreate/BeforeUpdate 进行数据验证
 3. **JWT 实现**: 使用 golang-jwt 库，标准的 claims 结构
 4. **密码安全**: 使用 bcrypt 加密
-5. **WebHook 处理**: 完善的模板渲染和去重逻辑
+5. **Webhook 处理**: 完善的模板渲染和去重逻辑
+6. **告警指纹**: SHA256 指纹生成实现合理
+7. **通知渠道**: 多种通知渠道支持 (飞书、钉钉、企业微信、Webhook)
+8. **运维告警闭环**: Webhook 接入、路由分发、通知发送与告警处理链路完整
 
 ---
 
 ## 改进建议优先级
 
 ### 立即修复 (CRITICAL)
-- [ ] JWT Secret 改为必填环境变量
-- [ ] 移除硬编码密码
-- [ ] 配置化 CORS
+- [x] JWT Secret 必填 - 已修复
+- [ ] 配置化 CORS 允许源
+- [ ] 确认密码生成安全性
 
 ### 尽快修复 (HIGH)
-- [ ] 修复 user.go:90 逻辑错误
-- [ ] 添加错误处理
+- [ ] 修复 user.go 权限漏洞
+- [ ] 添加错误后 return
+- [ ] 为 goroutine 添加 panic recovery
 - [ ] 输入参数验证
 
 ### 后续优化 (MEDIUM)
+- [ ] 统一使用 slog 日志
 - [ ] 添加导出函数 Godoc
-- [ ] 优化分页参数
-- [ ] 统一错误处理模式
+- [ ] 优化分页参数限制
+- [ ] 清理未使用代码
+
+---
+
+## 测试覆盖评估
+
+- `internal/models/alert_test.go` - 存在基础测试
+- **建议**: 增加更多单元测试，特别是 handlers 层
 
 ---
 
@@ -204,8 +240,21 @@ if severity := c.Query("severity"); severity != "" {
 
 | 级别 | 数量 |
 |------|------|
-| CRITICAL | 3 |
-| HIGH | 6 |
-| MEDIUM | 7 |
+| CRITICAL | 3 (1已修复) |
+| HIGH | 7 |
+| MEDIUM | 10 |
 
-**建议**: 优先修复 CRITICAL 和 HIGH 级别问题，确保系统安全性和稳定性后再进行代码优化。
+**整体评分**: 7.5/10
+
+**优点**:
+- 代码结构清晰，模块化良好
+- 功能完整，告警处理流程完善
+- 安全基础良好 (JWT, bcrypt)
+
+**需要改进**:
+- 安全配置需可配置化
+- 错误处理需更完善
+- 日志需统一
+- 需增加测试覆盖
+
+**建议**: 优先修复 HIGH 级别问题，确保系统安全性和稳定性。

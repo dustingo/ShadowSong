@@ -1,6 +1,6 @@
-# 游戏运维 AI 告警系统
+# 游戏运维告警系统
 
-智能化的告警管理平台，用于统一接收、处理、聚合和分发来自多个数据源的告警信息。
+面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合和分发来自多个数据源的告警信息。
 
 ## 技术栈
 
@@ -46,10 +46,13 @@ make docker-up
 ```
 
 2. 配置环境变量：
-```bash
-cp .env.example .env
-# 编辑 .env 文件，配置必要的参数
-```
+
+正常启动后端只需要数据库、Redis、服务端口和 JWT 相关配置。仓库根目录已提供本地开发用的 `.env` 基线，可按实际环境调整以下配置：
+
+- `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`
+- `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` / `REDIS_DB`
+- `SERVER_PORT` / `SERVER_MODE`
+- `JWT_SECRET` / `TOKEN_EXPIRY`
 
 3. 启动后端服务：
 ```bash
@@ -80,7 +83,6 @@ make frontend-dev
 │   ├── handlers/        # HTTP 处理器
 │   ├── router/          # 路由配置
 │   ├── processor/       # 告警处理器
-│   ├── ai/              # AI 分析器
 │   └── notifier/        # 通知推送
 ├── frontend/            # 前端项目
 └── docker-compose.yml   # Docker 配置
@@ -103,7 +105,7 @@ make frontend-build    # 构建前端生产版本
 
 启动服务后访问 http://localhost:8080/api/v1/ping 测试 API 连接。
 
-详细 API 文档请参考 `.kiro/specs/ai-alert-system/design.md`。
+当前接口以 Gin 路由和 `internal/handlers/` 中的实现为准；常用接口包括认证、告警列表/统计、配置管理、Webhook 接入和 WebSocket 推送。
 
 ## 许可证
 

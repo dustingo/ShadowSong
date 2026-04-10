@@ -20,6 +20,7 @@ func TestSetup_RoutesWithoutAIRuntime(t *testing.T) {
 				"/health",
 				"/api/v1/alerts",
 				"/api/v1/alerts/stats",
+				"/api/v1/datasources/preview",
 				"/webhook/test-template",
 			},
 			forbiddenPath: "/api/v1/ai",

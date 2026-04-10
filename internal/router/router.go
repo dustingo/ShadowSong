@@ -16,7 +16,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	// CORS middleware
 	r.Use(func(c *gin.Context) {
 		// 测试阶段暂时只允许本机
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1")
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1, http://localhost")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
@@ -87,6 +87,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			datasources.GET("", configHandler.ListDataSources)
 			datasources.GET("/:id", configHandler.GetDataSource)
 			datasources.POST("", configHandler.CreateDataSource)
+			datasources.POST("/preview", configHandler.PreviewDataSource)
 			datasources.PUT("/:id", configHandler.UpdateDataSource)
 			datasources.DELETE("/:id", configHandler.DeleteDataSource)
 			datasources.PATCH("/:id/toggle", configHandler.ToggleDataSource)

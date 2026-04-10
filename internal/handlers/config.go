@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -141,6 +143,90 @@ func (h *ConfigHandler) ToggleDataSource(c *gin.Context) {
 	ds.Enabled = input.Enabled
 	h.db.Save(&ds)
 	c.JSON(http.StatusOK, ds)
+}
+
+func (h *ConfigHandler) PreviewDataSource(c *gin.Context) {
+	var input struct {
+		DataSourceID   uint            `json:"datasource_id"`
+		SourceName     string          `json:"source_name"`
+		InputTemplate  string          `json:"input_template"`
+		OutputTemplate string          `json:"output_template"`
+		SamplePayload  json.RawMessage `json:"sample_payload" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var ds models.DataSource
+	if input.DataSourceID > 0 {
+		if err := h.db.First(&ds, input.DataSourceID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"error": "data source not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	if strings.TrimSpace(input.InputTemplate) == "" {
+		input.InputTemplate = ds.InputTemplate
+	}
+	if strings.TrimSpace(input.OutputTemplate) == "" {
+		input.OutputTemplate = ds.OutputTemplate
+	}
+	if strings.TrimSpace(input.SourceName) == "" {
+		if ds.Name != "" {
+			input.SourceName = ds.Name
+		} else {
+			input.SourceName = "preview"
+		}
+	}
+
+	if strings.TrimSpace(input.InputTemplate) == "" || strings.TrimSpace(input.OutputTemplate) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "input_template and output_template are required for preview"})
+		return
+	}
+
+	var rawData interface{}
+	if err := json.Unmarshal(input.SamplePayload, &rawData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid sample_payload: " + err.Error()})
+		return
+	}
+
+	webhookHandler := NewWebhookHandler(h.db, nil)
+	alerts := webhookHandler.normalizeData(rawData)
+	if len(alerts) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sample_payload must be a JSON object or array containing at least one object"})
+		return
+	}
+
+	alert, err := webhookHandler.renderAlert(alerts[0], input.InputTemplate, input.SourceName, input.SamplePayload)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("input template render error: %v", err)})
+		return
+	}
+
+	title, content, renderContext, err := webhookHandler.renderNotificationPreview(&alert, input.OutputTemplate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("output template render error: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"normalized_alert": alert,
+		"rendered": gin.H{
+			"title":   title,
+			"content": content,
+		},
+		"context_preview": gin.H{
+			"top_level_keys": sortedKeys(renderContext),
+			"event_keys":     sortedKeysFromValue(renderContext["event"]),
+			"label_keys":     sortedKeysFromValue(renderContext["labels"]),
+			"alert_keys":     sortedKeysFromValue(renderContext["alert"]),
+		},
+	})
 }
 
 // ============ Channel ============
@@ -536,4 +622,21 @@ func maskChannelConfig(chType string, config []byte) []byte {
 		return []byte(`{"masked": true}`)
 	}
 	return config
+}
+
+func sortedKeys(input map[string]interface{}) []string {
+	keys := make([]string, 0, len(input))
+	for key := range input {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func sortedKeysFromValue(input interface{}) []string {
+	m, ok := input.(map[string]interface{})
+	if !ok {
+		return []string{}
+	}
+	return sortedKeys(m)
 }

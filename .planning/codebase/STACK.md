@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-04-09
+**Analysis Date:** 2026-04-10
 
 ## Languages
 
@@ -66,7 +66,7 @@
 - `@vitejs/plugin-react` `^4.2.1` - Vite React integration in `frontend/package.json` and `frontend/vite.config.ts`
 - `echarts` `^5.4.3` and `echarts-for-react` `^3.0.2` - dashboard charting in `frontend/src/pages/Dashboard.tsx`
 - `@monaco-editor/react` `^4.6.0` - in-browser editor component in `frontend/src/components/CodeEditor.tsx`
-- `react-markdown` `^10.1.0` - AI/markdown rendering in `frontend/src/pages/AIAssistant.tsx` and `frontend/src/pages/Dashboard.tsx`
+- `react-markdown` `^10.1.0` - markdown rendering in `frontend/src/pages/Dashboard.tsx`
 - `dayjs` `^1.11.19` - date formatting in `frontend/src/components/AlertCard.tsx` and multiple `frontend/src/pages/*.tsx`
 
 ## Configuration
@@ -78,7 +78,6 @@
 - Database vars: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE` in `internal/config/config.go`
 - Redis vars: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` in `internal/config/config.go`
 - Server vars: `SERVER_PORT`, `SERVER_MODE` in `internal/config/config.go`
-- AI vars: `OPENAI_API_KEY`, `OPENAI_API_BASE`, `AI_MODEL`, `AI_TIMEOUT` in `internal/config/config.go`
 - Token expiry var: `TOKEN_EXPIRY` in `internal/config/config.go`
 - `.env` file is present at project root; contents not inspected
 
@@ -104,4 +103,4 @@
 
 ---
 
-*Stack analysis: 2026-04-09*
+*Stack analysis: 2026-04-10*

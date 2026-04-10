@@ -1,6 +1,6 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-04-09
+**Analysis Date:** 2026-04-10
 
 ## Directory Layout
 
@@ -9,7 +9,6 @@ shadowsongAI/
 ├── cmd/                 # Go process entrypoints
 │   └── server/          # HTTP server bootstrap
 ├── internal/            # Backend application code
-│   ├── ai/              # OpenAI-compatible client wrapper
 │   ├── auth/            # JWT token utilities
 │   ├── config/          # Environment-backed config loading
 │   ├── database/        # PostgreSQL and Redis setup
@@ -31,6 +30,7 @@ shadowsongAI/
 │   ├── package.json     # Frontend dependencies and scripts
 │   └── vite.config.ts   # Dev server proxy and alias config
 ├── docs/                # Ad hoc project documentation
+├── scripts/             # Verification and helper scripts
 ├── .planning/           # Planning and codebase maps
 ├── docker-compose.yml   # Local Postgres and Redis services
 ├── go.mod               # Backend module definition
@@ -54,7 +54,7 @@ shadowsongAI/
 
 **`internal/handlers/`:**
 - Purpose: Own HTTP, webhook, and WebSocket endpoint behavior.
-- Contains: `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/ai.go`, `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/websocket.go`
+- Contains: `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/websocket.go`
 - Key files: `internal/handlers/webhook.go`, `internal/handlers/config.go`
 - Guidance: Add a new handler file here when exposing a new endpoint group. Keep route registration in `internal/router/router.go`.
 
@@ -66,7 +66,7 @@ shadowsongAI/
 
 **`frontend/src/pages/`:**
 - Purpose: Route-level UI features.
-- Contains: `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/DataSources.tsx`, `frontend/src/pages/Channels.tsx`, `frontend/src/pages/RouteRules.tsx`, `frontend/src/pages/Silences.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/AIAssistant.tsx`, `frontend/src/pages/Login.tsx`
+- Contains: `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/DataSources.tsx`, `frontend/src/pages/Channels.tsx`, `frontend/src/pages/RouteRules.tsx`, `frontend/src/pages/Silences.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/Login.tsx`
 - Key files: `frontend/src/pages/index.ts`, `frontend/src/pages/Dashboard.tsx`
 - Guidance: Put new navigable screens here and export them through `frontend/src/pages/index.ts`.
 
@@ -118,7 +118,10 @@ shadowsongAI/
 
 **Testing:**
 - `internal/models/alert_test.go`: Existing backend model tests.
-- `docs/CODE_REVIEW.md`: Review notes, not executable tests.
+- `internal/config/config_test.go`: Config loading regression tests after AI runtime removal.
+- `internal/router/router_test.go`: Route presence/absence regression tests.
+- `internal/handlers/webhook_test.go`: Webhook severity normalization regression tests.
+- `scripts/verify_backend_no_ai.ps1`: Backend non-AI verification script.
 
 ## Ownership Boundaries
 
@@ -133,9 +136,9 @@ shadowsongAI/
 - `internal/database/redis.go` owns Redis connection creation only.
 
 **Backend integration boundary:**
-- `internal/ai/client.go` owns outbound AI API calls.
 - `internal/notifier/notifier.go` owns outbound notification-channel protocols.
 - `internal/handlers/webhook.go` is the only place where inbound webhook payloads are translated into internal alerts.
+- `scripts/verify_backend_no_ai.ps1` owns the scripted end-to-end verification path for the retained backend flow.
 
 **Frontend routing boundary:**
 - `frontend/src/App.tsx` owns route registration and navigation shell.
@@ -162,7 +165,7 @@ shadowsongAI/
 
 **New Backend API Feature:**
 - Primary code: `internal/handlers/` for the endpoint, `internal/models/` for schema additions, and `internal/router/router.go` for route registration.
-- Supporting integrations: `internal/ai/`, `internal/notifier/`, or a new `internal/<package>/` directory if the feature introduces a new external boundary.
+- Supporting integrations: `internal/notifier/` or a new `internal/<package>/` directory if the feature introduces a new external boundary.
 - Tests: Place backend tests next to the package, following `internal/models/alert_test.go`.
 
 **New Frontend Screen:**
@@ -204,4 +207,4 @@ shadowsongAI/
 
 ---
 
-*Structure analysis: 2026-04-09*
+*Structure analysis: 2026-04-10*

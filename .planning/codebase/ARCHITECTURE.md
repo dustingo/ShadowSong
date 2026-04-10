@@ -1,10 +1,10 @@
 # Architecture
 
-**Analysis Date:** 2026-04-09
+**Analysis Date:** 2026-04-10
 
 ## Pattern Overview
 
-**Overall:** Monorepo with a server-renderless split between a Go HTTP backend and a React SPA frontend.
+**Overall:** Monorepo with a Go HTTP backend and a React SPA frontend for alert operations.
 
 **Key Characteristics:**
 - `cmd/server/main.go` is the single backend bootstrap and wires config, PostgreSQL, Redis, Gin, and routes in one composition root.
@@ -29,22 +29,22 @@
 
 **Backend Handler Layer:**
 - Purpose: Execute request-specific workflows and persist/query state directly with GORM.
-- Location: `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/ai.go`, `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/websocket.go`
-- Contains: CRUD handlers, AI chat endpoints, webhook ingestion, WebSocket connection management.
-- Depends on: `gorm.DB`, `redis.Client`, `internal/models/*.go`, `internal/ai/client.go`, `internal/notifier/notifier.go`
+- Location: `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/websocket.go`
+- Contains: alert queries and acknowledgement flows, configuration CRUD, user auth/admin endpoints, webhook ingestion, WebSocket connection management.
+- Depends on: `gorm.DB`, `redis.Client`, `internal/models/*.go`, `internal/notifier/notifier.go`
 - Used by: `internal/router/router.go`
 
 **Backend Domain Model Layer:**
 - Purpose: Define persisted entities, JSON shapes, validation hooks, and limited domain helpers.
 - Location: `internal/models/alert.go`, `internal/models/models.go`, `internal/models/user.go`
-- Contains: `Alert`, `User`, `DataSource`, `Channel`, `RouteRule`, `SilenceRule`, `OnDuty`, `AILog`, `SilenceRecommendation`
+- Contains: `Alert`, `User`, `DataSource`, `Channel`, `RouteRule`, `SilenceRule`, `OnDuty`
 - Depends on: GORM and `gorm.io/datatypes`
-- Used by: database initialization, all handlers, notification routing.
+- Used by: database initialization, handlers, notification routing.
 
 **Infrastructure Layer:**
 - Purpose: Encapsulate infrastructure clients and external protocol details.
-- Location: `internal/database/postgres.go`, `internal/database/redis.go`, `internal/auth/jwt.go`, `internal/ai/client.go`, `internal/notifier/notifier.go`
-- Contains: GORM connection setup and migration, Redis client creation, JWT issue/validation, OpenAI-compatible HTTP client, per-channel notification senders.
+- Location: `internal/database/postgres.go`, `internal/database/redis.go`, `internal/auth/jwt.go`, `internal/notifier/notifier.go`
+- Contains: GORM connection setup and migration, Redis client creation, JWT issue/validation, per-channel notification senders.
 - Depends on: env-derived config from `internal/config/config.go`
 - Used by: `cmd/server/main.go`, `internal/router/router.go`, `internal/handlers/*.go`
 
@@ -64,8 +64,8 @@
 
 **Frontend Feature/Page Layer:**
 - Purpose: Render screens and bind UI actions to stores/API calls.
-- Location: `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/DataSources.tsx`, `frontend/src/pages/Channels.tsx`, `frontend/src/pages/RouteRules.tsx`, `frontend/src/pages/Silences.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/AIAssistant.tsx`, `frontend/src/pages/Login.tsx`
-- Contains: route-level screens for every product area.
+- Location: `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/DataSources.tsx`, `frontend/src/pages/Channels.tsx`, `frontend/src/pages/RouteRules.tsx`, `frontend/src/pages/Silences.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/Login.tsx`
+- Contains: route-level screens for every current product area.
 - Depends on: `frontend/src/stores/*.ts`, `frontend/src/api/*.ts`, `frontend/src/components/*.tsx`, `frontend/src/types/index.ts`
 - Used by: `frontend/src/App.tsx`
 
@@ -94,12 +94,6 @@
 3. `internal/handlers/alert.go` runs direct aggregate queries on `models.Alert` and returns summary JSON.
 4. Store state updates drive cards, tables, and charts on `frontend/src/pages/Dashboard.tsx` and `frontend/src/pages/Alerts.tsx`.
 
-**AI Assistant Flow:**
-
-1. `frontend/src/pages/AIAssistant.tsx` sends chat requests through `aiApi.chat` in `frontend/src/api/client.ts`.
-2. `internal/handlers/ai.go` calls `internal/ai/client.go` when `OPENAI_API_KEY` is present, otherwise emits a fallback message.
-3. The handler persists the exchange as `models.AILog` and returns reply text plus canned follow-up suggestions.
-
 **WebSocket Flow:**
 
 1. The browser connects to `/ws/alerts`, proxied by `frontend/vite.config.ts` to the Go server.
@@ -123,7 +117,7 @@
 
 **Handler Structs:**
 - Purpose: Bundle infrastructure dependencies per endpoint area.
-- Examples: `internal/handlers/AlertHandler`, `internal/handlers/ConfigHandler`, `internal/handlers/AIHandler`, `internal/handlers/UserHandler`, `internal/handlers/WebhookHandler`, `internal/handlers/WSHandler`
+- Examples: `internal/handlers/AlertHandler`, `internal/handlers/ConfigHandler`, `internal/handlers/UserHandler`, `internal/handlers/WebhookHandler`, `internal/handlers/WSHandler`
 - Pattern: Thin constructor plus methods bound directly as Gin handlers.
 
 **Configuration Entity Trio:**
@@ -189,4 +183,4 @@
 
 ---
 
-*Architecture analysis: 2026-04-09*
+*Architecture analysis: 2026-04-10*

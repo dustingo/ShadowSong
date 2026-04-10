@@ -1,15 +1,8 @@
 # External Integrations
 
-**Analysis Date:** 2026-04-09
+**Analysis Date:** 2026-04-10
 
 ## APIs & External Services
-
-**AI Services:**
-- OpenAI-compatible chat completion API - used for AI assistant chat and alert analysis in `internal/ai/client.go` and `internal/handlers/ai.go`
-  - SDK/Client: custom `net/http` client in `internal/ai/client.go`
-  - Auth: `OPENAI_API_KEY`
-  - Endpoint base: `OPENAI_API_BASE` defaulting to `https://api.openai.com/v1` in `internal/config/config.go`
-  - Model selection: `AI_MODEL` in `internal/config/config.go`
 
 **Notification Services:**
 - Feishu bot webhook - outbound channel delivery in `internal/notifier/notifier.go`
@@ -60,7 +53,7 @@
   - Implementation: token issuance and validation in `internal/auth/jwt.go`
   - Secret: `JWT_SECRET` required by `internal/config/config.go`
   - Token TTL: `TOKEN_EXPIRY` in `internal/config/config.go`
-  - Protected routes: JWT middleware on `/api/v1/users`, `/alerts`, `/datasources`, `/channels`, `/routes`, `/silences`, `/onduty`, and `/ai` in `internal/router/router.go`
+  - Protected routes: JWT middleware on `/api/v1/users`, `/alerts`, `/datasources`, `/channels`, `/routes`, `/silences`, and `/onduty` in `internal/router/router.go`
   - Frontend persistence: bearer token stored in browser `localStorage` in `frontend/src/api/client.ts`, `frontend/src/api/auth.ts`, and Zustand user store under `frontend/src/stores/`
 
 **Ingress API Authentication:**
@@ -73,7 +66,7 @@
 
 **Logs:**
 - Standard library logging via `log` and structured `slog` in `cmd/server/main.go`, `internal/config/config.go`, `internal/database/postgres.go`, and `internal/database/redis.go`
-- AI interactions are persisted as application records in `models.AILog` via `internal/handlers/ai.go`
+- Webhook and WebSocket flows emit operational diagnostics from `internal/handlers/webhook.go` and `internal/handlers/websocket.go`
 
 ## CI/CD & Deployment
 
@@ -91,7 +84,6 @@
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE` for PostgreSQL in `internal/config/config.go`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` for Redis in `internal/config/config.go`
 - `SERVER_PORT`, `SERVER_MODE` for backend server mode in `internal/config/config.go`
-- `OPENAI_API_KEY`, `OPENAI_API_BASE`, `AI_MODEL`, `AI_TIMEOUT` for AI calls in `internal/config/config.go`
 - `TOKEN_EXPIRY` for JWT lifetime in `internal/config/config.go`
 
 **Secrets location:**
@@ -113,4 +105,4 @@
 
 ---
 
-*Integration audit: 2026-04-09*
+*Integration audit: 2026-04-10*

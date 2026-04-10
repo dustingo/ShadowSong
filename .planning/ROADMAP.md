@@ -79,9 +79,13 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 ### Phase 4: Enable raw event passthrough in notification templates
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** 在不破坏现有标准告警模型和通知链路的前提下，让输出模板可直接访问原始 webhook 事件字段，并提供对用户友好的模板上下文与示例。
+**Requirements**: [TMPL-01, TMPL-02, TMPL-03]
 **Depends on:** Phase 3
+**Success Criteria** (what must be TRUE):
+  1. 数据源 `output_template` 在保留现有标准字段的同时，可以访问原始事件字段或扩展上下文。
+  2. 用户可以通过稳定、可预期的模板变量写法引用嵌套 JSON 字段，而不必反向推测后端内部 `Alert` 模型。
+  3. 现有仅依赖标准字段的通知模板继续可用，且至少有一条验证路径证明原始字段透传后的通知内容完整。
 **Plans:** 0 plans
 
 Plans:

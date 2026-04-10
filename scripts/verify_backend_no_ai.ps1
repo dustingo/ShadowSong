@@ -2,9 +2,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:RepoRoot = Split-Path -Parent $PSScriptRoot
+$script:VerificationDbName = 'game_ops_alert_system'
 $script:ServerPort = 0
 $script:ListenerPort = 0
-$script:DbContainer = 'ai-alert-postgres'
+$script:ComposePostgresService = 'postgres'
 $script:ComposeFile = Join-Path $script:RepoRoot 'docker-compose.yml'
 $script:ServerProcess = $null
 $script:ListenerProcess = $null
@@ -87,7 +88,7 @@ function Stop-ProcessTree {
 function Invoke-Psql {
   param([string]$Sql, [switch]$Raw)
 
-  $result = docker exec -i $script:DbContainer psql -U postgres -d ai_alert_system -v ON_ERROR_STOP=1 -At -c $Sql
+  $result = docker compose -f $script:ComposeFile exec -T $script:ComposePostgresService psql -U postgres -d $script:VerificationDbName -v ON_ERROR_STOP=1 -At -c $Sql
   if ($LASTEXITCODE -ne 0) {
     throw "psql failed: $Sql"
   }
@@ -97,6 +98,20 @@ function Invoke-Psql {
   }
 
   return ($result | Where-Object { $_ -ne '' }) -join "`n"
+}
+
+function Ensure-VerificationDatabase {
+  $exists = docker compose -f $script:ComposeFile exec -T $script:ComposePostgresService psql -U postgres -d postgres -At -c "SELECT 1 FROM pg_database WHERE datname = '$($script:VerificationDbName)'"
+  if ($LASTEXITCODE -ne 0) {
+    throw 'failed to query verification database presence'
+  }
+
+  if (-not ($exists | Where-Object { $_ -eq '1' })) {
+    docker compose -f $script:ComposeFile exec -T $script:ComposePostgresService psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE $($script:VerificationDbName)"
+    if ($LASTEXITCODE -ne 0) {
+      throw 'failed to create verification database'
+    }
+  }
 }
 
 function Clear-TestData {
@@ -237,7 +252,7 @@ function Start-Server {
   $startInfo.EnvironmentVariables['DB_PORT'] = '5432'
   $startInfo.EnvironmentVariables['DB_USER'] = 'postgres'
   $startInfo.EnvironmentVariables['DB_PASSWORD'] = 'postgres'
-  $startInfo.EnvironmentVariables['DB_NAME'] = 'ai_alert_system'
+  $startInfo.EnvironmentVariables['DB_NAME'] = $script:VerificationDbName
   $startInfo.EnvironmentVariables['DB_SSLMODE'] = 'disable'
   $startInfo.EnvironmentVariables['REDIS_HOST'] = '127.0.0.1'
   $startInfo.EnvironmentVariables['REDIS_PORT'] = '6379'
@@ -246,10 +261,6 @@ function Start-Server {
   $startInfo.EnvironmentVariables['SERVER_PORT'] = [string]$script:ServerPort
   $startInfo.EnvironmentVariables['SERVER_MODE'] = 'release'
   $startInfo.EnvironmentVariables['TOKEN_EXPIRY'] = '2h'
-  $startInfo.EnvironmentVariables['OPENAI_API_KEY'] = ''
-  $startInfo.EnvironmentVariables['OPENAI_API_BASE'] = ''
-  $startInfo.EnvironmentVariables['AI_MODEL'] = ''
-  $startInfo.EnvironmentVariables['AI_TIMEOUT'] = ''
 
   $process = [System.Diagnostics.Process]::new()
   $process.StartInfo = $startInfo
@@ -359,11 +370,6 @@ if (Test-Path $script:RunLog) {
 }
 
 try {
-  Write-Step 'cleared_ai_env=ok'
-  $env:OPENAI_API_KEY = ''
-  $env:OPENAI_API_BASE = ''
-  $env:AI_MODEL = ''
-  $env:AI_TIMEOUT = ''
   $script:ServerPort = Get-FreeTcpPort
   $script:ListenerPort = Get-FreeTcpPort
 
@@ -372,6 +378,7 @@ try {
   if ($LASTEXITCODE -ne 0) {
     throw 'failed to start docker compose dependencies'
   }
+  Ensure-VerificationDatabase
 
   Write-Step 'notification_listener=starting'
   Start-NotificationListener

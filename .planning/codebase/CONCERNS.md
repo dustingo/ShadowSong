@@ -1,24 +1,24 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-04-09
+**Analysis Date:** 2026-04-10
 
 ## Tech Debt
 
 **Monolithic backend handlers:**
 - Issue: CRUD, validation, persistence, templating, routing, deduplication, and notification dispatch are concentrated in a few oversized handlers instead of smaller services.
-- Files: `internal/handlers/webhook.go`, `internal/handlers/config.go`, `internal/handlers/ai.go`, `internal/handlers/user.go`
+- Files: `internal/handlers/webhook.go`, `internal/handlers/config.go`, `internal/handlers/user.go`
 - Impact: Small changes carry high regression risk because unrelated behaviors share the same functions and database coupling. The largest hotspot is `internal/handlers/webhook.go` at 879 lines; `internal/handlers/config.go` is 455 lines.
-- Fix approach: Extract template rendering, deduplication, routing, channel secret handling, and AI logging into dedicated packages under `internal/`. Keep HTTP handlers thin and focused on binding plus response formatting.
+- Fix approach: Extract template rendering, deduplication, routing, and channel secret handling into dedicated packages under `internal/`. Keep HTTP handlers thin and focused on binding plus response formatting.
 
 **Business logic duplicated across handlers and frontend state:**
-- Issue: Alert acknowledgement, quick silence, AI suggestions, and config refresh behavior are implemented ad hoc in multiple places instead of through a shared service contract.
-- Files: `internal/handlers/alert.go`, `internal/handlers/ai.go`, `frontend/src/stores/alertStore.ts`, `frontend/src/stores/configStore.ts`, `frontend/src/pages/Dashboard.tsx`
-- Impact: Backend behavior changes can silently desynchronize frontend optimistic updates and polling/websocket logic.
+- Issue: Alert acknowledgement, quick silence, and config refresh behavior are implemented ad hoc in multiple places instead of through a shared service contract.
+- Files: `internal/handlers/alert.go`, `frontend/src/stores/alertStore.ts`, `frontend/src/stores/configStore.ts`, `frontend/src/pages/Dashboard.tsx`
+- Impact: Backend behavior changes can silently desynchronize frontend optimistic updates and polling or websocket logic.
 - Fix approach: Centralize alert mutations and config fetch flows behind explicit backend service methods and typed frontend API helpers with invariant checks.
 
 **Dead or half-integrated features remain in active code paths:**
-- Issue: The codebase exposes configuration for grouped notifications and AI recommendation generation, but key execution paths are missing or unfinished.
-- Files: `internal/models/models.go`, `internal/handlers/webhook.go`, `internal/handlers/ai.go`, `frontend/src/pages/DataSources.tsx`
+- Issue: The codebase exposes configuration for grouped notifications, but key execution paths are missing or unfinished.
+- Files: `internal/models/models.go`, `internal/handlers/webhook.go`, `frontend/src/pages/DataSources.tsx`
 - Impact: Operators can configure features that the system does not actually execute, which creates false confidence and support burden.
 - Fix approach: Either remove the unused UI/API surface or finish the implementation before exposing the feature flags.
 
@@ -29,12 +29,6 @@
 - Files: `frontend/src/api/client.ts`, `frontend/src/pages/DataSources.tsx`, `internal/router/router.go`, `internal/handlers/webhook.go`
 - Trigger: Any future call to `dataSourceApi.testInput` or `dataSourceApi.testOutput` returns 404. The current drawer button in `frontend/src/pages/DataSources.tsx` only reopens the drawer instead of invoking an API, so the feature is visibly unfinished.
 - Workaround: Use `POST /webhook/test-template` directly. Do not rely on the data source test drawer as a working feature.
-
-**AI alert analysis does not parse structured output and drops suggestions/root cause data:**
-- Symptoms: `AnalyzeAlert` asks the model for JSON, then calls `Chat(prompt, "")` and returns the raw response as the first string while returning empty root cause and `nil` suggestions.
-- Files: `internal/ai/client.go`, `internal/handlers/ai.go`
-- Trigger: `GET /api/v1/ai/suggestions/:alertId` with a configured AI key stores only `AISummary`; `AIRootCause` and suggestion list stay incomplete unless the fallback branch runs.
-- Workaround: Treat AI suggestions as best-effort text only until the response is parsed into a typed structure.
 
 **Quick silence can report success even if silence rule persistence fails:**
 - Symptoms: The alert status is saved first, then `h.db.Create(&silence)` is called without error handling.
@@ -98,9 +92,9 @@
 
 **Webhook matching uses a custom pseudo-regex helper:**
 - Files: `internal/handlers/webhook.go`
-- Why fragile: `regexpMatch` only simulates prefix/suffix/contains behavior. Route rule authors may expect real regex semantics from `LabelMatcher.Pattern`, but many patterns will behave incorrectly.
+- Why fragile: `regexpMatch` only simulates prefix, suffix, and contains behavior. Route rule authors may expect real regex semantics from `LabelMatcher.Pattern`, but many patterns will behave incorrectly.
 - Safe modification: Replace the helper with the Go `regexp` package behind validation and pre-compilation. Add tests for exact, prefix, suffix, alternation, and escaped patterns before changing behavior.
-- Test coverage: No handler tests cover route matching, fingerprinting, template rendering, or deduplication.
+- Test coverage: Handler tests still do not cover route matching, fingerprinting, template rendering, or deduplication.
 
 **WebSocket stack is only partially wired:**
 - Files: `internal/handlers/websocket.go`, `internal/router/router.go`, `frontend/src/pages/Dashboard.tsx`
@@ -110,7 +104,7 @@
 
 **Config CRUD writes trust bound input too broadly:**
 - Files: `internal/handlers/config.go`
-- Why fragile: Multiple update handlers call `ShouldBindJSON` and then overwrite model fields directly with limited validation or no error handling around `Save`/`Delete`.
+- Why fragile: Multiple update handlers call `ShouldBindJSON` and then overwrite model fields directly with limited validation or no error handling around `Save` or `Delete`.
 - Safe modification: Add request DTOs per endpoint, validate every mutable field, and fail closed when optional payload fields are omitted.
 - Test coverage: No tests cover config mutation, secret masking, route reorder, silence creation, or on-duty scheduling.
 
@@ -126,12 +120,10 @@
 - Limit: Large inbound batches can create many downstream HTTP sends without backpressure, retries, or worker limits.
 - Scaling path: Push notification jobs to a queue with bounded worker concurrency, retry policy, and delivery metrics.
 
-## Dependencies at Risk
+## Historical Cleanup Context
 
-**OpenAI-compatible client contract is brittle:**
-- Risk: The request schema includes `reasoning_split`, defaults the model to `gpt-4`, and manually appends `/v1` plus `/chat/completions`. Compatibility depends on the target API matching this exact shape.
-- Impact: Provider or model changes can fail at runtime without compile-time protection, and `AnalyzeAlert` already demonstrates schema drift by not parsing the JSON it requests.
-- Migration plan: Introduce provider-specific adapters or use the official SDK/typed schema for the chosen provider. Parse model responses into structs before persisting them.
+- Phase 1 and Phase 2 removed backend and frontend AI runtime surfaces. Remaining references to that work belong in phase summaries and verification reports, not in the active codebase map.
+- This concern map intentionally tracks only current non-AI runtime risks. Historical AI removal details should be treated as migration context rather than present architecture.
 
 ## Missing Critical Features
 
@@ -139,20 +131,16 @@
 - Problem: `DataSource` includes `group_enabled` and `group_window`, and the frontend lets operators configure them, but webhook processing only implements deduplication and never aggregates grouped notifications.
 - Blocks: Operators cannot rely on the advertised group-aggregation workflow to reduce noise.
 
-**AI recommendation generation has no execution path:**
-- Problem: `GenerateRecommendations` is a TODO and no route or scheduler invokes it, while the UI exposes silence recommendation management.
-- Blocks: The recommendation list cannot populate from live system behavior without manual database insertion.
-
 **Secret rotation and audit controls are absent:**
-- Problem: API keys, webhook configs, and channel secrets can be viewed/edited, but there is no rotation history, no reveal audit, and no permission separation for secret access.
+- Problem: API keys, webhook configs, and channel secrets can be viewed or edited, but there is no rotation history, no reveal audit, and no permission separation for secret access.
 - Blocks: Safer operational handoff and compliance-friendly secret management.
 
 ## Test Coverage Gaps
 
-**Handler and integration behavior is effectively untested:**
-- What's not tested: Authentication flows, user authorization, webhook ingestion, deduplication, routing, websocket delivery, AI handlers, notifier behavior, and config CRUD.
+**Handler and integration behavior is still under-tested:**
+- What's not tested: Authentication flows, user authorization, webhook ingestion, deduplication, routing, websocket delivery, notifier behavior, and config CRUD.
 - Files: `internal/handlers/*.go`, `internal/router/router.go`, `internal/notifier/notifier.go`, `internal/middleware/auth.go`, `internal/auth/jwt.go`
-- Risk: High-risk operational paths can regress without detection; the only detected Go test file is `internal/models/alert_test.go`.
+- Risk: High-risk operational paths can regress without detection; current committed coverage is still narrow compared with the runtime surface.
 - Priority: High
 
 **Frontend has no automated test setup:**
@@ -169,4 +157,4 @@
 
 ---
 
-*Concerns audit: 2026-04-09*
+*Concerns audit: 2026-04-10*

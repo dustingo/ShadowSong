@@ -49,6 +49,8 @@ make docker-up
 
 正常启动后端只需要数据库、Redis、服务端口和 JWT 相关配置。仓库根目录已提供本地开发用的 `.env` 基线，可按实际环境调整以下配置：
 
+项目常规启动不需要 `OPENAI_*` 或 `AI_*` 变量。
+
 - `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`
 - `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` / `REDIS_DB`
 - `SERVER_PORT` / `SERVER_MODE`

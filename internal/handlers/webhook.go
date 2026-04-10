@@ -57,14 +57,14 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
-	// 2. 验证 API Key（支持 Header: X-API-Key 或 Bearer Token）
+	// 2. 验证 API Key（支持 Header: X-API-KEY 或 Bearer Token）
 	// 如果数据源未配置 API Key，直接拒绝所有请求
 	if ds.APIKey == "" {
 		c.JSON(http.StatusForbidden, gin.H{"error": "data source requires API key, please configure in settings"})
 		return
 	}
 
-	apiKey := c.GetHeader("X-API-Key")
+	apiKey := c.GetHeader("X-API-KEY")
 	if apiKey == "" {
 		// 尝试从 Authorization header 获取
 		authHeader := c.GetHeader("Authorization")
@@ -223,53 +223,7 @@ func (h *WebhookHandler) normalizeData(data interface{}) []map[string]interface{
 
 // renderAlert 使用 input_template 渲染告警数据
 func (h *WebhookHandler) renderAlert(data map[string]interface{}, tmplStr string, source string, rawBody []byte) (models.Alert, error) {
-	// 创建模板函数
-	funcMap := template.FuncMap{
-		"toJson": func(v interface{}) string {
-			b, _ := json.Marshal(v)
-			return string(b)
-		},
-		"get": func(m map[string]interface{}, key string) interface{} {
-			if m == nil {
-				return nil
-			}
-			val, ok := m[key]
-			if !ok {
-				return nil
-			}
-			return val
-		},
-		"default": func(v, def interface{}) interface{} {
-			if v == nil {
-				return def
-			}
-			// 如果是空字符串，也返回默认值
-			if s, ok := v.(string); ok && s == "" {
-				return def
-			}
-			return v
-		},
-		"toSeverity": func(v interface{}) string {
-			return h.mapSeverity(v)
-		},
-		"toStatus": func(v interface{}) string {
-			return h.mapStatus(v)
-		},
-		"toTime": func(v interface{}) string {
-			return h.parseTime(v)
-		},
-		"lookup": func(m map[string]interface{}, keys ...string) interface{} {
-			if m == nil {
-				return nil
-			}
-			for _, key := range keys {
-				if val, ok := m[key]; ok && val != nil {
-					return val
-				}
-			}
-			return nil
-		},
-	}
+	funcMap := h.templateFuncMap()
 
 	tmpl, err := template.New("input").Funcs(funcMap).Parse(tmplStr)
 	if err != nil {
@@ -905,7 +859,46 @@ func (h *WebhookHandler) sendDefaultNotification(alert *models.Alert, channel *m
 
 // renderNotification 使用 output_template 渲染通知
 func (h *WebhookHandler) renderNotification(alert *models.Alert, tmplStr string) (string, string, error) {
-	// 准备数据
+	title, content, _, err := h.renderNotificationPreview(alert, tmplStr)
+	return title, content, err
+}
+
+func (h *WebhookHandler) renderNotificationPreview(alert *models.Alert, tmplStr string) (string, string, map[string]interface{}, error) {
+	data := h.buildNotificationRenderContext(alert)
+
+	tmpl, err := template.New("output").Funcs(h.templateFuncMap()).Parse(tmplStr)
+	if err != nil {
+		return "", "", data, err
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, data)
+	if err != nil {
+		return "", "", data, err
+	}
+
+	resultStr := buf.String()
+
+	// 尝试解析为 JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
+		// 不是 JSON，直接返回
+		return "告警通知", resultStr, data, nil
+	}
+
+	title := strings.TrimSpace(fmt.Sprintf("%v", result["title"]))
+	content := strings.TrimSpace(fmt.Sprintf("%v", result["content"]))
+	if title == "" {
+		title = "告警通知"
+	}
+	if content == "" {
+		content = resultStr
+	}
+
+	return title, content, data, nil
+}
+
+func (h *WebhookHandler) buildNotificationRenderContext(alert *models.Alert) map[string]interface{} {
 	data := map[string]interface{}{
 		"alert_id":     alert.AlertID,
 		"alert_name":   alert.AlertName,
@@ -914,51 +907,83 @@ func (h *WebhookHandler) renderNotification(alert *models.Alert, tmplStr string)
 		"source":       alert.Source,
 		"status":       alert.Status,
 		"trigger_time": alert.TriggerTime.Format(time.RFC3339),
+		"labels":       decodeJSONMap(alert.Labels),
 	}
 
-	// 解析 labels
-	var labels map[string]string
-	json.Unmarshal(alert.Labels, &labels)
-	data["labels"] = labels
+	data["event"] = decodeJSONMap(alert.Raw)
+	data["alert"] = map[string]interface{}{
+		"id":           alert.AlertID,
+		"name":         alert.AlertName,
+		"severity":     alert.Severity,
+		"message":      alert.Message,
+		"source":       alert.Source,
+		"status":       alert.Status,
+		"trigger_time": alert.TriggerTime.Format(time.RFC3339),
+		"labels":       data["labels"],
+	}
 
-	// 创建模板函数
-	funcMap := template.FuncMap{
+	return data
+}
+
+func (h *WebhookHandler) templateFuncMap() template.FuncMap {
+	return template.FuncMap{
 		"toJson": func(v interface{}) string {
 			b, _ := json.Marshal(v)
 			return string(b)
 		},
+		"get": func(m map[string]interface{}, key string) interface{} {
+			if m == nil {
+				return nil
+			}
+			val, ok := m[key]
+			if !ok {
+				return nil
+			}
+			return val
+		},
+		"default": func(v, def interface{}) interface{} {
+			if v == nil {
+				return def
+			}
+			if s, ok := v.(string); ok && s == "" {
+				return def
+			}
+			return v
+		},
+		"toSeverity": func(v interface{}) string {
+			return h.mapSeverity(v)
+		},
+		"toStatus": func(v interface{}) string {
+			return h.mapStatus(v)
+		},
+		"toTime": func(v interface{}) string {
+			return h.parseTime(v)
+		},
+		"lookup": func(m map[string]interface{}, keys ...string) interface{} {
+			if m == nil {
+				return nil
+			}
+			for _, key := range keys {
+				if val, ok := m[key]; ok && val != nil {
+					return val
+				}
+			}
+			return nil
+		},
+	}
+}
+
+func decodeJSONMap(raw []byte) map[string]interface{} {
+	if len(raw) == 0 {
+		return map[string]interface{}{}
 	}
 
-	tmpl, err := template.New("output").Funcs(funcMap).Parse(tmplStr)
-	if err != nil {
-		return "", "", err
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(raw, &decoded); err != nil || decoded == nil {
+		return map[string]interface{}{}
 	}
 
-	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, data)
-	if err != nil {
-		return "", "", err
-	}
-
-	resultStr := buf.String()
-
-	// 尝试解析为 JSON
-	var result map[string]string
-	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
-		// 不是 JSON，直接返回
-		return "告警通知", resultStr, nil
-	}
-
-	title := result["title"]
-	content := result["content"]
-	if title == "" {
-		title = "告警通知"
-	}
-	if content == "" {
-		content = resultStr
-	}
-
-	return title, content, nil
+	return decoded
 }
 
 // contains 检查切片是否包含元素

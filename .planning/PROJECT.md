@@ -21,10 +21,9 @@
 - ✓ 移除前端 AI 页面、入口、调用链和 AI 展示字段，界面不再残留 AI 功能 — Validated in Phase 2
 - ✓ 清理 AI 相关文案、README、本地配置基线和 codebase map，使项目表述与当前能力一致 — Validated in Phase 3
 - ✓ 前端与后端均具备显式的无 AI 验证脚本与阶段证据 — Validated in Phase 3
+- ✓ 扩展通知模板上下文，使数据源输出模板可直接访问原始 webhook JSON 字段，并保留现有标准字段模板兼容性 — Validated in Phase 4
 
 ### Active
-
-- [ ] 扩展通知模板上下文，使数据源输出模板可直接访问原始 webhook JSON 字段，并保留现有标准字段模板兼容性
 
 ### Out of Scope
 
@@ -42,7 +41,8 @@
 - Phase 1 已完成：后端 AI 运行时、路由和主要持久化残留已移除。
 - Phase 2 已完成：前端 AI 页面、导航入口、AI 展示字段、共享 API 合同和触达品牌文案已清理，并通过前端构建验证。
 - Phase 3 已完成：README、`.env`、codebase map 和验证资产已与无 AI 产品状态对齐，且前后端验证脚本已落地。
-- 最近的手工验证暴露了模板能力边界：当前 `input_template` 可以把原始 JSON 映射到标准 `Alert` 字段，但 `output_template` 仍只能访问有限的标准字段与 `labels`，无法自由引用任意原始事件字段。
+- Phase 4 已完成：通知模板契约同时支持标准字段和 `event` 原始字段透传，数据源界面提供后端驱动预览，legacy/raw 模板路径均有脚本化验证。
+- 模板链路当前已经形成闭环：`input_template` 负责标准化告警，`output_template` 同时可访问标准字段与 `event` 原始事件字段，前后端均有验证入口。
 
 ## Constraints
 
@@ -62,6 +62,7 @@
 | 先完成后端 AI 下线与闭环验证，再继续前端清理 | 先锁定服务启动、Webhook、通知和告警处理主链路，减少后续前端阶段的回归面 | ✓ Good |
 | 文档、codebase map 和验证入口必须在 milestone 结束前与无 AI 当前态对齐 | 防止后续规划继续读取过时 AI 信息，并为 phase closure 提供可重复证据 | ✓ Good |
 | 模板自由度要以“标准字段 + 原始事件上下文”的正式契约形式提供，而不是让用户依赖隐式内部字段 | 这样既能满足任意 JSON 字段透传诉求，也能保持现有模板兼容和用户可用性 | ✓ Good |
+| 模板能力进入产品后必须提供后端驱动预览与真实通知验证脚本 | 避免用户只能靠猜测字段名或一次性手工测试来试错 | ✓ Good |
 
 ## Evolution
 
@@ -81,4 +82,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 3 completion*
+*Last updated: 2026-04-10 after Phase 4 completion*

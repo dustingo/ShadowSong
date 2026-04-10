@@ -2,7 +2,7 @@
 
 ## Overview
 
-当前里程碑的目标不是扩展新能力，而是把现有告警系统中与 AI 相关的运行时、界面、配置和表述完整移除，同时验证核心告警链路保持可用。路线按后端下线、前端清理、文档与验证收口三个阶段推进，确保每一阶段都能独立交付并降低回归风险。
+当前里程碑先完成了 AI 运行时、界面、配置和表述的完整移除，并在收尾阶段补上通知模板的原始事件透传能力与产品内预览路径。整体路线已经完成，核心告警链路与模板增强能力均有自动化或脚本化验证。
 
 ## Phases
 
@@ -69,13 +69,14 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Remove Backend AI Runtime | 3/3 | Complete | 2026-04-09 |
 | 2. Remove Frontend AI Surfaces | 3/3 | Complete | 2026-04-09 |
 | 3. Align Docs And Verification | 3/3 | Complete | 2026-04-10 |
+| 4. Enable raw event passthrough in notification templates | 3/3 | Complete | 2026-04-10 |
 
 ### Phase 4: Enable raw event passthrough in notification templates
 
@@ -89,6 +90,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 **Plans:** 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Lock the backend output-template contract for standard fields plus raw event passthrough
-- [ ] 04-02-PLAN.md — Add datasource preview APIs and in-product template guidance for the new contract
-- [ ] 04-03-PLAN.md — Script end-to-end passthrough verification and record Phase 04 evidence
+- [x] 04-01-PLAN.md — Lock the backend output-template contract for standard fields plus raw event passthrough
+- [x] 04-02-PLAN.md — Add datasource preview APIs and in-product template guidance for the new contract
+- [x] 04-03-PLAN.md — Script end-to-end passthrough verification and record Phase 04 evidence (completed 2026-04-10)

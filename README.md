@@ -1,6 +1,6 @@
 # 游戏运维告警系统
 
-面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合和分发来自多个数据源的告警信息。
+面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多个数据源的告警信息。当前版本已经完成 AI 能力移除，并支持通知模板原始事件透传与数据源模板预览。
 
 ## 技术栈
 
@@ -90,6 +90,67 @@ make frontend-dev
 └── docker-compose.yml   # Docker 配置
 ```
 
+## 模板链路
+
+数据源模板分两段执行：
+
+1. `input_template`
+   作用：把原始 webhook JSON 标准化成内部 `Alert` JSON。
+   要求：模板输出必须是合法 JSON，并至少包含 `alert_id`、`alert_name`、`severity`、`message`、`source`、`status`、`trigger_time` 这些核心字段中的必需项。
+
+2. `output_template`
+   作用：把标准化后的告警渲染成最终通知内容。
+   可用字段：
+   - 标准字段：`.alert_name`、`.message`、`.status`、`.source`、`.labels`
+   - 严重级别：`.severity` / `.severity_code`
+   - 原始严重级别：`.severity_raw`
+   - 原始事件：`.event.xxx`
+   - 可读别名：`.alert.severity_code`、`.alert.severity_raw`
+
+严重级别标准化映射：
+
+- `critical` -> `P0`
+- `warning` / `error` -> `P1`
+- `info` -> `P2`
+- `debug` -> `P3`
+
+示例 `input_template`：
+
+```gotemplate
+{
+  "alert_id": "{{ .alertId }}",
+  "alert_name": "{{ .alertName }}",
+  "severity": "{{ .severity }}",
+  "message": "{{ .summary }}",
+  "source": "custom-source",
+  "status": "{{ .status }}",
+  "trigger_time": "{{ .startsAt }}"
+}
+```
+
+示例 `output_template`：
+
+```gotemplate
+{{ if eq .severity_raw "critical" }}
+严重告警
+{{ else if eq .severity_raw "warning" }}
+⚠️ 一般告警
+{{ else }}
+ℹ️ 提示信息
+{{ end }}
+
+名称: {{ .alert_name }}
+实例: {{ .event.labels.instance }}
+描述: {{ default .event.description .message }}
+```
+
+## 模板预览与验证
+
+- 前端数据源页面支持模板预览，会调用 `POST /api/v1/datasources/preview`
+- 后端真实通知透传验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_template_passthrough.ps1`
+- 后端无 AI 闭环验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_backend_no_ai.ps1`
+- 前端无 AI 构建/残留扫描脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_frontend_no_ai.ps1`
+
 ## 开发命令
 
 ```bash
@@ -105,9 +166,9 @@ make frontend-build    # 构建前端生产版本
 
 ## API 文档
 
-启动服务后访问 http://localhost:8080/api/v1/ping 测试 API 连接。
+启动服务后可先访问 `http://localhost:8080/health` 验证服务是否正常启动。
 
-当前接口以 Gin 路由和 `internal/handlers/` 中的实现为准；常用接口包括认证、告警列表/统计、配置管理、Webhook 接入和 WebSocket 推送。
+当前接口以 Gin 路由和 `internal/handlers/` 中的实现为准；常用接口包括认证、告警列表/统计、配置管理、Webhook 接入、数据源模板预览和 WebSocket 推送。
 
 ## 许可证
 

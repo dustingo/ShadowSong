@@ -3,7 +3,7 @@
 
 **游戏运维告警系统**
 
-这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。系统已经具备后端 API、前端控制台、Webhook 接入、通知路由、静默规则和值班管理能力，当前重点是将已有的 AI 能力和相关配置从产品与代码中完整移除。
+这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。系统已经具备后端 API、前端控制台、Webhook 接入、通知路由、静默规则和值班管理能力。v1.0 已完成 AI 能力移除，当前重点转为在非 AI 基线上继续增强模板系统可用性与核心告警链路质量。
 
 **Core Value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
 
@@ -62,7 +62,7 @@
 - `@vitejs/plugin-react` `^4.2.1` - Vite React integration in `frontend/package.json` and `frontend/vite.config.ts`
 - `echarts` `^5.4.3` and `echarts-for-react` `^3.0.2` - dashboard charting in `frontend/src/pages/Dashboard.tsx`
 - `@monaco-editor/react` `^4.6.0` - in-browser editor component in `frontend/src/components/CodeEditor.tsx`
-- `react-markdown` `^10.1.0` - AI/markdown rendering in `frontend/src/pages/AIAssistant.tsx` and `frontend/src/pages/Dashboard.tsx`
+- `react-markdown` `^10.1.0` - markdown rendering dependency still present in `frontend/package.json`, but not part of the current primary UI flow
 - `dayjs` `^1.11.19` - date formatting in `frontend/src/components/AlertCard.tsx` and multiple `frontend/src/pages/*.tsx`
 ## Configuration
 - Runtime configuration is loaded from process environment plus optional `.env` via `cmd/server/main.go`
@@ -71,7 +71,6 @@
 - Database vars: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE` in `internal/config/config.go`
 - Redis vars: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB` in `internal/config/config.go`
 - Server vars: `SERVER_PORT`, `SERVER_MODE` in `internal/config/config.go`
-- AI vars: `OPENAI_API_KEY`, `OPENAI_API_BASE`, `AI_MODEL`, `AI_TIMEOUT` in `internal/config/config.go`
 - Token expiry var: `TOKEN_EXPIRY` in `internal/config/config.go`
 - `.env` file is present at project root; contents not inspected
 - Backend build/run/test commands are defined in `Makefile`
@@ -97,14 +96,14 @@
 - React pages and components use PascalCase filenames such as `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/Login.tsx`, and `frontend/src/components/SeverityBadge.tsx`.
 - Frontend stores and API wrappers use camelCase filenames such as `frontend/src/stores/alertStore.ts`, `frontend/src/stores/configStore.ts`, and `frontend/src/api/client.ts`.
 - Shared export barrels are named `index.ts` in `frontend/src/components/index.ts`, `frontend/src/pages/index.ts`, and `frontend/src/types/index.ts`.
-- Exported Go constructors and methods use PascalCase: `NewAIHandler` in `internal/handlers/ai.go`, `Setup` in `internal/router/router.go`, `Validate` and `BeforeCreate` in `internal/models/alert.go`.
+- Exported Go constructors and methods use PascalCase: `NewWebhookHandler` in `internal/handlers/webhook.go`, `Setup` in `internal/router/router.go`, `Validate` and `BeforeCreate` in `internal/models/alert.go`.
 - Unexported Go helpers use camelCase: `getEnvAsInt` and `getEnvAsDuration` in `internal/config/config.go`.
 - React component functions use PascalCase when exported: `Alerts` in `frontend/src/pages/Alerts.tsx`, `Login` in `frontend/src/pages/Login.tsx`, `SeverityBadge` in `frontend/src/components/SeverityBadge.tsx`.
 - Frontend event handlers and store actions use `handleX`/verb-first camelCase naming: `handleAckConfirm` in `frontend/src/pages/Alerts.tsx`, `fetchAlerts` and `quickSilence` in `frontend/src/stores/alertStore.ts`.
-- Backend local variables favor short descriptive names such as `cfg`, `db`, `req`, `user`, `alert`, and `recs` in `cmd/server/main.go`, `internal/handlers/user.go`, and `internal/handlers/ai.go`.
+- Backend local variables favor short descriptive names such as `cfg`, `db`, `req`, `user`, `alert`, and `rule` in `cmd/server/main.go`, `internal/handlers/user.go`, and `internal/handlers/config.go`.
 - Frontend local state uses descriptive camelCase names: `ackModalVisible`, `selectedAlert`, and `silenceDuration` in `frontend/src/pages/Alerts.tsx`.
 - Boolean state is named explicitly with `is` or suffixes like `Loading`, `Visible`, and `Connected`, e.g. `loading` in `frontend/src/pages/Login.tsx`, `dataSourcesLoading` in `frontend/src/stores/configStore.ts`, and `wsConnected` in `frontend/src/stores/alertStore.ts`.
-- Go struct types are singular domain nouns: `Alert`, `DataSource`, `RouteRule`, `SilenceRule`, `User`, `AILog` in `internal/models/alert.go`, `internal/models/models.go`, and `internal/models/user.go`.
+- Go struct types are singular domain nouns: `Alert`, `DataSource`, `RouteRule`, `SilenceRule`, `User`, and `OnDuty` in `internal/models/alert.go`, `internal/models/models.go`, and `internal/models/user.go`.
 - TypeScript interfaces are also singular domain nouns and mirror backend JSON shapes: `Alert`, `Channel`, `OnDuty`, and `User` in `frontend/src/types/index.ts`.
 - Request/response DTOs are explicitly suffixed in backend auth flow: `LoginRequest` and `LoginResponse` in `internal/handlers/user.go`.
 ## Code Style
@@ -119,23 +118,23 @@
 - `@/*` is configured in `frontend/tsconfig.json`, but current code primarily uses relative imports such as `../types` and `./pages`.
 ## State Management
 - Use Zustand for shared server-backed state in `frontend/src/stores/alertStore.ts`, `frontend/src/stores/configStore.ts`, and `frontend/src/stores/userStore.ts`.
-- Keep page-specific UI state local with `useState`, such as modal visibility and form draft state in `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/Channels.tsx`, and `frontend/src/pages/AIAssistant.tsx`.
+- Keep page-specific UI state local with `useState`, such as modal visibility, form draft state, and template preview state in `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/Channels.tsx`, and `frontend/src/pages/DataSources.tsx`.
 - Trigger initial data fetches with `useEffect` in page components, for example `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/Dashboard.tsx`, and `frontend/src/pages/OnDuty.tsx`.
 - Persist auth state directly in `localStorage` inside the user store and API interceptors, as shown in `frontend/src/stores/userStore.ts` and `frontend/src/api/client.ts`.
-- Keep request state per-handler through struct receivers that hold shared dependencies, such as `UserHandler`, `AIHandler`, and `AlertHandler` in `internal/handlers/user.go`, `internal/handlers/ai.go`, and `internal/handlers/alert.go`.
+- Keep request state per-handler through struct receivers that hold shared dependencies, such as `UserHandler`, `WebhookHandler`, `ConfigHandler`, and `AlertHandler` in `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/config.go`, and `internal/handlers/alert.go`.
 - Store cross-request identity data in Gin context through middleware keys `user_id`, `username`, and `role` defined in `internal/middleware/auth.go`.
 - Put persistent defaults and invariants in GORM hooks instead of controllers when the rule belongs to the model, as in `internal/models/alert.go` and `internal/models/models.go`.
 ## Error Handling
-- Backend HTTP handlers return early on error and write JSON with an `error` field using `c.JSON(...)`, as in `internal/handlers/user.go`, `internal/handlers/alert.go`, `internal/handlers/config.go`, and `internal/handlers/ai.go`.
+- Backend HTTP handlers return early on error and write JSON with an `error` field using `c.JSON(...)`, as in `internal/handlers/user.go`, `internal/handlers/alert.go`, `internal/handlers/config.go`, and `internal/handlers/webhook.go`.
 - Handler code commonly distinguishes not-found cases from generic database failures using `gorm.ErrRecordNotFound`, as in `internal/handlers/user.go` and `internal/handlers/alert.go`.
-- Infrastructure and service packages return wrapped errors with `fmt.Errorf(... %w ...)`, as in `internal/ai/client.go`, `internal/database/postgres.go`, and `internal/database/redis.go`.
+- Infrastructure and service packages return wrapped errors with `fmt.Errorf(... %w ...)`, as in `internal/database/postgres.go`, `internal/database/redis.go`, and `internal/notifier/notifier.go`.
 - Startup failures are treated as fatal in `cmd/server/main.go` and `internal/config/config.go`; use `log.Fatalf` or `os.Exit(1)` only for unrecoverable boot-time misconfiguration.
 - Frontend shared stores either rethrow request errors after resetting loading state, as in `frontend/src/stores/alertStore.ts` and `frontend/src/stores/configStore.ts`, or log non-critical background refresh failures with `console.error`.
 - Frontend pages convert API failures into Ant Design toast feedback with `message.error(...)` and success paths into `message.success(...)`, as in `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/Login.tsx`, and `frontend/src/pages/Channels.tsx`.
 ## Validation
-- Prefer model-owned validation methods for domain rules. `Validate()` exists on `Alert` in `internal/models/alert.go` and on `DataSource`, `Channel`, `RouteRule`, `SilenceRule`, `OnDuty`, and `AILog` in `internal/models/models.go`.
+- Prefer model-owned validation methods for domain rules. `Validate()` exists on `Alert` in `internal/models/alert.go` and on `DataSource`, `Channel`, `RouteRule`, `SilenceRule`, and `OnDuty` in `internal/models/models.go`.
 - Use GORM hooks such as `BeforeCreate` and `BeforeUpdate` to apply defaults and enforce validation before persistence, as in `internal/models/alert.go`, `internal/models/models.go`, and `internal/models/user.go`.
-- Use Gin binding tags for required request payload fields on request-specific structs, such as `binding:"required"` on `LoginRequest` in `internal/handlers/user.go` and the inline chat input struct in `internal/handlers/ai.go`.
+- Use Gin binding tags for required request payload fields on request-specific structs, such as `binding:"required"` on `LoginRequest` in `internal/handlers/user.go` and webhook/template preview request structs in `internal/handlers/webhook.go`.
 - Some update endpoints intentionally accept partial payloads without strict validation, for example `internal/handlers/config.go` and `internal/handlers/user.go`. Follow the existing partial-update pattern when modifying those endpoints.
 - Prefer Ant Design `Form.Item` rules for required UI validation, as in `frontend/src/pages/Login.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/RouteRules.tsx`, and `frontend/src/pages/Silences.tsx`.
 - Keep form field names aligned to backend JSON contracts using snake_case names such as `alert_name_pattern`, `channel_id`, and `user_name` in `frontend/src/pages/Silences.tsx` and `frontend/src/pages/OnDuty.tsx`.
@@ -145,18 +144,18 @@
 - WebSocket and webhook flows print operational diagnostics directly in `internal/handlers/websocket.go` and `internal/handlers/webhook.go`.
 - Frontend avoids structured logging; the only recurring pattern is `console.error(...)` for failed background refreshes in `frontend/src/stores/alertStore.ts`.
 ## Comments
-- Existing comments mainly mark sections, explain business intent, or annotate bilingual behavior, for example in `internal/handlers/ai.go`, `internal/router/router.go`, `internal/models/alert.go`, and `frontend/src/App.tsx`.
-- Keep comments short and task-oriented. The repository does not use long explanatory blocks except for large prompt strings such as `systemPrompt` in `internal/handlers/ai.go`.
+- Existing comments mainly mark sections, explain business intent, or annotate bilingual behavior, for example in `internal/handlers/webhook.go`, `internal/router/router.go`, `internal/models/alert.go`, and `frontend/src/App.tsx`.
+- Keep comments short and task-oriented. The repository favors concise operational comments over long explanatory blocks, especially in routing, webhook, and model files.
 - Not used in frontend TypeScript files.
 - Go code uses line comments above exported types and methods rather than doc blocks, for example in `internal/models/models.go` and `internal/handlers/user.go`.
 ## Function Design
-- Backend methods prefer `(*Handler).Method(c *gin.Context)` signatures for HTTP work and pass dependencies through constructors like `NewUserHandler` and `NewAIHandler`.
+- Backend methods prefer `(*Handler).Method(c *gin.Context)` signatures for HTTP work and pass dependencies through constructors like `NewUserHandler`, `NewWebhookHandler`, and `NewConfigHandler`.
 - Frontend store actions and API methods use primitive IDs plus small object payloads, for example `ackAlert(id, comment)` in `frontend/src/stores/alertStore.ts` and `alertApi.ack(id, { comment })` in `frontend/src/api/client.ts`.
-- Backend validation and service methods return `error` or typed values plus `error`, as in `internal/models/alert.go`, `internal/ai/client.go`, and `internal/notifier/notifier.go`.
+- Backend validation and service methods return `error` or typed values plus `error`, as in `internal/models/alert.go`, `internal/database/postgres.go`, and `internal/notifier/notifier.go`.
 - Frontend async actions usually return `Promise<void>` and update store state internally, as in `frontend/src/stores/configStore.ts`.
 ## Module Design
 - Frontend pages and components favor named exports from the implementation file and re-export through barrel files in `frontend/src/pages/index.ts` and `frontend/src/components/index.ts`.
-- API wrappers export grouped objects such as `alertApi`, `channelApi`, `authApi`, and `aiApi` from `frontend/src/api/client.ts` and `frontend/src/api/auth.ts`.
+- API wrappers export grouped objects such as `alertApi`, `dataSourceApi`, `channelApi`, `routeRuleApi`, `silenceRuleApi`, and `onDutyApi` from `frontend/src/api/client.ts` and `frontend/src/api/auth.ts`.
 - Backend packages group related behavior by layer: `internal/handlers`, `internal/models`, `internal/database`, `internal/middleware`, and `internal/ai`.
 - Used on the frontend for pages and components.
 - Not used in the Go backend.
@@ -181,18 +180,18 @@
 - Depends on: `internal/handlers/*.go`, `internal/auth/jwt.go`, `internal/middleware/auth.go`
 - Used by: `cmd/server/main.go`
 - Purpose: Execute request-specific workflows and persist/query state directly with GORM.
-- Location: `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/ai.go`, `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/websocket.go`
-- Contains: CRUD handlers, AI chat endpoints, webhook ingestion, WebSocket connection management.
-- Depends on: `gorm.DB`, `redis.Client`, `internal/models/*.go`, `internal/ai/client.go`, `internal/notifier/notifier.go`
+- Location: `internal/handlers/alert.go`, `internal/handlers/config.go`, `internal/handlers/user.go`, `internal/handlers/webhook.go`, `internal/handlers/websocket.go`
+- Contains: CRUD handlers, datasource preview/testing endpoints, webhook ingestion, WebSocket connection management.
+- Depends on: `gorm.DB`, `redis.Client`, `internal/models/*.go`, `internal/notifier/notifier.go`
 - Used by: `internal/router/router.go`
 - Purpose: Define persisted entities, JSON shapes, validation hooks, and limited domain helpers.
 - Location: `internal/models/alert.go`, `internal/models/models.go`, `internal/models/user.go`
-- Contains: `Alert`, `User`, `DataSource`, `Channel`, `RouteRule`, `SilenceRule`, `OnDuty`, `AILog`, `SilenceRecommendation`
+- Contains: `Alert`, `User`, `DataSource`, `Channel`, `RouteRule`, `SilenceRule`, `OnDuty`
 - Depends on: GORM and `gorm.io/datatypes`
 - Used by: database initialization, all handlers, notification routing.
 - Purpose: Encapsulate infrastructure clients and external protocol details.
-- Location: `internal/database/postgres.go`, `internal/database/redis.go`, `internal/auth/jwt.go`, `internal/ai/client.go`, `internal/notifier/notifier.go`
-- Contains: GORM connection setup and migration, Redis client creation, JWT issue/validation, OpenAI-compatible HTTP client, per-channel notification senders.
+- Location: `internal/database/postgres.go`, `internal/database/redis.go`, `internal/auth/jwt.go`, `internal/notifier/notifier.go`
+- Contains: GORM connection setup and migration, Redis client creation, JWT issue/validation, per-channel notification senders.
 - Depends on: env-derived config from `internal/config/config.go`
 - Used by: `cmd/server/main.go`, `internal/router/router.go`, `internal/handlers/*.go`
 - Purpose: Mount the SPA, provide Ant Design locale, define the authenticated layout, and map routes to pages.
@@ -206,7 +205,7 @@
 - Depends on: backend REST API and browser `localStorage`
 - Used by: page components in `frontend/src/pages/*.tsx`
 - Purpose: Render screens and bind UI actions to stores/API calls.
-- Location: `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/DataSources.tsx`, `frontend/src/pages/Channels.tsx`, `frontend/src/pages/RouteRules.tsx`, `frontend/src/pages/Silences.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/AIAssistant.tsx`, `frontend/src/pages/Login.tsx`
+- Location: `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/DataSources.tsx`, `frontend/src/pages/Channels.tsx`, `frontend/src/pages/RouteRules.tsx`, `frontend/src/pages/Silences.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/Login.tsx`
 - Contains: route-level screens for every product area.
 - Depends on: `frontend/src/stores/*.ts`, `frontend/src/api/*.ts`, `frontend/src/components/*.tsx`, `frontend/src/types/index.ts`
 - Used by: `frontend/src/App.tsx`
@@ -220,7 +219,7 @@
 - Configuration CRUD collections live in `frontend/src/stores/configStore.ts`.
 ## Key Abstractions
 - Purpose: Bundle infrastructure dependencies per endpoint area.
-- Examples: `internal/handlers/AlertHandler`, `internal/handlers/ConfigHandler`, `internal/handlers/AIHandler`, `internal/handlers/UserHandler`, `internal/handlers/WebhookHandler`, `internal/handlers/WSHandler`
+- Examples: `internal/handlers/AlertHandler`, `internal/handlers/ConfigHandler`, `internal/handlers/UserHandler`, `internal/handlers/WebhookHandler`, `internal/handlers/WSHandler`
 - Pattern: Thin constructor plus methods bound directly as Gin handlers.
 - Purpose: Drive the alert ingestion and notification pipeline from persisted configuration.
 - Examples: `internal/models/models.go` types `DataSource`, `RouteRule`, and `Channel`

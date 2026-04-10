@@ -202,7 +202,8 @@ func (h *ConfigHandler) PreviewDataSource(c *gin.Context) {
 		return
 	}
 
-	alert, err := webhookHandler.renderAlert(alerts[0], input.InputTemplate, input.SourceName, input.SamplePayload)
+	rawAlertBody := marshalRawAlertData(alerts[0], input.SamplePayload)
+	alert, err := webhookHandler.renderAlert(alerts[0], input.InputTemplate, input.SourceName, rawAlertBody)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("input template render error: %v", err)})
 		return

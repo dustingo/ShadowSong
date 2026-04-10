@@ -107,3 +107,15 @@ func TestWebhookHandler_renderNotification(t *testing.T) {
 		})
 	}
 }
+
+func TestMarshalRawAlertData_PrefersIndividualAlertObject(t *testing.T) {
+	rawAlertBody := marshalRawAlertData(map[string]interface{}{
+		"summary": "array item summary",
+		"annotations": map[string]interface{}{
+			"runbook": "https://runbook.local/array-item",
+		},
+	}, []byte(`[{"summary":"wrong"}]`))
+
+	assert.JSONEq(t, `{"summary":"array item summary","annotations":{"runbook":"https://runbook.local/array-item"}}`, string(rawAlertBody))
+	assert.Equal(t, "array item summary", decodeJSONMap(rawAlertBody)["summary"])
+}

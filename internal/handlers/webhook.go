@@ -113,10 +113,11 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 
 	for _, alertData := range alerts {
 		// 5. 使用 input_template 渲染
-		alert, err := h.renderAlert(alertData, ds.InputTemplate, sourceName, body)
+		rawAlertBody := marshalRawAlertData(alertData, body)
+		alert, err := h.renderAlert(alertData, ds.InputTemplate, sourceName, rawAlertBody)
 		if err != nil {
 			// 模板渲染失败，生成降级告警
-			alert = h.createFallbackAlert(sourceName, body, err)
+			alert = h.createFallbackAlert(sourceName, rawAlertBody, err)
 			errors = append(errors, fmt.Sprintf("render failed: %v", err))
 		}
 
@@ -984,6 +985,19 @@ func decodeJSONMap(raw []byte) map[string]interface{} {
 	}
 
 	return decoded
+}
+
+func marshalRawAlertData(data map[string]interface{}, fallback []byte) []byte {
+	if len(data) == 0 {
+		return fallback
+	}
+
+	encoded, err := json.Marshal(data)
+	if err != nil || len(encoded) == 0 {
+		return fallback
+	}
+
+	return encoded
 }
 
 // contains 检查切片是否包含元素

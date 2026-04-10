@@ -1,44 +1,64 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
-  Card,
-  Table,
+  Alert,
   Button,
-  Space,
-  Tag,
-  Modal,
+  Card,
+  Drawer,
   Form,
   Input,
+  Modal,
+  Space,
   Switch,
-  message,
+  Table,
+  Tag,
   Typography,
-  Drawer,
+  message,
 } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, KeyOutlined, CopyOutlined } from '@ant-design/icons'
-import { useConfigStore } from '../stores/configStore'
-import { dataSourceApi } from '../api/client'
+import { CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons'
 import { CodeEditor } from '../components/CodeEditor'
-import type { DataSource } from '../types'
+import { dataSourceApi } from '../api/client'
+import { useConfigStore } from '../stores/configStore'
+import type { DataSource, DataSourcePreviewResponse } from '../types'
 
-const { Text } = Typography
+const { Paragraph, Text } = Typography
 const { TextArea } = Input
 
-// 生成随机 API Key
+const defaultPreviewPayload = JSON.stringify(
+  {
+    status: 'firing',
+    labels: {
+      alertname: 'ServerLatencyHigh',
+      severity: 'warning',
+      instance: 'game-01',
+    },
+    annotations: {
+      summary: 'Latency above threshold',
+      runbook: 'https://runbook.internal/game-latency',
+    },
+    summary: 'raw summary from webhook',
+    value: 187,
+    timestamp: '2026-04-10T07:00:00Z',
+  },
+  null,
+  2
+)
+
 const generateApiKey = (): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  const prefix = 'ds_'
-  let result = prefix
-  for (let i = 0; i < 32; i++) {
+  let result = 'ds_'
+  for (let i = 0; i < 32; i += 1) {
     result += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return result
 }
 
-// 脱敏显示 API Key
 const maskApiKey = (key?: string): string => {
   if (!key) return '-'
   if (key.length <= 8) return '****'
-  return key.substring(0, 8) + '****' + key.substring(key.length - 4)
+  return `${key.substring(0, 8)}****${key.substring(key.length - 4)}`
 }
+
+const formatJson = (value: unknown): string => JSON.stringify(value, null, 2)
 
 export const DataSources: React.FC = () => {
   const {
@@ -49,60 +69,68 @@ export const DataSources: React.FC = () => {
     updateDataSource,
     deleteDataSource,
     toggleDataSource,
+    previewDataSource,
   } = useConfigStore()
 
   const [modalVisible, setModalVisible] = useState(false)
   const [editingDataSource, setEditingDataSource] = useState<DataSource | null>(null)
-  const [form] = Form.useForm()
   const [currentApiKey, setCurrentApiKey] = useState('')
-
-  const [testDrawerVisible, setTestDrawerVisible] = useState(false)
-  const [testPayload, setTestPayload] = useState('')
-  const [testResult, setTestResult] = useState<any>(null)
-  const [testLoading, setTestLoading] = useState(false)
-  const apiKeyRef = useRef<any>(null)
+  const [previewDrawerVisible, setPreviewDrawerVisible] = useState(false)
+  const [previewPayload, setPreviewPayload] = useState(defaultPreviewPayload)
+  const [previewResult, setPreviewResult] = useState<DataSourcePreviewResponse | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [form] = Form.useForm()
 
   useEffect(() => {
     fetchDataSources()
-  }, [])
+  }, [fetchDataSources])
 
-  // 当表单 key 变化时（编辑模式），设置初始值
   useEffect(() => {
-    if (editingDataSource && form) {
-      // 确保布尔值类型正确
-      form.setFieldsValue({
-        ...editingDataSource,
-        group_by_labels: editingDataSource.group_by_labels?.join(', '),
-        deduplicate_enabled: editingDataSource.deduplicate_enabled === true,
-        deduplicate_window: Number(editingDataSource.deduplicate_window) || 3600,
-        group_enabled: editingDataSource.group_enabled === true,
-        group_window: Number(editingDataSource.group_window) || 300,
-      })
+    if (!editingDataSource) {
+      return
     }
-  }, [editingDataSource?.id, form])
+
+    form.setFieldsValue({
+      ...editingDataSource,
+      group_by_labels: editingDataSource.group_by_labels?.join(', '),
+      deduplicate_enabled: editingDataSource.deduplicate_enabled === true,
+      deduplicate_window: Number(editingDataSource.deduplicate_window) || 3600,
+      group_enabled: editingDataSource.group_enabled === true,
+      group_window: Number(editingDataSource.group_window) || 300,
+    })
+  }, [editingDataSource, form])
+
+  const closeEditor = () => {
+    setModalVisible(false)
+    setEditingDataSource(null)
+    setCurrentApiKey('')
+    setPreviewResult(null)
+    setPreviewDrawerVisible(false)
+  }
 
   const handleCreate = () => {
     setEditingDataSource(null)
     setCurrentApiKey('')
+    setPreviewResult(null)
+    setPreviewPayload(defaultPreviewPayload)
     form.resetFields()
-    // 确保所有值都是正确的类型
-    const defaultValues = {
+    form.setFieldsValue({
       enabled: true,
-      group_by_labels: [],
+      group_by_labels: '',
       deduplicate_enabled: true,
       deduplicate_window: 3600,
       group_enabled: false,
       group_window: 300,
-    }
-    form.setFieldsValue(defaultValues)
+    })
     setModalVisible(true)
   }
 
   const handleEdit = async (record: DataSource) => {
-    // 获取完整数据（包含 api_key）
-    const fullData = await dataSourceApi.get(record.id) as unknown as DataSource
+    const fullData = (await dataSourceApi.get(record.id)) as unknown as DataSource
     setEditingDataSource(fullData)
     setCurrentApiKey(fullData.api_key || '')
+    setPreviewResult(null)
+    setPreviewPayload(defaultPreviewPayload)
     setModalVisible(true)
   }
 
@@ -114,7 +142,7 @@ export const DataSources: React.FC = () => {
         try {
           await deleteDataSource(record.id)
           message.success('删除成功')
-        } catch (error) {
+        } catch {
           message.error('删除失败')
         }
       },
@@ -125,49 +153,65 @@ export const DataSources: React.FC = () => {
     try {
       await toggleDataSource(record.id, !record.enabled)
       message.success(record.enabled ? '已禁用' : '已启用')
-    } catch (error) {
+    } catch {
       message.error('操作失败')
     }
-  }
-
-  const handleGenerateApiKey = () => {
-    const newKey = generateApiKey()
-    setCurrentApiKey(newKey)
-    message.success('API Key 已生成')
-  }
-
-  const handleCopyApiKey = (key: string) => {
-    navigator.clipboard.writeText(key)
-    message.success('API Key 已复制到剪贴板')
   }
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      const data = {
+      const payload = {
         ...values,
-        // 使用当前输入的 API Key
         api_key: currentApiKey,
         group_by_labels: values.group_by_labels
-          ? values.group_by_labels.split(',').map((s: string) => s.trim()).filter(Boolean)
+          ? values.group_by_labels
+              .split(',')
+              .map((item: string) => item.trim())
+              .filter(Boolean)
           : [],
       }
 
       if (editingDataSource) {
-        await updateDataSource(editingDataSource.id, data)
+        await updateDataSource(editingDataSource.id, payload)
         message.success('更新成功')
       } else {
-        await createDataSource(data)
+        await createDataSource(payload)
         message.success('创建成功')
       }
-      setModalVisible(false)
-    } catch (error) {
-      // Validation error
+
+      closeEditor()
+    } catch {
+      // validation handled by form
     }
   }
 
-  const handleTest = () => {
-    setTestDrawerVisible(true)
+  const handlePreview = async () => {
+    try {
+      const values = await form.validateFields(['name', 'input_template', 'output_template'])
+      const samplePayload = JSON.parse(previewPayload)
+
+      setPreviewLoading(true)
+      const result = await previewDataSource({
+        datasource_id: editingDataSource?.id,
+        source_name: values.name || editingDataSource?.name || 'preview',
+        input_template: values.input_template,
+        output_template: values.output_template,
+        sample_payload: samplePayload,
+      })
+
+      setPreviewResult(result)
+      setPreviewDrawerVisible(true)
+      message.success('模板预览已更新')
+    } catch (error: any) {
+      const errorMessage =
+        error instanceof SyntaxError
+          ? `JSON 格式错误: ${error.message}`
+          : error?.response?.data?.error || error?.message || '模板预览失败'
+      message.error(errorMessage)
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   const columns = [
@@ -186,9 +230,7 @@ export const DataSources: React.FC = () => {
       title: 'Webhook 地址',
       dataIndex: 'name',
       key: 'webhook',
-      render: (name: string) => (
-        <Text copyable code>/webhook/{name}</Text>
-      ),
+      render: (name: string) => <Text copyable={{ text: `/webhook/${name}` }} code>/webhook/{name}</Text>,
     },
     {
       title: 'API Key',
@@ -198,12 +240,7 @@ export const DataSources: React.FC = () => {
         <Space>
           <Text code>{maskApiKey(key)}</Text>
           {key && (
-            <Button
-              type="text"
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={() => handleCopyApiKey(key)}
-            />
+            <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => navigator.clipboard.writeText(key)} />
           )}
         </Space>
       ),
@@ -212,61 +249,26 @@ export const DataSources: React.FC = () => {
       title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',
-      render: (enabled: boolean) => (
-        <Tag color={enabled ? 'green' : 'default'}>
-          {enabled ? '已启用' : '已禁用'}
-        </Tag>
-      ),
-    },
-    {
-      title: '去重',
-      key: 'deduplicate',
-      render: (_: any, record: DataSource) => (
-        <Space direction="vertical" size={0}>
-          <Tag color={record.deduplicate_enabled ? 'blue' : 'default'}>
-            {record.deduplicate_enabled ? '已启用' : '已禁用'}
-          </Tag>
-          {record.deduplicate_enabled && record.deduplicate_window && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {record.deduplicate_window}秒
-            </Text>
-          )}
-        </Space>
-      ),
+      render: (enabled: boolean) => <Tag color={enabled ? 'green' : 'default'}>{enabled ? '已启用' : '已禁用'}</Tag>,
     },
     {
       title: '最近触发',
       dataIndex: 'last_trigger_at',
       key: 'last_trigger_at',
-      render: (time: string) => time ? new Date(time).toLocaleString() : '-',
+      render: (value?: string) => (value ? new Date(value).toLocaleString() : '-'),
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: DataSource) => (
+      render: (_: unknown, record: DataSource) => (
         <Space>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => handleToggle(record)}
-          >
+          <Button type="link" size="small" onClick={() => handleToggle(record)}>
             {record.enabled ? '禁用' : '启用'}
           </Button>
-          <Button
-            type="link"
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-          >
+          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
             删除
           </Button>
         </Space>
@@ -281,7 +283,7 @@ export const DataSources: React.FC = () => {
         extra={
           <Space>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              用于接收外部告警系统的 Webhook
+              接收 Webhook、标准化事件，再按 output template 渲染通知
             </Text>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
               新建数据源
@@ -289,48 +291,41 @@ export const DataSources: React.FC = () => {
           </Space>
         }
       >
-        <Table
-          columns={columns}
-          dataSource={dataSources}
-          rowKey="id"
-          loading={dataSourcesLoading}
-        />
+        <Table columns={columns} dataSource={dataSources} rowKey="id" loading={dataSourcesLoading} />
       </Card>
 
-      {/* Edit/Create Modal */}
       <Modal
         title={editingDataSource ? '编辑数据源' : '新建数据源'}
         open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => {
-          setModalVisible(false)
-          setCurrentApiKey('')
-          setEditingDataSource(null)
-        }}
-        width={800}
+        onCancel={closeEditor}
+        width={960}
         destroyOnClose
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          key={editingDataSource?.id || 'new'}
-        >
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
+        footer={[
+          <Button key="cancel" onClick={closeEditor}>
+            取消
+          </Button>,
+          <Button
+            key="preview"
+            icon={<EyeOutlined />}
+            loading={previewLoading}
+            onClick={handlePreview}
           >
+            预览模板
+          </Button>,
+          <Button key="submit" type="primary" onClick={handleSubmit}>
+            保存
+          </Button>,
+        ]}
+      >
+        <Form form={form} layout="vertical" key={editingDataSource?.id || 'new'}>
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="唯一标识，如 prometheus" disabled={!!editingDataSource} />
           </Form.Item>
-          <Form.Item
-            name="display_name"
-            label="显示名称"
-            rules={[{ required: true, message: '请输入显示名称' }]}
-          >
+
+          <Form.Item name="display_name" label="显示名称" rules={[{ required: true, message: '请输入显示名称' }]}>
             <Input placeholder="友好显示名称" />
           </Form.Item>
 
-          {/* API Key 配置 */}
           <Form.Item
             label={
               <Space>
@@ -338,119 +333,140 @@ export const DataSources: React.FC = () => {
                 <span>API Key</span>
               </Space>
             }
-            extra="用于 Webhook 安全性验证，生成后可在外接系统配置使用。留空则该数据源拒绝所有请求"
+            extra="用于 Webhook 安全校验。留空会拒绝该数据源的所有请求。"
           >
             <Space.Compact style={{ width: '100%' }}>
               <Input
                 value={currentApiKey}
-                onChange={(e) => setCurrentApiKey(e.target.value)}
-                placeholder="留空则该数据源拒绝所有请求，或点击生成按钮"
+                onChange={(event) => setCurrentApiKey(event.target.value)}
+                placeholder="留空则拒绝所有请求，或点击生成按钮"
                 allowClear
-                style={{ flex: 1 }}
               />
-              <Button
-                type="primary"
-                icon={<KeyOutlined />}
-                onClick={handleGenerateApiKey}
-              >
+              <Button type="primary" icon={<KeyOutlined />} onClick={() => setCurrentApiKey(generateApiKey())}>
                 生成
               </Button>
             </Space.Compact>
           </Form.Item>
 
-          <Form.Item
-            name="group_by_labels"
-            label="分组 Labels"
-          >
+          <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Text strong>模板字段契约</Text>
+              <Text>旧模板继续使用顶层字段：`alert_name`、`severity`、`message`、`source`、`status`、`trigger_time`、`labels`。</Text>
+              <Text>原始 webhook JSON 通过 `event` 暴露，适合直接读取 `event.summary`、`event.annotations.runbook` 这类嵌套字段。</Text>
+              <Paragraph style={{ marginBottom: 0 }}>
+                示例：
+                <br />
+                <Text code>{`{"title":"[{{.severity}}] {{.alert_name}}","content":"{{default .event.annotations.runbook \"无 runbook\"}}"}`}</Text>
+              </Paragraph>
+            </Space>
+          </Card>
+
+          <Form.Item name="group_by_labels" label="分组 Labels">
             <Input placeholder="用逗号分隔，如: instance, env" />
           </Form.Item>
 
-          {/* 去重配置 */}
-          <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f6f8fa', borderRadius: 6 }}>
-            <Text strong style={{ display: 'block', marginBottom: 12 }}>⚡ 去重/聚合配置</Text>
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              <Form.Item name="deduplicate_enabled" valuePropName="checked" style={{ marginBottom: 0 }}>
+          <Card size="small" style={{ marginBottom: 16 }}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Text strong>去重 / 聚合配置</Text>
+              <Form.Item name="deduplicate_enabled" label="启用去重" valuePropName="checked" style={{ marginBottom: 0 }}>
                 <Switch />
               </Form.Item>
               <Form.Item name="deduplicate_window" label="去重窗口" style={{ marginBottom: 0 }}>
-                <Input type="number" placeholder="3600" addonAfter="秒" style={{ width: 200 }} />
+                <Input type="number" placeholder="3600" addonAfter="秒" style={{ width: 220 }} />
               </Form.Item>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                相同指纹的告警在去重窗口内只会触发一次通知。默认1小时(3600秒)
-              </Text>
-
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed #d9d9d9' }}>
-                <Form.Item name="group_enabled" valuePropName="checked" style={{ marginBottom: 0 }}>
-                  <Switch />
-                </Form.Item>
-                <Form.Item name="group_window" label="分组窗口" style={{ marginBottom: 0 }}>
-                  <Input type="number" placeholder="300" addonAfter="秒" style={{ width: 200 }} />
-                </Form.Item>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  在分组窗口内的告警会聚合为一条通知。默认5分钟(300秒)
-                </Text>
-              </div>
+              <Form.Item name="group_enabled" label="启用分组" valuePropName="checked" style={{ marginBottom: 0 }}>
+                <Switch />
+              </Form.Item>
+              <Form.Item name="group_window" label="分组窗口" style={{ marginBottom: 0 }}>
+                <Input type="number" placeholder="300" addonAfter="秒" style={{ width: 220 }} />
+              </Form.Item>
             </Space>
-          </div>
+          </Card>
 
-          <Form.Item
-            name="input_template"
-            label="输入模板 (Go Template)"
-            rules={[{ required: true, message: '请输入输入模板' }]}
-          >
+          <Form.Item name="input_template" label="输入模板 (Go Template)" rules={[{ required: true, message: '请输入输入模板' }]}>
             <CodeEditor
-              height={150}
+              height={180}
               value={form.getFieldValue('input_template') || ''}
-              onChange={(v) => form.setFieldsValue({ input_template: v })}
+              onChange={(value) => form.setFieldsValue({ input_template: value })}
               language="go"
             />
           </Form.Item>
-          <Form.Item
-            name="output_template"
-            label="输出模板 (Go Template)"
-            rules={[{ required: true, message: '请输入输出模板' }]}
-          >
+
+          <Form.Item name="output_template" label="输出模板 (Go Template)" rules={[{ required: true, message: '请输入输出模板' }]}>
             <CodeEditor
-              height={150}
+              height={180}
               value={form.getFieldValue('output_template') || ''}
-              onChange={(v) => form.setFieldsValue({ output_template: v })}
+              onChange={(value) => form.setFieldsValue({ output_template: value })}
               language="go"
             />
           </Form.Item>
+
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="预览说明"
+            description="点击“预览模板”会把当前编辑中的 input/output template 和样例 JSON 一起发到后端，用真实通知渲染契约返回规范化告警与最终 title/content。"
+          />
+
           <Form.Item name="enabled" label="启用" valuePropName="checked">
             <Switch />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* Test Drawer */}
       <Drawer
-        title="模板测试"
+        title="模板预览"
         placement="right"
-        width={600}
-        open={testDrawerVisible}
-        onClose={() => setTestDrawerVisible(false)}
-      >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <div>
-            <Text strong>输入 JSON 样本:</Text>
-            <TextArea
-              rows={8}
-              placeholder='{"status": "firing", "labels": {...}}'
-              value={testPayload}
-              onChange={(e) => setTestPayload(e.target.value)}
-            />
-          </div>
-          <Button type="primary" onClick={handleTest} loading={testLoading}>
-            测试输入模板
+        width={720}
+        open={previewDrawerVisible}
+        onClose={() => setPreviewDrawerVisible(false)}
+        extra={
+          <Button type="primary" loading={previewLoading} onClick={handlePreview}>
+            重新预览
           </Button>
-          {testResult && (
-            <div>
-              <Text strong>测试结果:</Text>
-              <pre style={{ background: '#f5f5f5', padding: 12, overflow: 'auto' }}>
-                {JSON.stringify(testResult, null, 2)}
-              </pre>
-            </div>
+        }
+      >
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div>
+            <Text strong>样例 Webhook JSON</Text>
+            <TextArea rows={12} value={previewPayload} onChange={(event) => setPreviewPayload(event.target.value)} />
+          </div>
+
+          {previewResult && (
+            <>
+              <Card size="small" title="上下文键预览">
+                <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <Text>Top-level: {previewResult.context_preview.top_level_keys.join(', ')}</Text>
+                  <Text>event: {previewResult.context_preview.event_keys.join(', ') || '(empty)'}</Text>
+                  <Text>alert: {previewResult.context_preview.alert_keys.join(', ')}</Text>
+                  <Text>labels: {previewResult.context_preview.label_keys.join(', ') || '(empty)'}</Text>
+                </Space>
+              </Card>
+
+              <Card size="small" title="渲染结果">
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  <div>
+                    <Text strong>Title</Text>
+                    <pre style={{ background: '#f5f5f5', padding: 12, whiteSpace: 'pre-wrap' }}>
+                      {previewResult.rendered.title}
+                    </pre>
+                  </div>
+                  <div>
+                    <Text strong>Content</Text>
+                    <pre style={{ background: '#f5f5f5', padding: 12, whiteSpace: 'pre-wrap' }}>
+                      {previewResult.rendered.content}
+                    </pre>
+                  </div>
+                </Space>
+              </Card>
+
+              <Card size="small" title="规范化告警">
+                <pre style={{ background: '#f5f5f5', padding: 12, overflow: 'auto' }}>
+                  {formatJson(previewResult.normalized_alert)}
+                </pre>
+              </Card>
+            </>
           )}
         </Space>
       </Drawer>

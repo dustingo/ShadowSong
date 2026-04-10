@@ -2,6 +2,8 @@ import axios from 'axios'
 import type {
   Alert,
   DataSource,
+  DataSourcePreviewRequest,
+  DataSourcePreviewResponse,
   Channel,
   RouteRule,
   SilenceRule,
@@ -92,11 +94,8 @@ export const dataSourceApi = {
   toggle: (id: number, enabled: boolean) =>
     apiClient.patch(`/datasources/${id}/toggle`, { enabled }),
 
-  testInput: (id: number, payload: any) =>
-    apiClient.post<{ result: any }>(`/datasources/${id}/test-input`, payload),
-
-  testOutput: (id: number, data: { template: string; data: any }) =>
-    apiClient.post<{ result: string }>(`/datasources/${id}/test-output`, data),
+  preview: (data: DataSourcePreviewRequest) =>
+    apiClient.post<DataSourcePreviewResponse>('/datasources/preview', data),
 }
 
 // ============ Channel API ============

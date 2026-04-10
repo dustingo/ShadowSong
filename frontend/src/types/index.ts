@@ -41,6 +41,28 @@ export interface DataSource {
   updated_at: string
 }
 
+export interface DataSourcePreviewRequest {
+  datasource_id?: number
+  source_name?: string
+  input_template?: string
+  output_template?: string
+  sample_payload: Record<string, any> | Array<Record<string, any>>
+}
+
+export interface DataSourcePreviewResponse {
+  normalized_alert: Alert
+  rendered: {
+    title: string
+    content: string
+  }
+  context_preview: {
+    top_level_keys: string[]
+    event_keys: string[]
+    label_keys: string[]
+    alert_keys: string[]
+  }
+}
+
 export interface Channel {
   id: number
   name: string

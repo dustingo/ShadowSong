@@ -1,5 +1,13 @@
 import { create } from 'zustand'
-import type { DataSource, Channel, RouteRule, SilenceRule, OnDuty } from '../types'
+import type {
+  DataSource,
+  DataSourcePreviewRequest,
+  DataSourcePreviewResponse,
+  Channel,
+  RouteRule,
+  SilenceRule,
+  OnDuty,
+} from '../types'
 import { dataSourceApi, channelApi, routeRuleApi, silenceRuleApi, onDutyApi } from '../api/client'
 
 interface ConfigState {
@@ -19,6 +27,7 @@ interface ConfigState {
   updateDataSource: (id: number, data: Partial<DataSource>) => Promise<void>
   deleteDataSource: (id: number) => Promise<void>
   toggleDataSource: (id: number, enabled: boolean) => Promise<void>
+  previewDataSource: (data: DataSourcePreviewRequest) => Promise<DataSourcePreviewResponse>
   fetchChannels: () => Promise<void>
   createChannel: (data: Partial<Channel>) => Promise<void>
   updateChannel: (id: number, data: Partial<Channel>) => Promise<void>
@@ -84,6 +93,8 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     await dataSourceApi.toggle(id, enabled)
     get().fetchDataSources()
   },
+
+  previewDataSource: async (data) => dataSourceApi.preview(data) as unknown as DataSourcePreviewResponse,
 
   fetchChannels: async () => {
     set({ channelsLoading: true })

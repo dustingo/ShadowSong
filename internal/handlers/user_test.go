@@ -7,12 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/game-ops/ai-alert-system/internal/auth"
 	"github.com/game-ops/ai-alert-system/internal/authz"
+	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -104,6 +108,100 @@ func TestUpdateUserRejectsInvalidRole(t *testing.T) {
 	assert.Equal(t, authz.RoleViewer, saved.Role)
 }
 
+func TestLoginPreservesResponseContract(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	jwtAuth := newUserTestJWT()
+	handler := NewUserHandler(db, jwtAuth)
+
+	user := models.User{
+		Username: "alice",
+		Name:     "Alice",
+		Role:     authz.RoleOperator,
+	}
+	require.NoError(t, user.SetPassword("plain-text-password"))
+	require.NoError(t, db.Create(&user).Error)
+
+	req := newJSONRequest(t, http.MethodPost, "/auth/login", map[string]string{
+		"username": "alice",
+		"password": "plain-text-password",
+	})
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.Login(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var response LoginResponse
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.NotEmpty(t, response.Token)
+	require.NotNil(t, response.User)
+	assert.Equal(t, user.ID, response.User.ID)
+	assert.Equal(t, authz.RoleOperator, response.User.Role)
+	assert.Equal(t, "", response.User.PasswordHash)
+
+	claims, err := jwtAuth.ValidateToken(response.Token)
+	require.NoError(t, err)
+	assert.Equal(t, user.ID, claims.UserID)
+	assert.Equal(t, user.Username, claims.Username)
+	assert.Equal(t, authz.RoleOperator, claims.Role)
+}
+
+func TestRefreshTokenPreservesClaimsContract(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	jwtAuth := newUserTestJWT()
+	handler := NewUserHandler(db, jwtAuth)
+
+	token, err := jwtAuth.GenerateToken(23, "alice", authz.RoleViewer)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.RefreshToken(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var response struct {
+		Token string `json:"token"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.NotEmpty(t, response.Token)
+
+	claims, err := jwtAuth.ValidateToken(response.Token)
+	require.NoError(t, err)
+	assert.Equal(t, uint(23), claims.UserID)
+	assert.Equal(t, "alice", claims.Username)
+	assert.Equal(t, authz.RoleViewer, claims.Role)
+}
+
+func TestRefreshTokenRejectsUnsupportedRoleClaim(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	jwtAuth := newUserTestJWT()
+	handler := NewUserHandler(db, jwtAuth)
+
+	token, err := jwtAuth.GenerateToken(23, "alice", "owner")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.RefreshToken(context)
+
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	assert.JSONEq(t, `{"error":"invalid or expired token"}`, recorder.Body.String())
+}
+
 func openUserTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -130,4 +228,11 @@ func newJSONRequest(t *testing.T, method, target string, body any) *http.Request
 	req := httptest.NewRequest(method, target, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	return req
+}
+
+func newUserTestJWT() *auth.JWT {
+	return auth.NewJWT(&config.SecurityConfig{
+		JWTSecret:   "test-secret",
+		TokenExpiry: time.Hour,
+	})
 }

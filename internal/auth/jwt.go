@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -59,6 +60,9 @@ func (j *JWT) ValidateToken(tokenString string) (*Claims, error) {
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+		if !authz.IsSupportedRole(claims.Role) {
+			return nil, errors.New("invalid role claim")
+		}
 		return claims, nil
 	}
 

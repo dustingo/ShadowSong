@@ -14,6 +14,8 @@ import (
 )
 
 func TestCreateDefaultAdminUserUsesCanonicalRoleConstant(t *testing.T) {
+	t.Setenv("BOOTSTRAP_ADMIN_PASSWORD", "bootstrap-secret")
+
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
@@ -29,4 +31,17 @@ func TestCreateDefaultAdminUserUsesCanonicalRoleConstant(t *testing.T) {
 	source, err := os.ReadFile("postgres.go")
 	require.NoError(t, err)
 	assert.Contains(t, string(source), "Role:     authz.RoleAdmin")
+}
+
+func TestCreateDefaultAdminUserSkipsBootstrapWithoutPassword(t *testing.T) {
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&models.User{}))
+
+	createDefaultAdminUser(db)
+
+	var count int64
+	require.NoError(t, db.Model(&models.User{}).Count(&count).Error)
+	assert.Equal(t, int64(0), count)
 }

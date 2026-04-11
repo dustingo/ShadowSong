@@ -37,16 +37,37 @@ type queryer interface {
 	QueryContext(ctx context.Context, query string, args ...any) (rowScanner, error)
 }
 
-type sqlQueryer struct {
-	db *sql.DB
+type closeableQueryer interface {
+	queryer
+	Close() error
 }
 
-func (q sqlQueryer) QueryContext(ctx context.Context, query string, args ...any) (rowScanner, error) {
-	rows, err := q.db.QueryContext(ctx, query, args...)
+type sqlConnQueryer struct {
+	db *sql.DB
+	conn *sql.Conn
+}
+
+const setReadOnlySQL = "SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY"
+
+func (q *sqlConnQueryer) QueryContext(ctx context.Context, query string, args ...any) (rowScanner, error) {
+	rows, err := q.conn.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	return rows, nil
+}
+
+func (q *sqlConnQueryer) Close() error {
+	if q.conn != nil {
+		if err := q.conn.Close(); err != nil {
+			_ = q.db.Close()
+			return err
+		}
+	}
+	if q.db != nil {
+		return q.db.Close()
+	}
+	return nil
 }
 
 func main() {
@@ -55,17 +76,21 @@ func main() {
 
 func run(ctx context.Context, stdout, stderr io.Writer) int {
 	dbCfg := config.LoadDatabaseConfig()
-	db, err := openReadOnlyDB(dbCfg)
+	db, err := openReadOnlyDB(ctx, dbCfg)
 	if err != nil {
 		fmt.Fprintf(stderr, "failed to connect to database: %v\n", err)
 		return 1
 	}
 	defer db.Close()
 
-	return runAudit(ctx, sqlQueryer{db: db}, stdout, stderr)
+	return runAudit(ctx, db, stdout, stderr)
 }
 
-func openReadOnlyDB(cfg config.DatabaseConfig) (*sql.DB, error) {
+type sessionExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func openReadOnlyDB(ctx context.Context, cfg config.DatabaseConfig) (closeableQueryer, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		cfg.Host,
@@ -81,12 +106,29 @@ func openReadOnlyDB(cfg config.DatabaseConfig) (*sql.DB, error) {
 		return nil, err
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}
 
-	return db, nil
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+
+	if err := setSessionReadOnly(ctx, conn); err != nil {
+		conn.Close()
+		db.Close()
+		return nil, err
+	}
+
+	return &sqlConnQueryer{db: db, conn: conn}, nil
+}
+
+func setSessionReadOnly(ctx context.Context, execer sessionExecer) error {
+	_, err := execer.ExecContext(ctx, setReadOnlySQL)
+	return err
 }
 
 func runAudit(ctx context.Context, db queryer, stdout, stderr io.Writer) int {

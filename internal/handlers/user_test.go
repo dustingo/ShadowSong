@@ -149,6 +149,34 @@ func TestLoginPreservesResponseContract(t *testing.T) {
 	assert.Equal(t, authz.RoleOperator, claims.Role)
 }
 
+func TestLoginRejectsUnsupportedPersistedRole(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	jwtAuth := newUserTestJWT()
+	handler := NewUserHandler(db, jwtAuth)
+
+	user := models.User{
+		Username: "legacy-owner",
+		Name:     "Legacy Owner",
+		Role:     "owner",
+	}
+	require.NoError(t, user.SetPassword("plain-text-password"))
+	require.NoError(t, db.Session(&gorm.Session{SkipHooks: true}).Create(&user).Error)
+
+	req := newJSONRequest(t, http.MethodPost, "/auth/login", map[string]string{
+		"username": "legacy-owner",
+		"password": "plain-text-password",
+	})
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.Login(context)
+
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	assert.JSONEq(t, `{"error":"invalid username or password"}`, recorder.Body.String())
+}
+
 func TestRefreshTokenPreservesClaimsContract(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := openUserTestDB(t)

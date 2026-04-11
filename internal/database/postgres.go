@@ -3,11 +3,11 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/game-ops/ai-alert-system/internal/models"
-	"github.com/sethvargo/go-password/password"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -78,9 +78,11 @@ func createDefaultAdminUser(db *gorm.DB) {
 	db.Model(&models.User{}).Count(&count)
 
 	if count == 0 {
-		pwd, err := password.Generate(64, 10, 10, false, false)
+		pwd, err := resolveBootstrapAdminPassword()
 		if err != nil {
-			log.Fatalf("Failed to generate admin password: %v", err)
+			log.Printf("Warning: failed to determine bootstrap admin password: %v", err)
+			log.Printf("Skipping default admin creation until BOOTSTRAP_ADMIN_PASSWORD is provided")
+			return
 		}
 		admin := models.User{
 			Username: "admin",
@@ -96,7 +98,15 @@ func createDefaultAdminUser(db *gorm.DB) {
 			log.Printf("Warning: failed to create default admin user: %v", err)
 			return
 		}
-		log.Printf("Default admin user created: admin / %s", pwd)
-		log.Printf("You must change password when you sign in for the first time.")
+		log.Printf("Default admin user created: admin")
+		log.Printf("You must change the bootstrap password when you sign in for the first time.")
 	}
+}
+
+func resolveBootstrapAdminPassword() (string, error) {
+	if configured := os.Getenv("BOOTSTRAP_ADMIN_PASSWORD"); configured != "" {
+		return configured, nil
+	}
+
+	return "", fmt.Errorf("BOOTSTRAP_ADMIN_PASSWORD environment variable is required for initial admin bootstrap")
 }

@@ -66,6 +66,11 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
+	if !authz.IsSupportedRole(user.Role) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
+		return
+	}
+
 	token, err := h.jwtAuth.GenerateToken(user.ID, user.Username, user.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})

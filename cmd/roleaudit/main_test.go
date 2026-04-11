@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -77,6 +78,23 @@ func TestRoleAuditQueryFailureExitNonZero(t *testing.T) {
 	assert.Contains(t, stderr.String(), "role audit failed: boom")
 }
 
+func TestSetSessionReadOnlyUsesExplicitReadOnlyStatement(t *testing.T) {
+	execer := &stubSessionExecer{}
+
+	err := setSessionReadOnly(context.Background(), execer)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{setReadOnlySQL}, execer.queries)
+}
+
+func TestSetSessionReadOnlyPropagatesFailure(t *testing.T) {
+	execer := &stubSessionExecer{err: errors.New("read only failed")}
+
+	err := setSessionReadOnly(context.Background(), execer)
+
+	require.EqualError(t, err, "read only failed")
+}
+
 type stubQueryer struct {
 	queries []string
 	rows    rowScanner
@@ -118,4 +136,14 @@ func (s *stubRows) Err() error {
 
 func (s *stubRows) Close() error {
 	return nil
+}
+
+type stubSessionExecer struct {
+	queries []string
+	err     error
+}
+
+func (s *stubSessionExecer) ExecContext(_ context.Context, query string, _ ...any) (sql.Result, error) {
+	s.queries = append(s.queries, query)
+	return nil, s.err
 }

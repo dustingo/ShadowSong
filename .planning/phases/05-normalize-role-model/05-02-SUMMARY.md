@@ -78,13 +78,27 @@ None - plan executed exactly as written.
 - The initial Task 1 RED run showed refresh still accepted unsupported role claims; this was resolved by validating supported roles during token validation rather than only in middleware.
 - The initial Task 2 RED run showed bootstrap still used a raw `"admin"` string; this was resolved by switching to `authz.RoleAdmin` and locking it with a source-level regression assertion.
 
+## Target Rollout Audit
+
+Target-environment verification completed on 2026-04-12 with `go run ./cmd/roleaudit`.
+
+Observed output:
+
+```text
+Persisted role counts:
+- admin: 1
+Audit passed: only supported roles found (admin, operator, viewer)
+```
+
+The command exited `0`, so the persisted-role compatibility gate for AUTHZ-02 is satisfied.
+
 ## User Setup Required
 
-None - no external service configuration required inside the repo. Rollout still requires a manual target-environment `go run ./cmd/roleaudit` execution before AUTHZ-02 can be approved.
+None - no external service configuration required inside the repo.
 
 ## Next Phase Readiness
 - Phase 6 can build on the new `Principal` helper without breaking existing request-context consumers.
-- Phase closure is intentionally blocked on the real target-database audit run from Task 3; unsupported live role rows must be remediated outside this code plan before approval.
+- Target-database persisted-role audit already passed, so Phase 5 no longer depends on an outstanding rollout compatibility check.
 
 ## Self-Check: PASSED
 - Found `.planning/phases/05-normalize-role-model/05-02-SUMMARY.md`

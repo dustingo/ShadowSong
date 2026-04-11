@@ -7,12 +7,12 @@
 
 ## Current Status
 
-当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-8 已规划，等待进入首个 phase 的讨论与执行。
+当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5 已完成，下一步进入 Phase 6 的用户管理边界与账号控制实现。
 
 ## Next Step
 
-- `/gsd-discuss-phase 5` — 讨论 Phase 5 的实现边界与迁移策略
-- `/gsd-plan-phase 5` — 直接为 Phase 5 生成执行计划
+- `/gsd-discuss-phase 6` — 讨论 Phase 6 的账号禁用、强制改密和自助资料边界
+- `/gsd-plan-phase 6` — 直接为 Phase 6 生成执行计划
 
 ## Overview
 
@@ -26,7 +26,7 @@
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 5: Normalize Role Model** - 统一现有角色语义并建立可复用的权限判定基线
+- [x] **Phase 5: Normalize Role Model** - 统一现有角色语义并建立可复用的权限判定基线
 - [ ] **Phase 6: Secure User Administration** - 收紧用户管理和个人资料修改边界，并加入账号禁用与强制改密
 - [ ] **Phase 7: Lock Down Protected Operations** - 对配置与告警操作接口补齐角色校验，并落地关键操作审计
 - [ ] **Phase 8: Ship Permission-Aware UI And Verification** - 让前端入口与按钮按权限收口，并补齐角色矩阵验证
@@ -45,9 +45,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **UI hint**: no
 
 Plans:
-- [ ] 05-01-PLAN.md — Normalize role constants, validation, and token/session claims around existing role names
-- [ ] 05-02-PLAN.md — Audit and harden existing user/bootstrap data compatibility without role renaming
-- [ ] 05-03-PLAN.md — Introduce reusable authorization helpers and backend permission matrix tests
+- [x] 05-01-PLAN.md — Normalize role constants, validation, and token/session claims around existing role names
+- [x] 05-02-PLAN.md — Audit and harden existing user/bootstrap data compatibility without role renaming
+- [x] 05-03-PLAN.md — Introduce reusable authorization helpers and backend permission matrix tests
 
 ### Phase 6: Secure User Administration
 **Goal**: 让用户管理明确区分“管理员管理用户”和“普通用户维护个人资料”，杜绝越权改其它用户或自提权，并补齐账号禁用与强制改密控制。

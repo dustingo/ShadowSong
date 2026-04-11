@@ -66,9 +66,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTHZ-01 | Phase 5 | Pending |
-| AUTHZ-02 | Phase 5 | Pending |
-| AUTHZ-03 | Phase 5 | Pending |
+| AUTHZ-01 | Phase 5 | Complete |
+| AUTHZ-02 | Phase 5 | Complete |
+| AUTHZ-03 | Phase 5 | Complete |
 | USER-01 | Phase 6 | Pending |
 | USER-02 | Phase 6 | Pending |
 | USER-03 | Phase 6 | Pending |
@@ -97,4 +97,4 @@
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after initial definition*
+*Last updated: 2026-04-12 after Phase 5 completion*

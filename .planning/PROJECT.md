@@ -15,10 +15,10 @@
 - [x] 告警系统核心链路已在无 AI 前提下可用，包括告警接入、查看、处理、路由、静默和值班能力
 - [x] 通知模板已支持标准告警字段与原始事件字段透传，并具备模板预览能力
 - [x] 系统已具备基础 JWT 登录、用户模型和角色字段，可作为权限体系增强的基础
+- [x] 系统已统一 `admin`、`operator`、`viewer` 角色真源，并建立可复用的 principal/capability 鉴权基线（Validated in Phase 5）
 
 ### Active
 
-- [ ] 建立企业级角色模型与最小权限策略，明确 `admin`、`operator`、`viewer` 的能力边界
 - [ ] 防止非授权用户修改其它用户资料、角色或系统配置
 - [ ] 让前端菜单、页面和操作按钮与后端权限校验保持一致
 - [ ] 为权限矩阵补齐验证与回归测试，避免再出现“任意登录用户可改配置”的问题
@@ -33,8 +33,9 @@
 ## Current State
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线
 - 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本
+- 最新阶段：Phase 5 已完成，角色模型与鉴权基线已落地，后续进入用户管理边界与账号控制强化
 - 当前 roadmap/requirements 已归档到 `.planning/milestones/`
 
 ## Current Milestone: v1.1 Enterprise Access Control
@@ -73,10 +74,10 @@
 | 先移除 AI 运行时和前端入口，再做文档与验证收口 | 先锁定核心告警主链路，降低回归风险 | ? Good |
 | 模板能力以“标准字段 + 原始事件上下文”正式契约提供 | 满足自由透传 JSON 字段的同时保持旧模板兼容 | ? Good |
 | 模板能力进入产品时同步提供后端驱动预览与脚本化验证 | 降低模板作者试错成本，避免隐式契约 | ? Good |
-| 沿用 `admin`、`operator`、`viewer` 三档固定角色，而不改名 | 减少历史数据和前后端合同迁移成本，优先解决真实越权问题 | -> Pending |
-| 权限控制以后端拒绝未授权请求作为最终防线，前端负责可见性与体验收口 | 防止“隐藏按钮但接口仍可调用”的伪权限控制 | -> Pending |
-| 配置类写权限仅授予 `admin`，`operator` 保留告警处理能力 | 配置变更风险高于日常值班处理，需要明确职责分层 | -> Pending |
-| 将审计日志、账号禁用和强制改密纳入本里程碑 | 这些能力直接关系到账户控制安全性，不能只做静态角色收口 | -> Pending |
+| 沿用 `admin`、`operator`、`viewer` 三档固定角色，而不改名 | 减少历史数据和前后端合同迁移成本，优先解决真实越权问题 | ✓ Good |
+| 权限控制以后端拒绝未授权请求作为最终防线，前端负责可见性与体验收口 | 防止“隐藏按钮但接口仍可调用”的伪权限控制 | ✓ Good |
+| 配置类写权限仅授予 `admin`，`operator` 保留告警处理能力 | 配置变更风险高于日常值班处理，需要明确职责分层 | ✓ Good |
+| 将审计日志、账号禁用和强制改密纳入本里程碑 | 这些能力直接关系到账户控制安全性，不能只做静态角色收口 | ✓ Good |
 
 ## Evolution
 
@@ -105,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-11 after v1.1 milestone initialization*
+*Last updated: 2026-04-12 after Phase 5 completion*

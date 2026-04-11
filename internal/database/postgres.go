@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/sethvargo/go-password/password"
@@ -85,7 +86,7 @@ func createDefaultAdminUser(db *gorm.DB) {
 			Username: "admin",
 			Name:     "管理员",
 			Email:    "admin@example.com",
-			Role:     "admin",
+			Role:     authz.RoleAdmin,
 		}
 		if err := admin.SetPassword(pwd); err != nil {
 			log.Printf("Warning: failed to set admin password: %v", err)

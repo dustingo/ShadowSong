@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/game-ops/ai-alert-system/internal/auth"
+	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/gin-gonic/gin"
@@ -32,6 +33,14 @@ type LoginResponse struct {
 	Token    string       `json:"token"`
 	User     *models.User `json:"user"`
 	ExpireAt int64        `json:"expire_at"`
+}
+
+type createUserRequest struct {
+	Username string `json:"username" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+	Password string `json:"password" binding:"required"`
 }
 
 // Login handles user login
@@ -140,19 +149,27 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 
 // CreateUser creates a new user (admin only)
 func (h *UserHandler) CreateUser(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var req createUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
 
-	if user.PasswordHash == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "password is required"})
+	user := models.User{
+		Username: req.Username,
+		Name:     req.Name,
+		Email:    req.Email,
+		Role:     req.Role,
+	}
+
+	user.Role = authz.DefaultRole(user.Role)
+	if !authz.IsSupportedRole(user.Role) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
 		return
 	}
 
 	// Hash the password
-	if err := user.SetPassword(user.PasswordHash); err != nil {
+	if err := user.SetPassword(req.Password); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
 		return
 	}
@@ -205,7 +222,11 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	if input.Email != "" {
 		user.Email = input.Email
 	}
-	if input.Role != "" && currentUserRole == "admin" {
+	if input.Role != "" && !authz.IsSupportedRole(input.Role) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
+		return
+	}
+	if input.Role != "" && currentUserRole == authz.RoleAdmin {
 		user.Role = input.Role
 	}
 	if input.Password != "" {

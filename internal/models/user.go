@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/game-ops/ai-alert-system/internal/authz"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -20,31 +21,32 @@ type User struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// Valid roles
-var validRoles = map[string]bool{
-	"admin":   true,
-	"operator": true,
-	"viewer":  true,
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	return u.normalizeAndValidate()
 }
 
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	if u.Role == "" {
-		u.Role = "viewer"
-	}
-	return nil
+func (u *User) BeforeUpdate(tx *gorm.DB) error {
+	return u.normalizeAndValidate()
 }
 
 func (u *User) Validate() error {
+	u.Role = authz.DefaultRole(u.Role)
+
 	if u.Username == "" {
 		return errors.New("username is required")
 	}
 	if u.Name == "" {
 		return errors.New("name is required")
 	}
-	if !validRoles[u.Role] {
+	if !authz.IsSupportedRole(u.Role) {
 		return errors.New("invalid role")
 	}
 	return nil
+}
+
+func (u *User) normalizeAndValidate() error {
+	u.Role = authz.DefaultRole(u.Role)
+	return u.Validate()
 }
 
 // SetPassword encrypts and sets the password

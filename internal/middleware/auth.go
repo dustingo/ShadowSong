@@ -114,35 +114,6 @@ func GetPrincipal(c *gin.Context) (Principal, bool) {
 	return principal, true
 }
 
-// RequireRole creates a middleware that requires a specific role
-func RequireRole(roles ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userRole, exists := c.Get(RoleKey)
-		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			c.Abort()
-			return
-		}
-
-		roleStr, ok := userRole.(string)
-		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"error": "invalid role"})
-			c.Abort()
-			return
-		}
-
-		for _, role := range roles {
-			if roleStr == role {
-				c.Next()
-				return
-			}
-		}
-
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
-		c.Abort()
-	}
-}
-
 // GetUserID retrieves the user ID from the context
 func GetUserID(c *gin.Context) uint {
 	if id, exists := c.Get(UserIDKey); exists {

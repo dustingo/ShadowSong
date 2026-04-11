@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/game-ops/ai-alert-system/internal/auth"
+	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/game-ops/ai-alert-system/internal/handlers"
 	"github.com/game-ops/ai-alert-system/internal/middleware"
@@ -65,11 +66,11 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 		users := v1.Group("/users")
 		users.Use(middleware.JWTAuth(jwtAuth))
 		{
-			users.GET("", middleware.RequireRole("admin"), userHandler.ListUsers)
+			users.GET("", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.ListUsers)
 			users.GET("/me", userHandler.GetCurrentUser)
-			users.POST("", middleware.RequireRole("admin"), userHandler.CreateUser)
+			users.POST("", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.CreateUser)
 			users.PUT("/:id", userHandler.UpdateUser)
-			users.DELETE("/:id", middleware.RequireRole("admin"), userHandler.DeleteUser)
+			users.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.DeleteUser)
 		}
 
 		// Alert routes (protected)

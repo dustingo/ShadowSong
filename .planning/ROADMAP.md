@@ -7,12 +7,12 @@
 
 ## Current Status
 
-当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5 已完成，下一步进入 Phase 6 的用户管理边界与账号控制实现。
+当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5 已完成，Phase 6 已完成规划，下一步进入用户管理边界与账号控制实现。
 
 ## Next Step
 
-- `/gsd-discuss-phase 6` — 讨论 Phase 6 的账号禁用、强制改密和自助资料边界
-- `/gsd-plan-phase 6` — 直接为 Phase 6 生成执行计划
+- `/gsd-execute-phase 6` — 执行 Phase 6 的账号禁用、强制改密、自助资料与管理员管人边界改造
+- `/gsd-discuss-phase 7` — 在需要提前澄清审计日志与受保护操作矩阵时使用
 
 ## Overview
 

@@ -211,15 +211,15 @@ type User struct {
 | A2 | `PATCH /users/:id`, `PATCH /users/me/profile`, and `PUT /users/me/password` are the cleanest route shapes here [ASSUMED] | Architecture Patterns | Low; planner can rename routes while preserving the split |
 | A3 | Forced-reset users should be allowed only password-change/logout/self-context paths until completion [ASSUMED] | Common Pitfalls | Medium; UX and backend behavior must align |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should forced-reset login return normal success with limited mode, or a special response that immediately drives the frontend to reset flow?**
-   - What we know: Current login success shape is `{ token, user }`, and the frontend already depends on it [VERIFIED: internal/handlers/user.go][VERIFIED: frontend/src/api/auth.ts][VERIFIED: frontend/src/App.tsx]
-   - Recommendation: Keep success shape stable and use `user.force_password_reset` to route into a password-reset-only UI [ASSUMED]
+1. **Forced-reset login response shape**
+   - Resolution: Keep the existing login success contract stable as `{ token, user }`, and expose limited-mode state through `user.force_password_reset` so the frontend can funnel the user into `/profile` without introducing a second auth response shape [VERIFIED: internal/handlers/user.go][VERIFIED: frontend/src/api/auth.ts][VERIFIED: frontend/src/App.tsx][ASSUMED]
+   - Why this is the Phase 6 decision: It preserves current client expectations and localStorage shape while still satisfying `USER-06` through route restriction and password-update-only access [VERIFIED: .planning/REQUIREMENTS.md][ASSUMED]
 
-2. **Should Phase 6 block self-disable and self-demotion for admins?**
-   - What we know: Self-delete is already blocked [VERIFIED: internal/handlers/user.go]
-   - Recommendation: Block self-disable in Phase 6 and consider a “cannot remove the last admin” guard if multiple-admin support is expected [ASSUMED]
+2. **Admin self-disable / self-demotion**
+   - Resolution: Phase 6 explicitly blocks self-disable and self-demotion for `admin` accounts, matching the existing self-delete protection and preventing obvious lockout paths during the first user-boundary hardening pass [VERIFIED: internal/handlers/user.go][ASSUMED]
+   - Why this is the Phase 6 decision: The immediate requirement is safer user control, not multi-admin lifecycle design; a stronger “last admin” invariant can be layered later if needed without weakening this phase [VERIFIED: .planning/REQUIREMENTS.md][ASSUMED]
 
 ## Environment Availability
 

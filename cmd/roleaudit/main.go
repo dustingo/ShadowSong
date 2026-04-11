@@ -54,8 +54,8 @@ func main() {
 }
 
 func run(ctx context.Context, stdout, stderr io.Writer) int {
-	cfg := config.Load()
-	db, err := openReadOnlyDB(cfg)
+	dbCfg := config.LoadDatabaseConfig()
+	db, err := openReadOnlyDB(dbCfg)
 	if err != nil {
 		fmt.Fprintf(stderr, "failed to connect to database: %v\n", err)
 		return 1
@@ -65,15 +65,15 @@ func run(ctx context.Context, stdout, stderr io.Writer) int {
 	return runAudit(ctx, sqlQueryer{db: db}, stdout, stderr)
 }
 
-func openReadOnlyDB(cfg *config.Config) (*sql.DB, error) {
+func openReadOnlyDB(cfg config.DatabaseConfig) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Database.Host,
-		cfg.Database.Port,
-		cfg.Database.User,
-		cfg.Database.Password,
-		cfg.Database.DBName,
-		cfg.Database.SSLMode,
+		cfg.Host,
+		cfg.Port,
+		cfg.User,
+		cfg.Password,
+		cfg.DBName,
+		cfg.SSLMode,
 	)
 
 	db, err := sql.Open("pgx", dsn)

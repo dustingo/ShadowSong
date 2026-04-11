@@ -46,14 +46,7 @@ func Load() *Config {
 		os.Exit(1)
 	}
 	return &Config{
-		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnvAsInt("DB_PORT", 5432),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "postgres"),
-			DBName:   getEnv("DB_NAME", "ai_alert_system"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
-		},
+		Database: LoadDatabaseConfig(),
 		Redis: RedisConfig{
 			Host:     getEnv("REDIS_HOST", "localhost"),
 			Port:     getEnvAsInt("REDIS_PORT", 6379),
@@ -68,6 +61,17 @@ func Load() *Config {
 			JWTSecret:   jwtSecret,
 			TokenExpiry: getEnvAsDuration("TOKEN_EXPIRY", 24*time.Hour),
 		},
+	}
+}
+
+func LoadDatabaseConfig() DatabaseConfig {
+	return DatabaseConfig{
+		Host:     getEnv("DB_HOST", "localhost"),
+		Port:     getEnvAsInt("DB_PORT", 5432),
+		User:     getEnv("DB_USER", "postgres"),
+		Password: getEnv("DB_PASSWORD", "postgres"),
+		DBName:   getEnv("DB_NAME", "ai_alert_system"),
+		SSLMode:  getEnv("DB_SSLMODE", "disable"),
 	}
 }
 

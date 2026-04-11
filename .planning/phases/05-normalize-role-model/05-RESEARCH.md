@@ -235,17 +235,15 @@ func RequireCapability(check func(Principal) bool) gin.HandlerFunc {
 | A1 | Live `users` rows may contain unsupported role values because database contents were not inspected in this session [ASSUMED] | Runtime State Inventory | Deployment may need a manual cleanup step before strict enforcement |
 | A2 | `net/http/httptest` is the preferred request-level test mechanism for new permission tests because no alternative harness is established [ASSUMED] | Standard Stack | Low; planner may instead keep tests at middleware/unit level |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Are there any live `users.role` values outside `admin` / `operator` / `viewer`?**
    - What we know: The schema and bootstrap user already use only those three names [VERIFIED: internal/models/user.go][VERIFIED: internal/database/postgres.go]
-   - What's unclear: The live database contents were not inspected [ASSUMED]
-   - Recommendation: Add a deployment preflight query before enabling strict write/read enforcement [ASSUMED]
+   - Resolution: Treat this as a rollout compatibility check, not a design blocker. Phase 5 will ship a read-only persisted-role audit command and require operators to run it before or during rollout. Unsupported live rows are handled operationally after detection rather than by adding a role-rename or compatibility alias inside application logic [RESOLVED]
 
 2. **Should Phase 5 reject unsupported-role tokens immediately, or only reject them after loading the backing user record?**
    - What we know: Current middleware trusts the token claim role and sets it directly in Gin context [VERIFIED: internal/middleware/auth.go][VERIFIED: internal/auth/jwt.go]
-   - What's unclear: Whether any live invalid-role tokens exist outside repo-controlled writes [ASSUMED]
-   - Recommendation: Default to rejecting unsupported-role claims in middleware and document the behavior as part of the rollout check [ASSUMED]
+   - Resolution: Reject unsupported-role claims in middleware before populating request context. This keeps the JWT claim shape unchanged while making undefined role values fail closed, and it avoids coupling Phase 5 authz normalization to a database lookup path that does not exist in current middleware [RESOLVED]
 
 ## Environment Availability
 

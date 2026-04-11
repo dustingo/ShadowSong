@@ -63,9 +63,9 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 06-01-PLAN.md — Split admin-managed fields and self-service fields in user APIs
-- [ ] 06-02-PLAN.md — Add account disable and force-password-reset flows plus unsafe edge case guards
-- [ ] 06-03-PLAN.md — Build or expose frontend user administration entrypoints for admin workflows
+- [ ] 06-01-PLAN.md — Add account state and session invalidation foundations for disabled and forced-reset users
+- [ ] 06-02-PLAN.md — Split admin-managed user operations from self-service profile/password flows
+- [ ] 06-03-PLAN.md — Expose the minimal frontend users/profile surfaces for Phase 6
 
 ### Phase 7: Lock Down Protected Operations
 **Goal**: 对系统配置和运维操作接口补齐角色校验，并为关键安全动作建立后端审计，确保不同角色只能执行其职责范围内的动作。

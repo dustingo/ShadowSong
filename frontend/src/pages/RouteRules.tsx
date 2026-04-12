@@ -15,16 +15,23 @@ import {
   InputNumber,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, HolderOutlined } from '@ant-design/icons'
+import { PermissionNotice } from '../components'
+import { canUser, capabilityManageConfig, isReadOnlyConfigUser } from '../authz/capabilities'
+import { getApiErrorMessage } from '../api/client'
 import { useConfigStore } from '../stores/configStore'
+import { useUserStore } from '../stores/userStore'
 import type { RouteRule } from '../types'
 
 const { Option } = Select
 
 export const RouteRules: React.FC = () => {
+  const user = useUserStore((state) => state.user)
   const {
     routeRules,
     routeRulesLoading,
+    dataSources,
     channels,
+    fetchDataSources,
     fetchRouteRules,
     fetchChannels,
     createRouteRule,
@@ -36,13 +43,20 @@ export const RouteRules: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRule, setEditingRule] = useState<RouteRule | null>(null)
   const [form] = Form.useForm()
+  const canManageConfig = canUser(user, capabilityManageConfig)
+  const readOnly = isReadOnlyConfigUser(user)
 
   useEffect(() => {
     fetchRouteRules()
+    fetchDataSources()
     fetchChannels()
   }, [])
 
   const handleCreate = () => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     setEditingRule(null)
     form.resetFields()
     form.setFieldsValue({
@@ -56,12 +70,20 @@ export const RouteRules: React.FC = () => {
   }
 
   const handleEdit = (record: RouteRule) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     setEditingRule(record)
     form.setFieldsValue(record)
     setModalVisible(true)
   }
 
   const handleDelete = (record: RouteRule) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除规则 "${record.name}" 吗？`,
@@ -70,13 +92,17 @@ export const RouteRules: React.FC = () => {
           await deleteRouteRule(record.id)
           message.success('删除成功')
         } catch (error) {
-          message.error('删除失败')
+          message.error(getApiErrorMessage(error, '删除失败'))
         }
       },
     })
   }
 
   const handleSubmit = async () => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     try {
       const values = await form.validateFields()
       if (editingRule) {
@@ -93,6 +119,10 @@ export const RouteRules: React.FC = () => {
   }
 
   const handleDragEnd = async (oldIndex: number, newIndex: number) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     if (oldIndex === newIndex) return
 
     const newRules = [...routeRules]
@@ -105,7 +135,7 @@ export const RouteRules: React.FC = () => {
       await reorderRouteRules(ids)
       message.success('排序已更新')
     } catch (error) {
-      message.error('排序失败')
+      message.error(getApiErrorMessage(error, '排序失败'))
     }
   }
 
@@ -177,14 +207,18 @@ export const RouteRules: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: any, record: RouteRule) => (
-        <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
-            删除
-          </Button>
-        </Space>
+        canManageConfig ? (
+          <Space>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+              编辑
+            </Button>
+            <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
+              删除
+            </Button>
+          </Space>
+        ) : (
+          <Tag>只读</Tag>
+        )
       ),
     },
   ]
@@ -194,36 +228,51 @@ export const RouteRules: React.FC = () => {
       <Card
         title="路由规则管理"
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            新建规则
-          </Button>
+          canManageConfig ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+              新建规则
+            </Button>
+          ) : null
         }
       >
+        {readOnly && (
+          <PermissionNotice
+            title="当前角色可查看配置，但不能修改"
+            description="路由规则的新增、编辑、删除和排序都只对 `admin` 开放。"
+            type="info"
+          />
+        )}
         <Table
           columns={columns}
           dataSource={routeRules}
           rowKey="id"
           loading={routeRulesLoading}
+          rowClassName={() => (canManageConfig ? '' : 'permission-readonly-row')}
         />
       </Card>
 
       <Modal
         title={editingRule ? '编辑规则' : '新建规则'}
         open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
+        onOk={canManageConfig ? handleSubmit : undefined}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingRule(null)
+          form.resetFields()
+        }}
         width={700}
+        okButtonProps={{ style: { display: canManageConfig ? 'inline-block' : 'none' } }}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="规则名称" />
+            <Input placeholder="规则名称" disabled={!canManageConfig} />
           </Form.Item>
           <Form.Item name="priority" label="优先级" rules={[{ required: true, message: '请输入优先级' }]}>
-            <InputNumber min={1} max={100} />
+            <InputNumber min={1} max={100} disabled={!canManageConfig} />
           </Form.Item>
 
           <Form.Item name="severities" label="匹配级别">
-            <Select mode="multiple" placeholder="选择级别">
+            <Select mode="multiple" placeholder="选择级别" disabled={!canManageConfig}>
               <Option value="P0">P0</Option>
               <Option value="P1">P1</Option>
               <Option value="P2">P2</Option>
@@ -232,15 +281,17 @@ export const RouteRules: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="sources" label="匹配来源">
-            <Select mode="multiple" placeholder="选择数据源">
-              {channels.map((c) => (
-                <Option key={c.id} value={c.name}>{c.name}</Option>
+            <Select mode="multiple" placeholder="选择数据源" disabled={!canManageConfig}>
+              {dataSources.map((source) => (
+                <Option key={source.id} value={source.name}>
+                  {source.display_name || source.name}
+                </Option>
               ))}
             </Select>
           </Form.Item>
 
           <Form.Item name="channel_ids" label="目标渠道" rules={[{ required: true, message: '请选择目标渠道' }]}>
-            <Select mode="multiple" placeholder="选择推送渠道">
+            <Select mode="multiple" placeholder="选择推送渠道" disabled={!canManageConfig}>
               {channels.map((c) => (
                 <Option key={c.id} value={c.id}>{c.name}</Option>
               ))}
@@ -248,7 +299,7 @@ export const RouteRules: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="enabled" label="启用" valuePropName="checked">
-            <Switch />
+            <Switch disabled={!canManageConfig} />
           </Form.Item>
         </Form>
       </Modal>

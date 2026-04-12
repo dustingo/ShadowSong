@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { User } from '../types'
+import { getApiErrorMessage } from './client'
 
 const authClient = axios.create({
   baseURL: '/api/v1',
@@ -108,5 +109,7 @@ export const authApi = {
     await authClient.put('/users/me/password', { password })
   },
 }
+
+export { getApiErrorMessage }
 
 export default authClient

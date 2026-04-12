@@ -14,7 +14,10 @@ import {
   message,
 } from 'antd'
 import { EditOutlined, LockOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
-import { authApi } from '../api/auth'
+import { authApi, getApiErrorMessage } from '../api/auth'
+import { PermissionNotice } from '../components'
+import { canUser, capabilityManageUsers } from '../authz/capabilities'
+import { useUserStore } from '../stores/userStore'
 import type { User } from '../types'
 
 type UserFormValues = {
@@ -33,19 +36,24 @@ const roleOptions: Array<{ value: User['role']; label: string }> = [
 ]
 
 export const Users: React.FC = () => {
+  const currentUser = useUserStore((state) => state.user)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [form] = Form.useForm<UserFormValues>()
+  const canManageUsers = canUser(currentUser, capabilityManageUsers)
 
   const fetchUsers = async () => {
+    if (!canManageUsers) {
+      return
+    }
     setLoading(true)
     try {
       const nextUsers = await authApi.listUsers()
       setUsers(nextUsers)
     } catch (error) {
-      message.error('加载用户列表失败')
+      message.error(getApiErrorMessage(error, '加载用户列表失败'))
     } finally {
       setLoading(false)
     }
@@ -53,7 +61,17 @@ export const Users: React.FC = () => {
 
   useEffect(() => {
     fetchUsers()
-  }, [])
+  }, [canManageUsers])
+
+  if (!canManageUsers) {
+    return (
+      <PermissionNotice
+        title="当前角色无权访问用户管理"
+        description="用户管理仅对具备用户管理能力的角色开放。"
+        type="error"
+      />
+    )
+  }
 
   const handleCreate = () => {
     setEditingUser(null)
@@ -106,7 +124,7 @@ export const Users: React.FC = () => {
       if (error && typeof error === 'object' && 'errorFields' in error) {
         return
       }
-      message.error('保存用户失败')
+      message.error(getApiErrorMessage(error, '保存用户失败'))
     }
   }
 

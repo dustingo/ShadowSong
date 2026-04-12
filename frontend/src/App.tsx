@@ -25,8 +25,16 @@ import {
   Users,
   Profile,
 } from './pages'
+import {
+  canProcessAlerts,
+  canUser,
+  capabilityManageConfig,
+  capabilityManageUsers,
+  capabilityViewConfig,
+} from './authz/capabilities'
 import { useUserStore } from './stores/userStore'
 import type { User } from './types'
+import { PermissionNotice } from './components'
 
 const { Header, Sider, Content } = Layout
 
@@ -58,8 +66,18 @@ function buildMenuItems(user: User | null): MenuItem[] {
     return [profileMenuItem]
   }
 
-  const items = [...baseMenuItems, profileMenuItem]
-  if (user.role === 'admin') {
+  const configItems = baseMenuItems.filter((item) => {
+    if (item.key === '/alerts') {
+      return true
+    }
+    if (item.key === '/') {
+      return true
+    }
+    return canUser(user, capabilityViewConfig)
+  })
+
+  const items = [...configItems, profileMenuItem]
+  if (canUser(user, capabilityManageUsers)) {
     items.push(usersMenuItem)
   }
 
@@ -183,10 +201,10 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
 function RequireAuth({
   children,
-  adminOnly = false,
+  requiredCapability,
 }: {
   children: React.ReactNode
-  adminOnly?: boolean
+  requiredCapability?: typeof capabilityManageUsers | typeof capabilityViewConfig
 }) {
   const token = useUserStore((state) => state.token)
   const user = useUserStore((state) => state.user)
@@ -200,8 +218,12 @@ function RequireAuth({
     return <Navigate to="/profile" replace />
   }
 
-  if (adminOnly && user?.role !== 'admin') {
-    return <Navigate to="/" replace />
+  if (requiredCapability && !canUser(user, requiredCapability)) {
+    return (
+      <MainLayout>
+        <PermissionNotice />
+      </MainLayout>
+    )
   }
 
   return <MainLayout>{children}</MainLayout>
@@ -234,12 +256,12 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
         <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
-        <Route path="/datasources" element={<RequireAuth><DataSources /></RequireAuth>} />
-        <Route path="/channels" element={<RequireAuth><Channels /></RequireAuth>} />
-        <Route path="/routes" element={<RequireAuth><RouteRules /></RequireAuth>} />
-        <Route path="/silences" element={<RequireAuth><Silences /></RequireAuth>} />
-        <Route path="/onduty" element={<RequireAuth><OnDutyPage /></RequireAuth>} />
-        <Route path="/users" element={<RequireAuth adminOnly><Users /></RequireAuth>} />
+        <Route path="/datasources" element={<RequireAuth requiredCapability={capabilityViewConfig}><DataSources /></RequireAuth>} />
+        <Route path="/channels" element={<RequireAuth requiredCapability={capabilityViewConfig}><Channels /></RequireAuth>} />
+        <Route path="/routes" element={<RequireAuth requiredCapability={capabilityViewConfig}><RouteRules /></RequireAuth>} />
+        <Route path="/silences" element={<RequireAuth requiredCapability={capabilityViewConfig}><Silences /></RequireAuth>} />
+        <Route path="/onduty" element={<RequireAuth requiredCapability={capabilityViewConfig}><OnDutyPage /></RequireAuth>} />
+        <Route path="/users" element={<RequireAuth requiredCapability={capabilityManageUsers}><Users /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

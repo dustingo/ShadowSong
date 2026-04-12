@@ -16,8 +16,11 @@ import {
 } from 'antd'
 import { CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons'
 import { CodeEditor } from '../components/CodeEditor'
-import { dataSourceApi } from '../api/client'
+import { PermissionNotice } from '../components'
+import { dataSourceApi, getApiErrorMessage } from '../api/client'
+import { canUser, capabilityManageConfig, isReadOnlyConfigUser } from '../authz/capabilities'
 import { useConfigStore } from '../stores/configStore'
+import { useUserStore } from '../stores/userStore'
 import type { DataSource, DataSourcePreviewResponse } from '../types'
 
 const { Paragraph, Text } = Typography
@@ -61,6 +64,7 @@ const maskApiKey = (key?: string): string => {
 const formatJson = (value: unknown): string => JSON.stringify(value, null, 2)
 
 export const DataSources: React.FC = () => {
+  const user = useUserStore((state) => state.user)
   const {
     dataSources,
     dataSourcesLoading,
@@ -80,6 +84,8 @@ export const DataSources: React.FC = () => {
   const [previewResult, setPreviewResult] = useState<DataSourcePreviewResponse | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [form] = Form.useForm()
+  const canManageConfig = canUser(user, capabilityManageConfig)
+  const readOnly = isReadOnlyConfigUser(user)
 
   useEffect(() => {
     fetchDataSources()
@@ -109,6 +115,10 @@ export const DataSources: React.FC = () => {
   }
 
   const handleCreate = () => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     setEditingDataSource(null)
     setCurrentApiKey('')
     setPreviewResult(null)
@@ -126,6 +136,10 @@ export const DataSources: React.FC = () => {
   }
 
   const handleEdit = async (record: DataSource) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     const fullData = (await dataSourceApi.get(record.id)) as unknown as DataSource
     setEditingDataSource(fullData)
     setCurrentApiKey(fullData.api_key || '')
@@ -135,6 +149,10 @@ export const DataSources: React.FC = () => {
   }
 
   const handleDelete = (record: DataSource) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除数据源 "${record.display_name}" 吗？`,
@@ -142,23 +160,31 @@ export const DataSources: React.FC = () => {
         try {
           await deleteDataSource(record.id)
           message.success('删除成功')
-        } catch {
-          message.error('删除失败')
+        } catch (error) {
+          message.error(getApiErrorMessage(error, '删除失败'))
         }
       },
     })
   }
 
   const handleToggle = async (record: DataSource) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     try {
       await toggleDataSource(record.id, !record.enabled)
       message.success(record.enabled ? '已禁用' : '已启用')
-    } catch {
-      message.error('操作失败')
+    } catch (error) {
+      message.error(getApiErrorMessage(error, '操作失败'))
     }
   }
 
   const handleSubmit = async () => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     try {
       const values = await form.validateFields()
       const payload = {
@@ -207,7 +233,7 @@ export const DataSources: React.FC = () => {
       const errorMessage =
         error instanceof SyntaxError
           ? `JSON 格式错误: ${error.message}`
-          : error?.response?.data?.error || error?.message || '模板预览失败'
+          : getApiErrorMessage(error, '模板预览失败')
       message.error(errorMessage)
     } finally {
       setPreviewLoading(false)
@@ -261,17 +287,21 @@ export const DataSources: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: unknown, record: DataSource) => (
-        <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Button type="link" size="small" onClick={() => handleToggle(record)}>
-            {record.enabled ? '禁用' : '启用'}
-          </Button>
-          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
-            删除
-          </Button>
-        </Space>
+        canManageConfig ? (
+          <Space>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+              编辑
+            </Button>
+            <Button type="link" size="small" onClick={() => handleToggle(record)}>
+              {record.enabled ? '禁用' : '启用'}
+            </Button>
+            <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
+              删除
+            </Button>
+          </Space>
+        ) : (
+          <Tag>只读</Tag>
+        )
       ),
     },
   ]
@@ -285,22 +315,31 @@ export const DataSources: React.FC = () => {
             <Text type="secondary" style={{ fontSize: 12 }}>
               接收 Webhook、标准化事件，再按 output template 渲染通知
             </Text>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新建数据源
-            </Button>
+            {canManageConfig && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                新建数据源
+              </Button>
+            )}
           </Space>
         }
       >
+        {readOnly && (
+          <PermissionNotice
+            title="当前角色可查看配置，但不能修改"
+            description="数据源页面对 `operator` 和 `viewer` 保持只读。创建、编辑、删除和启停操作仅对 `admin` 开放。"
+            type="info"
+          />
+        )}
         <Table columns={columns} dataSource={dataSources} rowKey="id" loading={dataSourcesLoading} />
       </Card>
 
       <Modal
-        title={editingDataSource ? '编辑数据源' : '新建数据源'}
-        open={modalVisible}
-        onCancel={closeEditor}
-        width={960}
-        destroyOnClose
-        footer={[
+      title={editingDataSource ? '编辑数据源' : '新建数据源'}
+      open={modalVisible}
+      onCancel={closeEditor}
+      width={960}
+      destroyOnHidden
+      footer={[
           <Button key="cancel" onClick={closeEditor}>
             取消
           </Button>,
@@ -312,9 +351,9 @@ export const DataSources: React.FC = () => {
           >
             预览模板
           </Button>,
-          <Button key="submit" type="primary" onClick={handleSubmit}>
-            保存
-          </Button>,
+          ...(canManageConfig
+            ? [<Button key="submit" type="primary" onClick={handleSubmit}>保存</Button>]
+            : []),
         ]}
       >
         <Form form={form} layout="vertical" key={editingDataSource?.id || 'new'}>
@@ -323,7 +362,7 @@ export const DataSources: React.FC = () => {
           </Form.Item>
 
           <Form.Item name="display_name" label="显示名称" rules={[{ required: true, message: '请输入显示名称' }]}>
-            <Input placeholder="友好显示名称" />
+            <Input placeholder="友好显示名称" disabled={!canManageConfig} />
           </Form.Item>
 
           <Form.Item
@@ -341,8 +380,14 @@ export const DataSources: React.FC = () => {
                 onChange={(event) => setCurrentApiKey(event.target.value)}
                 placeholder="留空则拒绝所有请求，或点击生成按钮"
                 allowClear
+                disabled={!canManageConfig}
               />
-              <Button type="primary" icon={<KeyOutlined />} onClick={() => setCurrentApiKey(generateApiKey())}>
+              <Button
+                type="primary"
+                icon={<KeyOutlined />}
+                onClick={() => setCurrentApiKey(generateApiKey())}
+                disabled={!canManageConfig}
+              >
                 生成
               </Button>
             </Space.Compact>
@@ -368,23 +413,35 @@ export const DataSources: React.FC = () => {
           </Card>
 
           <Form.Item name="group_by_labels" label="分组 Labels">
-            <Input placeholder="用逗号分隔，如: instance, env" />
+            <Input placeholder="用逗号分隔，如: instance, env" disabled={!canManageConfig} />
           </Form.Item>
 
           <Card size="small" style={{ marginBottom: 16 }}>
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Text strong>去重 / 聚合配置</Text>
               <Form.Item name="deduplicate_enabled" label="启用去重" valuePropName="checked" style={{ marginBottom: 0 }}>
-                <Switch />
+                <Switch disabled={!canManageConfig} />
               </Form.Item>
               <Form.Item name="deduplicate_window" label="去重窗口" style={{ marginBottom: 0 }}>
-                <Input type="number" placeholder="3600" addonAfter="秒" style={{ width: 220 }} />
+                <Input
+                  type="number"
+                  placeholder="3600"
+                  addonAfter="秒"
+                  style={{ width: 220 }}
+                  disabled={!canManageConfig}
+                />
               </Form.Item>
               <Form.Item name="group_enabled" label="启用分组" valuePropName="checked" style={{ marginBottom: 0 }}>
-                <Switch />
+                <Switch disabled={!canManageConfig} />
               </Form.Item>
               <Form.Item name="group_window" label="分组窗口" style={{ marginBottom: 0 }}>
-                <Input type="number" placeholder="300" addonAfter="秒" style={{ width: 220 }} />
+                <Input
+                  type="number"
+                  placeholder="300"
+                  addonAfter="秒"
+                  style={{ width: 220 }}
+                  disabled={!canManageConfig}
+                />
               </Form.Item>
             </Space>
           </Card>
@@ -393,7 +450,11 @@ export const DataSources: React.FC = () => {
             <CodeEditor
               height={180}
               value={form.getFieldValue('input_template') || ''}
-              onChange={(value) => form.setFieldsValue({ input_template: value })}
+              onChange={(value) => {
+                if (canManageConfig) {
+                  form.setFieldsValue({ input_template: value })
+                }
+              }}
               language="go"
             />
           </Form.Item>
@@ -402,7 +463,11 @@ export const DataSources: React.FC = () => {
             <CodeEditor
               height={180}
               value={form.getFieldValue('output_template') || ''}
-              onChange={(value) => form.setFieldsValue({ output_template: value })}
+              onChange={(value) => {
+                if (canManageConfig) {
+                  form.setFieldsValue({ output_template: value })
+                }
+              }}
               language="go"
             />
           </Form.Item>
@@ -416,7 +481,7 @@ export const DataSources: React.FC = () => {
           />
 
           <Form.Item name="enabled" label="启用" valuePropName="checked">
-            <Switch />
+            <Switch disabled={!canManageConfig} />
           </Form.Item>
         </Form>
       </Modal>

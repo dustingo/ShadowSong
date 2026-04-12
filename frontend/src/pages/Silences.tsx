@@ -15,7 +15,11 @@ import {
   Typography,
 } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, StopOutlined } from '@ant-design/icons'
+import { PermissionNotice } from '../components'
+import { canUser, capabilityManageConfig, isReadOnlyConfigUser } from '../authz/capabilities'
+import { getApiErrorMessage } from '../api/client'
 import { useConfigStore } from '../stores/configStore'
+import { useUserStore } from '../stores/userStore'
 import type { SilenceRule } from '../types'
 import dayjs from 'dayjs'
 
@@ -24,6 +28,7 @@ const { RangePicker } = DatePicker
 const { Text } = Typography
 
 export const Silences: React.FC = () => {
+  const user = useUserStore((state) => state.user)
   const {
     silenceRules,
     silenceRulesLoading,
@@ -37,6 +42,8 @@ export const Silences: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRule, setEditingRule] = useState<SilenceRule | null>(null)
   const [form] = Form.useForm()
+  const canManageConfig = canUser(user, capabilityManageConfig)
+  const readOnly = isReadOnlyConfigUser(user)
 
   useEffect(() => {
     fetchSilenceRules({ status: activeTab as 'active' | 'expired' })
@@ -47,6 +54,10 @@ export const Silences: React.FC = () => {
   }
 
   const handleCreate = () => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     setEditingRule(null)
     form.resetFields()
     form.setFieldsValue({
@@ -57,6 +68,10 @@ export const Silences: React.FC = () => {
   }
 
   const handleEdit = (record: SilenceRule) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     setEditingRule(record)
     form.setFieldsValue({
       ...record,
@@ -67,6 +82,10 @@ export const Silences: React.FC = () => {
   }
 
   const handleDelete = (record: SilenceRule) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除静默规则 "${record.name}" 吗？`,
@@ -75,13 +94,17 @@ export const Silences: React.FC = () => {
           await deleteSilenceRule(record.id)
           message.success('删除成功')
         } catch (error) {
-          message.error('删除失败')
+          message.error(getApiErrorMessage(error, '删除失败'))
         }
       },
     })
   }
 
   const handleCancel = (record: SilenceRule) => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     Modal.confirm({
       title: '确认取消',
       content: `确定要提前取消静默规则 "${record.name}" 吗？`,
@@ -94,13 +117,17 @@ export const Silences: React.FC = () => {
           message.success('已取消')
           fetchSilenceRules({ status: activeTab as 'active' | 'expired' })
         } catch (error) {
-          message.error('取消失败')
+          message.error(getApiErrorMessage(error, '取消失败'))
         }
       },
     })
   }
 
   const handleSubmit = async () => {
+    if (!canManageConfig) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     try {
       const values = await form.validateFields()
       const data = {
@@ -193,19 +220,23 @@ export const Silences: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: any, record: SilenceRule) => (
-        <Space>
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          {activeTab === 'active' && (
-            <Button type="link" size="small" icon={<StopOutlined />} onClick={() => handleCancel(record)}>
-              取消
+        canManageConfig ? (
+          <Space>
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+              编辑
             </Button>
-          )}
-          <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
-            删除
-          </Button>
-        </Space>
+            {activeTab === 'active' && (
+              <Button type="link" size="small" icon={<StopOutlined />} onClick={() => handleCancel(record)}>
+                取消
+              </Button>
+            )}
+            <Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleDelete(record)}>
+              删除
+            </Button>
+          </Space>
+        ) : (
+          <Tag>只读</Tag>
+        )
       ),
     },
   ]
@@ -215,11 +246,20 @@ export const Silences: React.FC = () => {
       <Card
         title="静默规则管理"
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            新建静默规则
-          </Button>
+          canManageConfig ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+              新建静默规则
+            </Button>
+          ) : null
         }
       >
+        {readOnly && (
+          <PermissionNotice
+            title="当前角色可查看配置，但不能修改"
+            description="静默规则对非 `admin` 角色保持只读。取消、编辑和删除操作不会显示。"
+            type="info"
+          />
+        )}
         <Tabs activeKey={activeTab} onChange={handleTabChange}>
           <Tabs.TabPane tab="活跃" key="active" />
           <Tabs.TabPane tab="历史" key="expired" />
@@ -236,25 +276,30 @@ export const Silences: React.FC = () => {
       <Modal
         title={editingRule ? '编辑静默规则' : '新建静默规则'}
         open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
+        onOk={canManageConfig ? handleSubmit : undefined}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingRule(null)
+          form.resetFields()
+        }}
         width={600}
+        okButtonProps={{ style: { display: canManageConfig ? 'inline-block' : 'none' } }}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="规则名称" />
+            <Input placeholder="规则名称" disabled={!canManageConfig} />
           </Form.Item>
           <Form.Item name="comment" label="备注">
-            <Input.TextArea rows={2} placeholder="添加备注" />
+            <Input.TextArea rows={2} placeholder="添加备注" disabled={!canManageConfig} />
           </Form.Item>
           <Form.Item name="source" label="匹配来源">
-            <Input placeholder="留空匹配所有来源" />
+            <Input placeholder="留空匹配所有来源" disabled={!canManageConfig} />
           </Form.Item>
           <Form.Item name="alert_name_pattern" label="告警名称正则">
-            <Input placeholder="正则表达式，如: ^disk.*" />
+            <Input placeholder="正则表达式，如: ^disk.*" disabled={!canManageConfig} />
           </Form.Item>
           <Form.Item name="severities" label="匹配级别">
-            <Select mode="multiple" placeholder="留空匹配所有级别">
+            <Select mode="multiple" placeholder="留空匹配所有级别" disabled={!canManageConfig}>
               <Option value="P0">P0</Option>
               <Option value="P1">P1</Option>
               <Option value="P2">P2</Option>
@@ -262,7 +307,7 @@ export const Silences: React.FC = () => {
             </Select>
           </Form.Item>
           <Form.Item name="timeRange" label="时间范围" rules={[{ required: true, message: '请选择时间范围' }]}>
-            <RangePicker showTime style={{ width: '100%' }} />
+            <RangePicker showTime style={{ width: '100%' }} disabled={!canManageConfig} />
           </Form.Item>
         </Form>
       </Modal>

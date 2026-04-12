@@ -10,6 +10,29 @@ import type {
   OnDuty,
 } from '../types'
 
+export const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'response' in error &&
+    error.response &&
+    typeof error.response === 'object' &&
+    'data' in error.response &&
+    error.response.data &&
+    typeof error.response.data === 'object' &&
+    'error' in error.response.data &&
+    typeof error.response.data.error === 'string'
+  ) {
+    return error.response.data.error
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallback
+}
+
 const apiClient = axios.create({
   baseURL: '/api/v1',
   timeout: 30000,
@@ -36,6 +59,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
+      localStorage.removeItem('user')
       window.location.href = '/login'
     }
     return Promise.reject(error)

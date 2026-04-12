@@ -16,6 +16,10 @@ import {
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useAlertStore } from '../stores/alertStore'
 import { SeverityBadge } from '../components/SeverityBadge'
+import { PermissionNotice } from '../components'
+import { canProcessAlerts as canCurrentUserProcessAlerts } from '../authz/capabilities'
+import { useUserStore } from '../stores/userStore'
+import { getApiErrorMessage } from '../api/client'
 import dayjs from 'dayjs'
 import type { Alert } from '../types'
 
@@ -25,6 +29,7 @@ const { TextArea } = Input
 const { Text } = Typography
 
 export const Alerts: React.FC = () => {
+  const user = useUserStore((state) => state.user)
   const {
     alerts,
     total,
@@ -44,6 +49,7 @@ export const Alerts: React.FC = () => {
 
   const [silenceModalVisible, setSilenceModalVisible] = useState(false)
   const [silenceDuration, setSilenceDuration] = useState(3600)
+  const canProcessAlerts = canCurrentUserProcessAlerts(user)
 
   useEffect(() => {
     fetchAlerts()
@@ -63,6 +69,10 @@ export const Alerts: React.FC = () => {
   }
 
   const handleAck = (alert: Alert) => {
+    if (!canProcessAlerts) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     setSelectedAlert(alert)
     setAckModalVisible(true)
   }
@@ -75,11 +85,15 @@ export const Alerts: React.FC = () => {
       setAckModalVisible(false)
       setAckComment('')
     } catch (error) {
-      message.error('确认失败')
+      message.error(getApiErrorMessage(error, '确认失败'))
     }
   }
 
   const handleQuickSilence = (alert: Alert) => {
+    if (!canProcessAlerts) {
+      message.warning('当前角色无权执行该操作')
+      return
+    }
     setSelectedAlert(alert)
     setSilenceModalVisible(true)
   }
@@ -91,7 +105,7 @@ export const Alerts: React.FC = () => {
       message.success('告警已静默')
       setSilenceModalVisible(false)
     } catch (error) {
-      message.error('静默失败')
+      message.error(getApiErrorMessage(error, '静默失败'))
     }
   }
 
@@ -154,14 +168,18 @@ export const Alerts: React.FC = () => {
       render: (_: any, record: Alert) => (
         <Space>
           {record.status === 'firing' && (
-            <>
-              <Button type="link" size="small" onClick={() => handleAck(record)}>
-                确认
-              </Button>
-              <Button type="link" size="small" onClick={() => handleQuickSilence(record)}>
-                静默
-              </Button>
-            </>
+            canProcessAlerts ? (
+              <>
+                <Button type="link" size="small" onClick={() => handleAck(record)}>
+                  确认
+                </Button>
+                <Button type="link" size="small" onClick={() => handleQuickSilence(record)}>
+                  静默
+                </Button>
+              </>
+            ) : (
+              <Tag>只读</Tag>
+            )
           )}
         </Space>
       ),
@@ -170,6 +188,13 @@ export const Alerts: React.FC = () => {
 
   return (
     <div>
+      {!canProcessAlerts && (
+        <PermissionNotice
+          title="当前角色可查看告警，但不能确认或静默"
+          description="`viewer` 角色只能查看告警详情和统计结果，处理动作仅对具备告警处理能力的角色开放。"
+          type="info"
+        />
+      )}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap style={{ width: '100%' }} size="middle">
           <Select

@@ -26,19 +26,31 @@ const getInitialState = () => {
   return { user, token }
 }
 
+const normalizeUser = (user: User | null): User | null => {
+  if (!user) {
+    return null
+  }
+
+  return {
+    ...user,
+    force_password_reset: user.force_password_reset ?? false,
+  }
+}
+
 const initialState = getInitialState()
 
 export const useUserStore = create<UserState>((set) => ({
-  user: initialState.user,
+  user: normalizeUser(initialState.user),
   token: initialState.token,
 
   setUser: (user) => {
-    if (user) {
-      localStorage.setItem('user', JSON.stringify(user))
+    const normalizedUser = normalizeUser(user)
+    if (normalizedUser) {
+      localStorage.setItem('user', JSON.stringify(normalizedUser))
     } else {
       localStorage.removeItem('user')
     }
-    set({ user })
+    set({ user: normalizedUser })
   },
 
   setToken: (token) => {

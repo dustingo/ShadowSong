@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enterprise Access Control
-status: ready_for_planning
-last_updated: "2026-04-12T08:40:00+08:00"
+status: ready_to_execute
+last_updated: "2026-04-12T09:02:00+08:00"
 last_activity: 2026-04-12
 progress:
   total_phases: 4
@@ -16,8 +16,8 @@ progress:
 # Current Position
 
 Phase: 8
-Plan: Not planned
-Status: Ready to discuss or plan
+Plan: Planned (3 plans)
+Status: Ready to execute
 Last activity: 2026-04-12
 
 ## Project Reference
@@ -33,5 +33,5 @@ See: `.planning/PROJECT.md` (updated 2026-04-12)
 - Phase 5 已完成：角色常量、JWT principal、capability matrix 和 target-db role audit 基线已落地
 - Phase 6 已完成：管理员管人、自助资料/密码、账号禁用、强制改密和前端 `/users`/`/profile` 入口已落地
 - Phase 7 已完成：告警动作与配置写接口已按 capability matrix 收口，关键用户/配置/告警动作已写入后端持久化审计日志
-- 当前最高优先级是让前端菜单、页面入口、按钮和无权提示与后端权限边界保持一致
+- 当前最高优先级是执行 Phase 8：完成前端权限显隐、只读提示、前端角色矩阵测试和最终验证文档
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移

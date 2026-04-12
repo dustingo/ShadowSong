@@ -7,12 +7,12 @@
 
 ## Current Status
 
-当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-7 已完成，下一步进入前端权限显隐与整体验证交付。
+当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-7 已完成，Phase 8 已完成规划并可直接执行。
 
 ## Next Step
 
-- `/gsd-discuss-phase 8` — 先澄清前端菜单、按钮和无权提示策略
-- `/gsd-plan-phase 8` — 直接规划前端权限显隐与验证收尾
+- `/gsd-execute-phase 8` — 执行前端权限显隐、只读提示、前端矩阵测试与最终验证
+- `/gsd-review --phase 8 --all` — 在执行前先做外部 AI 交叉审查
 
 ## Overview
 

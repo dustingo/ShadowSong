@@ -7,12 +7,12 @@
 
 ## Current Status
 
-当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-6 已完成，Phase 7 已完成规划，下一步进入受保护操作收口与审计日志实现。
+当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-7 已完成，下一步进入前端权限显隐与整体验证交付。
 
 ## Next Step
 
-- `/gsd-execute-phase 7` — 执行告警动作/配置写权限收口与后端审计日志落地
-- `/gsd-discuss-phase 8` — 在需要先澄清前端显隐和验证展示面时使用
+- `/gsd-discuss-phase 8` — 先澄清前端菜单、按钮和无权提示策略
+- `/gsd-plan-phase 8` — 直接规划前端权限显隐与验证收尾
 
 ## Overview
 
@@ -28,7 +28,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 5: Normalize Role Model** - 统一现有角色语义并建立可复用的权限判定基线
 - [x] **Phase 6: Secure User Administration** - 收紧用户管理和个人资料修改边界，并加入账号禁用与强制改密
-- [ ] **Phase 7: Lock Down Protected Operations** - 对配置与告警操作接口补齐角色校验，并落地关键操作审计
+- [x] **Phase 7: Lock Down Protected Operations** - 对配置与告警操作接口补齐角色校验，并落地关键操作审计
 - [ ] **Phase 8: Ship Permission-Aware UI And Verification** - 让前端入口与按钮按权限收口，并补齐角色矩阵验证
 
 ## Phase Details
@@ -81,9 +81,9 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 07-01-PLAN.md — Apply role guards to alert action endpoints and configuration route groups
-- [ ] 07-02-PLAN.md — Refactor handler-level authorization and add audit logging for critical account/config actions
-- [ ] 07-03-PLAN.md — Add endpoint-level regression coverage for role allow/deny and audit cases
+- [x] 07-01-PLAN.md — Apply role guards to alert action endpoints and configuration route groups
+- [x] 07-02-PLAN.md — Refactor handler-level authorization and add audit logging for critical account/config actions
+- [x] 07-03-PLAN.md — Add endpoint-level regression coverage for role allow/deny and audit cases
 
 ### Phase 8: Ship Permission-Aware UI And Verification
 **Goal**: 让前端菜单、页面、按钮和提示与后端权限边界一致，并交付完整的角色矩阵验证与文档说明。

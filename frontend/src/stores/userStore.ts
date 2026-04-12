@@ -1,14 +1,5 @@
 import { create } from 'zustand'
-
-interface User {
-  id: number
-  username: string
-  name: string
-  email?: string
-  role: 'admin' | 'operator' | 'viewer'
-  created_at: string
-  updated_at: string
-}
+import type { User } from '../types'
 
 interface UserState {
   user: User | null
@@ -26,7 +17,7 @@ const getInitialState = () => {
 
   if (userStr) {
     try {
-      user = JSON.parse(userStr)
+      user = JSON.parse(userStr) as User
     } catch {
       user = null
     }

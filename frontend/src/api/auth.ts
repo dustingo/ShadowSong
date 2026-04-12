@@ -23,7 +23,7 @@ authClient.interceptors.request.use(
 
 // Response interceptor
 authClient.interceptors.response.use(
-  (response) => response.data,
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
@@ -74,7 +74,8 @@ export const authApi = {
     password: string
     name: string
     email?: string
-    role?: string
+    role?: User['role']
+    force_password_reset?: boolean
   }): Promise<User> => {
     const res = await authClient.post<User>('/users', data)
     return res.data
@@ -83,15 +84,28 @@ export const authApi = {
   updateUser: async (id: number, data: {
     name?: string
     email?: string
-    role?: string
-    password?: string
+    role?: User['role']
+    disabled?: boolean
+    force_password_reset?: boolean
   }): Promise<User> => {
-    const res = await authClient.put<User>(`/users/${id}`, data)
+    const res = await authClient.patch<User>(`/users/${id}`, data)
     return res.data
   },
 
   deleteUser: async (id: number): Promise<void> => {
     await authClient.delete(`/users/${id}`)
+  },
+
+  updateOwnProfile: async (data: {
+    name?: string
+    email?: string
+  }): Promise<User> => {
+    const res = await authClient.patch<User>('/users/me/profile', data)
+    return res.data
+  },
+
+  updateOwnPassword: async (password: string): Promise<void> => {
+    await authClient.put('/users/me/password', { password })
   },
 }
 

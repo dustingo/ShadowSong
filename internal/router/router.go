@@ -64,18 +64,20 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 		// User routes (protected)
 		users := v1.Group("/users")
-		users.Use(middleware.JWTAuth(jwtAuth))
+		users.Use(middleware.JWTAuth(jwtAuth, db))
 		{
 			users.GET("", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.ListUsers)
 			users.GET("/me", userHandler.GetCurrentUser)
 			users.POST("", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.CreateUser)
-			users.PUT("/:id", userHandler.UpdateUser)
+			users.PATCH("/:id", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.AdminUpdateUser)
+			users.PATCH("/me/profile", userHandler.UpdateOwnProfile)
+			users.PUT("/me/password", userHandler.UpdateOwnPassword)
 			users.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.DeleteUser)
 		}
 
 		// Alert routes (protected)
 		alerts := v1.Group("/alerts")
-		alerts.Use(middleware.JWTAuth(jwtAuth))
+		alerts.Use(middleware.JWTAuth(jwtAuth, db))
 		{
 			alerts.GET("", alertHandler.List)
 			alerts.GET("/stats", alertHandler.Stats)
@@ -87,7 +89,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 		// DataSource routes (protected)
 		datasources := v1.Group("/datasources")
-		datasources.Use(middleware.JWTAuth(jwtAuth))
+		datasources.Use(middleware.JWTAuth(jwtAuth, db))
 		{
 			datasources.GET("", configHandler.ListDataSources)
 			datasources.GET("/:id", configHandler.GetDataSource)
@@ -100,7 +102,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 		// Channel routes (protected)
 		channels := v1.Group("/channels")
-		channels.Use(middleware.JWTAuth(jwtAuth))
+		channels.Use(middleware.JWTAuth(jwtAuth, db))
 		{
 			channels.GET("", configHandler.ListChannels)
 			channels.GET("/:id", configHandler.GetChannel)
@@ -113,7 +115,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 		// RouteRule routes (protected)
 		routes := v1.Group("/routes")
-		routes.Use(middleware.JWTAuth(jwtAuth))
+		routes.Use(middleware.JWTAuth(jwtAuth, db))
 		{
 			routes.GET("", configHandler.ListRouteRules)
 			routes.GET("/:id", configHandler.GetRouteRule)
@@ -125,7 +127,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 		// SilenceRule routes (protected)
 		silences := v1.Group("/silences")
-		silences.Use(middleware.JWTAuth(jwtAuth))
+		silences.Use(middleware.JWTAuth(jwtAuth, db))
 		{
 			silences.GET("", configHandler.ListSilenceRules)
 			silences.GET("/:id", configHandler.GetSilenceRule)
@@ -137,7 +139,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 		// OnDuty routes (protected)
 		onduty := v1.Group("/onduty")
-		onduty.Use(middleware.JWTAuth(jwtAuth))
+		onduty.Use(middleware.JWTAuth(jwtAuth, db))
 		{
 			onduty.GET("", configHandler.ListOnDuty)
 			onduty.GET("/current", configHandler.CurrentOnDuty)

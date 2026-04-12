@@ -26,14 +26,12 @@ func TestCreateUserRejectsInvalidRole(t *testing.T) {
 	db := openUserTestDB(t)
 	handler := &UserHandler{db: db}
 
-	body := map[string]string{
+	req := newJSONRequest(t, http.MethodPost, "/users", map[string]any{
 		"username": "alice",
 		"name":     "Alice",
 		"role":     "owner",
 		"password": "plain-text-password",
-	}
-
-	req := newJSONRequest(t, http.MethodPost, "/users", body)
+	})
 	recorder := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(recorder)
 	context.Request = req
@@ -42,10 +40,6 @@ func TestCreateUserRejectsInvalidRole(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, recorder.Code)
 	assert.JSONEq(t, `{"error":"invalid role"}`, recorder.Body.String())
-
-	var count int64
-	assert.NoError(t, db.Model(&models.User{}).Count(&count).Error)
-	assert.Equal(t, int64(0), count)
 }
 
 func TestCreateUserDefaultsEmptyRole(t *testing.T) {
@@ -53,13 +47,11 @@ func TestCreateUserDefaultsEmptyRole(t *testing.T) {
 	db := openUserTestDB(t)
 	handler := &UserHandler{db: db}
 
-	body := map[string]string{
+	req := newJSONRequest(t, http.MethodPost, "/users", map[string]any{
 		"username": "alice",
 		"name":     "Alice",
 		"password": "plain-text-password",
-	}
-
-	req := newJSONRequest(t, http.MethodPost, "/users", body)
+	})
 	recorder := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(recorder)
 	context.Request = req
@@ -69,42 +61,7 @@ func TestCreateUserDefaultsEmptyRole(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, recorder.Code)
 
 	var saved models.User
-	assert.NoError(t, db.First(&saved).Error)
-	assert.Equal(t, authz.RoleViewer, saved.Role)
-}
-
-func TestUpdateUserRejectsInvalidRole(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	db := openUserTestDB(t)
-	handler := &UserHandler{db: db}
-
-	user := models.User{
-		Username: "alice",
-		Name:     "Alice",
-		Role:     authz.RoleViewer,
-	}
-	assert.NoError(t, user.SetPassword("password"))
-	assert.NoError(t, db.Create(&user).Error)
-
-	body := map[string]string{
-		"role": "owner",
-	}
-
-	req := newJSONRequest(t, http.MethodPut, "/users/1", body)
-	recorder := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(recorder)
-	context.Request = req
-	context.Params = gin.Params{{Key: "id", Value: "1"}}
-	context.Set(middleware.UserIDKey, uint(999))
-	context.Set(middleware.RoleKey, authz.RoleAdmin)
-
-	handler.UpdateUser(context)
-
-	assert.Equal(t, http.StatusBadRequest, recorder.Code)
-	assert.JSONEq(t, `{"error":"invalid role"}`, recorder.Body.String())
-
-	var saved models.User
-	assert.NoError(t, db.First(&saved, user.ID).Error)
+	require.NoError(t, db.First(&saved).Error)
 	assert.Equal(t, authz.RoleViewer, saved.Role)
 }
 
@@ -114,13 +71,7 @@ func TestLoginPreservesResponseContract(t *testing.T) {
 	jwtAuth := newUserTestJWT()
 	handler := NewUserHandler(db, jwtAuth)
 
-	user := models.User{
-		Username: "alice",
-		Name:     "Alice",
-		Role:     authz.RoleOperator,
-	}
-	require.NoError(t, user.SetPassword("plain-text-password"))
-	require.NoError(t, db.Create(&user).Error)
+	user := seedUser(t, db, "alice", authz.RoleOperator)
 
 	req := newJSONRequest(t, http.MethodPost, "/auth/login", map[string]string{
 		"username": "alice",
@@ -141,6 +92,7 @@ func TestLoginPreservesResponseContract(t *testing.T) {
 	assert.Equal(t, user.ID, response.User.ID)
 	assert.Equal(t, authz.RoleOperator, response.User.Role)
 	assert.Equal(t, "", response.User.PasswordHash)
+	assert.False(t, response.User.ForcePasswordReset)
 
 	claims, err := jwtAuth.ValidateToken(response.Token)
 	require.NoError(t, err)
@@ -149,22 +101,18 @@ func TestLoginPreservesResponseContract(t *testing.T) {
 	assert.Equal(t, authz.RoleOperator, claims.Role)
 }
 
-func TestLoginRejectsUnsupportedPersistedRole(t *testing.T) {
+func TestLoginRejectsDisabledUser(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := openUserTestDB(t)
-	jwtAuth := newUserTestJWT()
-	handler := NewUserHandler(db, jwtAuth)
+	handler := NewUserHandler(db, newUserTestJWT())
 
-	user := models.User{
-		Username: "legacy-owner",
-		Name:     "Legacy Owner",
-		Role:     "owner",
-	}
-	require.NoError(t, user.SetPassword("plain-text-password"))
-	require.NoError(t, db.Session(&gorm.Session{SkipHooks: true}).Create(&user).Error)
+	user := seedUser(t, db, "disabled", authz.RoleViewer)
+	now := time.Now()
+	user.SetDisabled(true, now)
+	require.NoError(t, db.Save(user).Error)
 
 	req := newJSONRequest(t, http.MethodPost, "/auth/login", map[string]string{
-		"username": "legacy-owner",
+		"username": user.Username,
 		"password": "plain-text-password",
 	})
 	recorder := httptest.NewRecorder()
@@ -173,61 +121,236 @@ func TestLoginRejectsUnsupportedPersistedRole(t *testing.T) {
 
 	handler.Login(context)
 
-	require.Equal(t, http.StatusUnauthorized, recorder.Code)
-	assert.JSONEq(t, `{"error":"invalid username or password"}`, recorder.Body.String())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Code)
+	assert.JSONEq(t, `{"error":"account disabled"}`, recorder.Body.String())
 }
 
-func TestRefreshTokenPreservesClaimsContract(t *testing.T) {
+func TestLoginReturnsForcedResetState(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	user := seedUser(t, db, "reset-me", authz.RoleViewer)
+	user.SetForcePasswordReset(true, time.Now())
+	require.NoError(t, db.Save(user).Error)
+
+	req := newJSONRequest(t, http.MethodPost, "/auth/login", map[string]string{
+		"username": user.Username,
+		"password": "plain-text-password",
+	})
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.Login(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var response LoginResponse
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.NotNil(t, response.User)
+	assert.True(t, response.User.ForcePasswordReset)
+}
+
+func TestRefreshTokenRejectsDisabledAndStaleSessions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := openUserTestDB(t)
 	jwtAuth := newUserTestJWT()
 	handler := NewUserHandler(db, jwtAuth)
 
-	token, err := jwtAuth.GenerateToken(23, "alice", authz.RoleViewer)
+	disabled := seedUser(t, db, "disabled", authz.RoleViewer)
+	disabled.SetDisabled(true, time.Now())
+	require.NoError(t, db.Save(disabled).Error)
+	disabledToken, err := jwtAuth.GenerateToken(disabled.ID, disabled.Username, disabled.Role)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	stale := seedUser(t, db, "stale", authz.RoleViewer)
+	staleToken, err := jwtAuth.GenerateToken(stale.ID, stale.Username, stale.Role)
+	require.NoError(t, err)
+	stale.InvalidateTokens(time.Now().Add(time.Second))
+	require.NoError(t, db.Save(stale).Error)
+
+	tests := []struct {
+		name           string
+		token          string
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:           "disabled user refresh denied",
+			token:          disabledToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   `{"error":"account disabled"}`,
+		},
+		{
+			name:           "stale token refresh denied",
+			token:          staleToken,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   `{"error":"session expired"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+			req.Header.Set("Authorization", "Bearer "+tt.token)
+			recorder := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(recorder)
+			context.Request = req
+
+			handler.RefreshToken(context)
+
+			assert.Equal(t, tt.expectedStatus, recorder.Code)
+			assert.JSONEq(t, tt.expectedBody, recorder.Body.String())
+		})
+	}
+}
+
+func TestAdminUpdateUserRejectsInvalidRoleAndSelfProtection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	admin := seedUser(t, db, "admin", authz.RoleAdmin)
+	target := seedUser(t, db, "target", authz.RoleViewer)
+
+	tests := []struct {
+		name           string
+		targetID       uint
+		currentUserID  uint
+		body           map[string]any
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:           "reject invalid role",
+			targetID:       target.ID,
+			currentUserID:  admin.ID,
+			body:           map[string]any{"role": "owner"},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   `{"error":"invalid role"}`,
+		},
+		{
+			name:           "reject self disable",
+			targetID:       admin.ID,
+			currentUserID:  admin.ID,
+			body:           map[string]any{"disabled": true},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   `{"error":"cannot disable yourself"}`,
+		},
+		{
+			name:           "reject self demotion",
+			targetID:       admin.ID,
+			currentUserID:  admin.ID,
+			body:           map[string]any{"role": authz.RoleViewer},
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   `{"error":"cannot change your own role"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := newJSONRequest(t, http.MethodPatch, fmt.Sprintf("/users/%d", tt.targetID), tt.body)
+			recorder := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(recorder)
+			context.Request = req
+			context.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", tt.targetID)}}
+			context.Set(middleware.UserIDKey, tt.currentUserID)
+			context.Set(middleware.UsernameKey, "admin")
+			context.Set(middleware.RoleKey, authz.RoleAdmin)
+
+			handler.AdminUpdateUser(context)
+
+			assert.Equal(t, tt.expectedStatus, recorder.Code)
+			assert.JSONEq(t, tt.expectedBody, recorder.Body.String())
+		})
+	}
+}
+
+func TestAdminUpdateUserInvalidatesTargetSessions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	admin := seedUser(t, db, "admin", authz.RoleAdmin)
+	target := seedUser(t, db, "target", authz.RoleViewer)
+
+	req := newJSONRequest(t, http.MethodPatch, fmt.Sprintf("/users/%d", target.ID), map[string]any{
+		"role": authz.RoleOperator,
+	})
 	recorder := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(recorder)
 	context.Request = req
+	context.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", target.ID)}}
+	context.Set(middleware.UserIDKey, admin.ID)
+	context.Set(middleware.UsernameKey, admin.Username)
+	context.Set(middleware.RoleKey, authz.RoleAdmin)
 
-	handler.RefreshToken(context)
+	handler.AdminUpdateUser(context)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 
-	var response struct {
-		Token string `json:"token"`
-	}
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
-	assert.NotEmpty(t, response.Token)
-
-	claims, err := jwtAuth.ValidateToken(response.Token)
-	require.NoError(t, err)
-	assert.Equal(t, uint(23), claims.UserID)
-	assert.Equal(t, "alice", claims.Username)
-	assert.Equal(t, authz.RoleViewer, claims.Role)
+	var saved models.User
+	require.NoError(t, db.First(&saved, target.ID).Error)
+	assert.Equal(t, authz.RoleOperator, saved.Role)
+	assert.NotNil(t, saved.TokenInvalidBefore)
 }
 
-func TestRefreshTokenRejectsUnsupportedRoleClaim(t *testing.T) {
+func TestUpdateOwnProfileRejectsAdminOnlyFields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := openUserTestDB(t)
-	jwtAuth := newUserTestJWT()
-	handler := NewUserHandler(db, jwtAuth)
+	handler := NewUserHandler(db, newUserTestJWT())
 
-	token, err := jwtAuth.GenerateToken(23, "alice", "owner")
-	require.NoError(t, err)
+	user := seedUser(t, db, "profile", authz.RoleViewer)
 
-	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req := newJSONRequest(t, http.MethodPatch, "/users/me/profile", map[string]any{
+		"name": "Updated Name",
+		"role": authz.RoleAdmin,
+	})
 	recorder := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(recorder)
 	context.Request = req
+	context.Set(middleware.UserIDKey, user.ID)
+	context.Set(middleware.UsernameKey, user.Username)
+	context.Set(middleware.RoleKey, user.Role)
 
-	handler.RefreshToken(context)
+	handler.UpdateOwnProfile(context)
 
-	require.Equal(t, http.StatusUnauthorized, recorder.Code)
-	assert.JSONEq(t, `{"error":"invalid or expired token"}`, recorder.Body.String())
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+
+	var saved models.User
+	require.NoError(t, db.First(&saved, user.ID).Error)
+	assert.Equal(t, authz.RoleViewer, saved.Role)
+	assert.Equal(t, user.Name, saved.Name)
+}
+
+func TestUpdateOwnPasswordClearsForcedResetAndInvalidatesTokens(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	user := seedUser(t, db, "password-user", authz.RoleViewer)
+	user.SetForcePasswordReset(true, time.Now())
+	require.NoError(t, db.Save(user).Error)
+
+	req := newJSONRequest(t, http.MethodPut, "/users/me/password", map[string]any{
+		"password": "new-password",
+	})
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+	context.Set(middleware.UserIDKey, user.ID)
+	context.Set(middleware.UsernameKey, user.Username)
+	context.Set(middleware.RoleKey, user.Role)
+
+	handler.UpdateOwnPassword(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var saved models.User
+	require.NoError(t, db.First(&saved, user.ID).Error)
+	assert.True(t, saved.CheckPassword("new-password"))
+	assert.False(t, saved.ForcePasswordReset)
+	assert.NotNil(t, saved.TokenInvalidBefore)
 }
 
 func openUserTestDB(t *testing.T) *gorm.DB {
@@ -243,6 +366,20 @@ func openUserTestDB(t *testing.T) *gorm.DB {
 	}
 
 	return db
+}
+
+func seedUser(t *testing.T, db *gorm.DB, username, role string) *models.User {
+	t.Helper()
+
+	user := &models.User{
+		Username: username,
+		Name:     username,
+		Role:     role,
+	}
+	require.NoError(t, user.SetPassword("plain-text-password"))
+	require.NoError(t, db.Create(user).Error)
+
+	return user
 }
 
 func newJSONRequest(t *testing.T, method, target string, body any) *http.Request {

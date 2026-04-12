@@ -7,7 +7,9 @@ import (
 
 	"github.com/game-ops/ai-alert-system/internal/auth"
 	"github.com/game-ops/ai-alert-system/internal/authz"
+	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 const (
@@ -24,7 +26,7 @@ type Principal struct {
 }
 
 // JWTAuth creates a middleware that validates JWT tokens
-func JWTAuth(jwtAuth *auth.JWT) gin.HandlerFunc {
+func JWTAuth(jwtAuth *auth.JWT, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader(AuthorizationHeader)
 		if authHeader == "" {
@@ -48,7 +50,38 @@ func JWTAuth(jwtAuth *auth.JWT) gin.HandlerFunc {
 			return
 		}
 
-		principal, err := NewPrincipal(claims.UserID, claims.Username, claims.Role)
+		var user models.User
+		if err := db.First(&user, claims.UserID).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		if user.IsDisabled() {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "account disabled"})
+			c.Abort()
+			return
+		}
+
+		if !authz.IsSupportedRole(user.Role) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		if claims.IssuedAt == nil || !user.IsTokenValid(claims.IssuedAt.Time) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "session expired"})
+			c.Abort()
+			return
+		}
+
+		if user.RequiresPasswordReset() && !isAllowedForcedResetPath(c) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "password reset required"})
+			c.Abort()
+			return
+		}
+
+		principal, err := NewPrincipal(user.ID, user.Username, user.Role)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 			c.Abort()
@@ -58,6 +91,23 @@ func JWTAuth(jwtAuth *auth.JWT) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func isAllowedForcedResetPath(c *gin.Context) bool {
+	path := c.Request.URL.Path
+	method := c.Request.Method
+
+	if path == "/api/v1/users/me" && method == http.MethodGet {
+		return true
+	}
+	if path == "/api/v1/users/me/profile" && method == http.MethodPatch {
+		return true
+	}
+	if path == "/api/v1/users/me/password" && method == http.MethodPut {
+		return true
+	}
+
+	return false
 }
 
 func NewPrincipal(userID uint, username, role string) (Principal, error) {

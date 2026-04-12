@@ -70,11 +70,27 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 	t.Parallel()
 
 	db := newRouterTestDB(t)
-	require.NoError(t, db.Create(&models.User{
+	admin := &models.User{
 		Username: "admin",
 		Name:     "Admin",
 		Role:     authz.RoleAdmin,
-	}).Error)
+	}
+	require.NoError(t, admin.SetPassword("password"))
+	require.NoError(t, db.Create(admin).Error)
+	operator := &models.User{
+		Username: "operator",
+		Name:     "Operator",
+		Role:     authz.RoleOperator,
+	}
+	require.NoError(t, operator.SetPassword("password"))
+	require.NoError(t, db.Create(operator).Error)
+	resetUser := &models.User{
+		Username: "reset-user",
+		Name:     "Reset User",
+		Role:     authz.RoleOperator,
+	}
+	require.NoError(t, resetUser.SetPassword("password"))
+	require.NoError(t, db.Create(resetUser).Error)
 
 	cfg := &config.Config{
 		Server: config.ServerConfig{
@@ -87,10 +103,14 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 	}
 
 	jwtAuth := auth.NewJWT(&cfg.Security)
-	adminToken, err := jwtAuth.GenerateToken(1, "admin", authz.RoleAdmin)
+	adminToken, err := jwtAuth.GenerateToken(admin.ID, admin.Username, authz.RoleAdmin)
 	require.NoError(t, err)
-	operatorToken, err := jwtAuth.GenerateToken(2, "operator", authz.RoleOperator)
+	operatorToken, err := jwtAuth.GenerateToken(operator.ID, operator.Username, authz.RoleOperator)
 	require.NoError(t, err)
+	forcedResetToken, err := jwtAuth.GenerateToken(resetUser.ID, resetUser.Username, authz.RoleOperator)
+	require.NoError(t, err)
+	resetUser.SetForcePasswordReset(true, time.Now().Add(-time.Second))
+	require.NoError(t, db.Save(resetUser).Error)
 
 	router := Setup(db, nil, cfg)
 
@@ -106,6 +126,10 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 		{name: "user list requires auth", method: http.MethodGet, path: "/api/v1/users", expectedStatus: http.StatusUnauthorized},
 		{name: "operator denied user management capability", method: http.MethodGet, path: "/api/v1/users", token: operatorToken, expectedStatus: http.StatusForbidden},
 		{name: "admin allowed user management capability", method: http.MethodGet, path: "/api/v1/users", token: adminToken, expectedStatus: http.StatusOK},
+		{name: "operator can read self context", method: http.MethodGet, path: "/api/v1/users/me", token: operatorToken, expectedStatus: http.StatusOK},
+		{name: "operator can update own password", method: http.MethodPut, path: "/api/v1/users/me/password", token: operatorToken, expectedStatus: http.StatusBadRequest},
+		{name: "forced reset blocks normal alerts route", method: http.MethodGet, path: "/api/v1/alerts", token: forcedResetToken, expectedStatus: http.StatusUnauthorized},
+		{name: "forced reset still allows self context", method: http.MethodGet, path: "/api/v1/users/me", token: forcedResetToken, expectedStatus: http.StatusOK},
 	}
 
 	for _, tt := range tests {
@@ -128,6 +152,7 @@ func newRouterTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open("file:router_authz?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&models.User{}))
+	require.NoError(t, db.Exec("DELETE FROM users").Error)
 
 	return db
 }

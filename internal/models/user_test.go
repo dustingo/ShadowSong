@@ -2,6 +2,7 @@ package models
 
 import (
 	"testing"
+	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/stretchr/testify/assert"
@@ -79,5 +80,63 @@ func TestUserHooks(t *testing.T) {
 		err := user.BeforeUpdate(nil)
 
 		assert.EqualError(t, err, "invalid role")
+	})
+}
+
+func TestUserAccountStateHelpers(t *testing.T) {
+	now := time.Date(2026, 4, 12, 1, 2, 3, 0, time.UTC)
+	before := now.Add(-time.Minute)
+	after := now.Add(time.Minute)
+
+	t.Run("defaults to active token-valid state", func(t *testing.T) {
+		user := User{}
+
+		assert.False(t, user.IsDisabled())
+		assert.False(t, user.RequiresPasswordReset())
+		assert.True(t, user.IsTokenValid(before))
+	})
+
+	t.Run("set disabled marks account disabled and invalidates older tokens", func(t *testing.T) {
+		user := User{}
+
+		user.SetDisabled(true, now)
+
+		if assert.NotNil(t, user.DisabledAt) {
+			assert.Equal(t, now, user.DisabledAt.UTC())
+		}
+		if assert.NotNil(t, user.TokenInvalidBefore) {
+			assert.Equal(t, now, user.TokenInvalidBefore.UTC())
+		}
+		assert.True(t, user.IsDisabled())
+		assert.False(t, user.IsTokenValid(before))
+		assert.True(t, user.IsTokenValid(after))
+	})
+
+	t.Run("force password reset flips flag and invalidates older tokens", func(t *testing.T) {
+		user := User{}
+
+		user.SetForcePasswordReset(true, now)
+
+		assert.True(t, user.RequiresPasswordReset())
+		if assert.NotNil(t, user.TokenInvalidBefore) {
+			assert.Equal(t, now, user.TokenInvalidBefore.UTC())
+		}
+		assert.False(t, user.IsTokenValid(before))
+		assert.True(t, user.IsTokenValid(after))
+	})
+
+	t.Run("update password clears forced reset and rotates token cutoff", func(t *testing.T) {
+		user := User{ForcePasswordReset: true}
+
+		err := user.UpdatePassword("next-password", now)
+
+		assert.NoError(t, err)
+		assert.False(t, user.RequiresPasswordReset())
+		assert.NotEmpty(t, user.PasswordHash)
+		assert.True(t, user.CheckPassword("next-password"))
+		if assert.NotNil(t, user.TokenInvalidBefore) {
+			assert.Equal(t, now, user.TokenInvalidBefore.UTC())
+		}
+		assert.False(t, user.IsTokenValid(before))
 	})
 }

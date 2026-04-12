@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Enterprise Access Control
-status: ready_to_execute
-last_updated: "2026-04-12T09:02:00+08:00"
+status: ready_for_milestone_close
+last_updated: "2026-04-12T02:16:00.000Z"
 last_activity: 2026-04-12
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
-  completed_plans: 9
-  percent: 75
+  completed_plans: 12
+  percent: 100
 ---
 
 # Current Position
 
 Phase: 8
-Plan: Planned (3 plans)
-Status: Ready to execute
+Plan: Completed (3 plans)
+Status: Ready for milestone close
 Last activity: 2026-04-12
 
 ## Project Reference
@@ -25,7 +25,7 @@ Last activity: 2026-04-12
 See: `.planning/PROJECT.md` (updated 2026-04-12)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Phase 08 — ship-permission-aware-ui-and-verification
+**Current focus:** Milestone wrap-up after Phase 08 completion
 
 ## Accumulated Context
 
@@ -33,5 +33,5 @@ See: `.planning/PROJECT.md` (updated 2026-04-12)
 - Phase 5 已完成：角色常量、JWT principal、capability matrix 和 target-db role audit 基线已落地
 - Phase 6 已完成：管理员管人、自助资料/密码、账号禁用、强制改密和前端 `/users`/`/profile` 入口已落地
 - Phase 7 已完成：告警动作与配置写接口已按 capability matrix 收口，关键用户/配置/告警动作已写入后端持久化审计日志
-- 当前最高优先级是执行 Phase 8：完成前端权限显隐、只读提示、前端角色矩阵测试和最终验证文档
+- 当前里程碑 Phase 5-8 已全部完成，最高优先级转为做 milestone audit / archive
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移

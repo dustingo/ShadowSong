@@ -7,9 +7,9 @@
 
 ### Authorization Model
 
-- [ ] **AUTHZ-01**: 系统使用统一且受约束的内置角色集 `admin`、`operator`、`viewer`，用户不能保存为未定义角色
-- [ ] **AUTHZ-02**: 现有用户角色数据在权限体系升级后继续保持兼容，不因权限收口导致现有用户无法登录
-- [ ] **AUTHZ-03**: 服务端能基于角色矩阵判定用户对查看、处理告警、管理配置和管理用户等操作是否有权限
+- [x] **AUTHZ-01**: 系统使用统一且受约束的内置角色集 `admin`、`operator`、`viewer`，用户不能保存为未定义角色
+- [x] **AUTHZ-02**: 现有用户角色数据在权限体系升级后继续保持兼容，不因权限收口导致现有用户无法登录
+- [x] **AUTHZ-03**: 服务端能基于角色矩阵判定用户对查看、处理告警、管理配置和管理用户等操作是否有权限
 
 ### User Administration
 
@@ -22,29 +22,29 @@
 
 ### Protected Operations
 
-- [ ] **PERM-01**: 只有 `admin` 可以新增、修改、删除数据源、渠道、路由规则、静默规则和值班配置
-- [ ] **PERM-02**: `operator` 可以查看配置与处理告警，包括确认和快速静默，但不能修改用户角色或系统配置
-- [ ] **PERM-03**: `viewer` 只能查看告警、统计和配置结果，不能执行确认、快速静默或任何配置变更
-- [ ] **PERM-04**: 所有未授权请求都会在后端返回明确的拒绝结果，而不是静默成功或落入默认行为
+- [x] **PERM-01**: 只有 `admin` 可以新增、修改、删除数据源、渠道、路由规则、静默规则和值班配置
+- [x] **PERM-02**: `operator` 可以查看配置与处理告警，包括确认和快速静默，但不能修改用户角色或系统配置
+- [x] **PERM-03**: `viewer` 只能查看告警、统计和配置结果，不能执行确认、快速静默或任何配置变更
+- [x] **PERM-04**: 所有未授权请求都会在后端返回明确的拒绝结果，而不是静默成功或落入默认行为
 
 ### Security Audit
 
-- [ ] **AUDIT-01**: 用户创建、角色变更、账号禁用、账号删除和强制改密等关键安全操作都会记录审计日志
-- [ ] **AUDIT-02**: 审计日志至少包含操作者、目标对象、动作类型、关键变更结果和时间信息
-- [ ] **AUDIT-03**: 审计日志不能依赖前端上报，必须由后端在关键操作成功或拒绝时可靠落地
+- [x] **AUDIT-01**: 用户创建、角色变更、账号禁用、账号删除和强制改密等关键安全操作都会记录审计日志
+- [x] **AUDIT-02**: 审计日志至少包含操作者、目标对象、动作类型、关键变更结果和时间信息
+- [x] **AUDIT-03**: 审计日志不能依赖前端上报，必须由后端在关键操作成功或拒绝时可靠落地
 
 ### Frontend Permission Awareness
 
-- [ ] **FEACL-01**: 前端菜单、路由和页面入口会根据角色隐藏或禁用无权访问的功能
-- [ ] **FEACL-02**: 前端在用户管理与配置管理界面中只展示当前角色允许的按钮和表单操作
-- [ ] **FEACL-03**: 当用户访问无权执行的页面或操作时，前端会提供清晰的一致化权限提示
+- [x] **FEACL-01**: 前端菜单、路由和页面入口会根据角色隐藏或禁用无权访问的功能
+- [x] **FEACL-02**: 前端在用户管理与配置管理界面中只展示当前角色允许的按钮和表单操作
+- [x] **FEACL-03**: 当用户访问无权执行的页面或操作时，前端会提供清晰的一致化权限提示
 
 ### Verification
 
-- [ ] **VER-01**: 至少有一组后端验证覆盖 `admin`、`operator`、`viewer` 对关键接口的允许/拒绝矩阵
-- [ ] **VER-02**: 至少有一组前端验证覆盖不同角色下的菜单、页面入口和关键操作显隐
-- [ ] **VER-03**: 角色与权限的使用说明、默认行为和限制会同步更新到项目文档或测试文案中
-- [ ] **VER-04**: 至少有一组验证覆盖账号禁用、强制改密和审计日志的关键安全路径
+- [x] **VER-01**: 至少有一组后端验证覆盖 `admin`、`operator`、`viewer` 对关键接口的允许/拒绝矩阵
+- [x] **VER-02**: 至少有一组前端验证覆盖不同角色下的菜单、页面入口和关键操作显隐
+- [x] **VER-03**: 角色与权限的使用说明、默认行为和限制会同步更新到项目文档或测试文案中
+- [x] **VER-04**: 至少有一组验证覆盖账号禁用、强制改密和审计日志的关键安全路径
 
 ## v2 Requirements
 
@@ -75,20 +75,20 @@
 | USER-04 | Phase 6 | Complete |
 | USER-05 | Phase 6 | Complete |
 | USER-06 | Phase 6 | Complete |
-| PERM-01 | Phase 7 | Pending |
-| PERM-02 | Phase 7 | Pending |
-| PERM-03 | Phase 7 | Pending |
-| PERM-04 | Phase 7 | Pending |
-| AUDIT-01 | Phase 7 | Pending |
-| AUDIT-02 | Phase 7 | Pending |
-| AUDIT-03 | Phase 7 | Pending |
-| FEACL-01 | Phase 8 | Pending |
-| FEACL-02 | Phase 8 | Pending |
-| FEACL-03 | Phase 8 | Pending |
-| VER-01 | Phase 8 | Pending |
-| VER-02 | Phase 8 | Pending |
-| VER-03 | Phase 8 | Pending |
-| VER-04 | Phase 8 | Pending |
+| PERM-01 | Phase 7 | Complete |
+| PERM-02 | Phase 7 | Complete |
+| PERM-03 | Phase 7 | Complete |
+| PERM-04 | Phase 7 | Complete |
+| AUDIT-01 | Phase 7 | Complete |
+| AUDIT-02 | Phase 7 | Complete |
+| AUDIT-03 | Phase 7 | Complete |
+| FEACL-01 | Phase 8 | Complete |
+| FEACL-02 | Phase 8 | Complete |
+| FEACL-03 | Phase 8 | Complete |
+| VER-01 | Phase 8 | Complete |
+| VER-02 | Phase 8 | Complete |
+| VER-03 | Phase 8 | Complete |
+| VER-04 | Phase 8 | Complete |
 
 **Coverage:**
 - v1 requirements: 23 total
@@ -97,4 +97,4 @@
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-12 after Phase 6 completion*
+*Last updated: 2026-04-12 after Phase 8 completion*

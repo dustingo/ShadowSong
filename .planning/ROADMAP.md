@@ -7,12 +7,12 @@
 
 ## Current Status
 
-当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-7 已完成，Phase 8 已完成规划并可直接执行。
+当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-8 已全部完成，用户权限控制、审计和前端权限感知链路均已落地。
 
 ## Next Step
 
-- `/gsd-execute-phase 8` — 执行前端权限显隐、只读提示、前端矩阵测试与最终验证
-- `/gsd-review --phase 8 --all` — 在执行前先做外部 AI 交叉审查
+- `/gsd-audit-milestone` — 对 v1.1 里程碑做收口审计，确认需求与实现完全对齐
+- `/gsd-complete-milestone` — 归档 v1.1 并准备下一个版本
 
 ## Overview
 
@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Normalize Role Model** - 统一现有角色语义并建立可复用的权限判定基线
 - [x] **Phase 6: Secure User Administration** - 收紧用户管理和个人资料修改边界，并加入账号禁用与强制改密
 - [x] **Phase 7: Lock Down Protected Operations** - 对配置与告警操作接口补齐角色校验，并落地关键操作审计
-- [ ] **Phase 8: Ship Permission-Aware UI And Verification** - 让前端入口与按钮按权限收口，并补齐角色矩阵验证
+- [x] **Phase 8: Ship Permission-Aware UI And Verification** - 让前端入口与按钮按权限收口，并补齐角色矩阵验证
 
 ## Phase Details
 
@@ -98,6 +98,6 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 08-01-PLAN.md — Add frontend role-aware menu, route, and action visibility controls
-- [ ] 08-02-PLAN.md — Normalize forbidden-state UX and role-specific page behavior
-- [ ] 08-03-PLAN.md — Document the access model and add end-to-end verification evidence
+- [x] 08-01-PLAN.md — Add frontend role-aware menu, route, and action visibility controls
+- [x] 08-02-PLAN.md — Normalize forbidden-state UX and role-specific page behavior
+- [x] 08-03-PLAN.md — Document the access model and add end-to-end verification evidence

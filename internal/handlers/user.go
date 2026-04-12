@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -208,6 +209,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	if !authz.IsSupportedRole(user.Role) {
+		_ = recordAudit(h.db, c, "user.create", "user", req.Username, auditResultDenied, "invalid role")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
 		return
 	}
@@ -226,6 +228,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	_ = recordAudit(h.db, c, "user.create", "user", strconv.FormatUint(uint64(user.ID), 10), auditResultAllowed, fmt.Sprintf("role=%s", user.Role))
 	sanitizeUser(&user)
 	c.JSON(http.StatusCreated, user)
 }
@@ -257,10 +260,12 @@ func (h *UserHandler) AdminUpdateUser(c *gin.Context) {
 	currentUserID := middleware.GetUserID(c)
 	if currentUserID == user.ID {
 		if req.Disabled != nil && *req.Disabled {
+			_ = recordAudit(h.db, c, "user.disable", "user", strconv.FormatUint(uint64(user.ID), 10), auditResultDenied, "cannot disable yourself")
 			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot disable yourself"})
 			return
 		}
 		if req.Role != nil && *req.Role != user.Role {
+			_ = recordAudit(h.db, c, "user.role_change", "user", strconv.FormatUint(uint64(user.ID), 10), auditResultDenied, "cannot change your own role")
 			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot change your own role"})
 			return
 		}
@@ -278,6 +283,7 @@ func (h *UserHandler) AdminUpdateUser(c *gin.Context) {
 	if req.Role != nil {
 		role := authz.DefaultRole(*req.Role)
 		if !authz.IsSupportedRole(role) {
+			_ = recordAudit(h.db, c, "user.role_change", "user", strconv.FormatUint(uint64(user.ID), 10), auditResultDenied, "invalid role")
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
 			return
 		}
@@ -306,6 +312,7 @@ func (h *UserHandler) AdminUpdateUser(c *gin.Context) {
 		return
 	}
 
+	recordAdminUpdateAudit(h.db, c, user, req)
 	sanitizeUser(user)
 	c.JSON(http.StatusOK, user)
 }
@@ -362,6 +369,7 @@ func (h *UserHandler) UpdateOwnPassword(c *gin.Context) {
 		return
 	}
 
+	_ = recordAudit(h.db, c, "user.password_change", "user", strconv.FormatUint(uint64(user.ID), 10), auditResultAllowed, "self-service password update")
 	c.JSON(http.StatusOK, gin.H{"message": "password updated"})
 }
 
@@ -375,6 +383,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 
 	currentUserID := middleware.GetUserID(c)
 	if currentUserID == id {
+		_ = recordAudit(h.db, c, "user.delete", "user", strconv.FormatUint(uint64(id), 10), auditResultDenied, "cannot delete yourself")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete yourself"})
 		return
 	}
@@ -384,6 +393,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
+	_ = recordAudit(h.db, c, "user.delete", "user", strconv.FormatUint(uint64(id), 10), auditResultAllowed, "admin deleted user")
 	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})
 }
 
@@ -461,4 +471,52 @@ func bindStrictJSON(c *gin.Context, target any) error {
 
 func sanitizeUser(user *models.User) {
 	user.PasswordHash = ""
+}
+
+const (
+	auditResultAllowed = "allowed"
+	auditResultDenied  = "denied"
+)
+
+func recordAdminUpdateAudit(db *gorm.DB, c *gin.Context, user *models.User, req adminUpdateUserRequest) {
+	targetID := strconv.FormatUint(uint64(user.ID), 10)
+
+	if req.Role != nil {
+		_ = recordAudit(db, c, "user.role_change", "user", targetID, auditResultAllowed, fmt.Sprintf("role=%s", user.Role))
+	}
+	if req.Disabled != nil {
+		action := "user.enable"
+		if *req.Disabled {
+			action = "user.disable"
+		}
+		_ = recordAudit(db, c, action, "user", targetID, auditResultAllowed, fmt.Sprintf("disabled=%t", *req.Disabled))
+	}
+	if req.ForcePasswordReset != nil {
+		action := "user.clear_force_password_reset"
+		if *req.ForcePasswordReset {
+			action = "user.force_password_reset"
+		}
+		_ = recordAudit(db, c, action, "user", targetID, auditResultAllowed, fmt.Sprintf("force_password_reset=%t", *req.ForcePasswordReset))
+	}
+	if req.Name != nil || req.Email != nil {
+		_ = recordAudit(db, c, "user.update_profile", "user", targetID, auditResultAllowed, "admin updated profile fields")
+	}
+}
+
+func recordAudit(db *gorm.DB, c *gin.Context, action, targetType, targetID, result, detail string) error {
+	entry := models.AuditLog{
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		Result:     result,
+		Detail:     detail,
+	}
+
+	if principal, ok := middleware.GetPrincipal(c); ok {
+		entry.ActorUserID = principal.UserID
+		entry.ActorUsername = principal.Username
+		entry.ActorRole = principal.Role
+	}
+
+	return db.Create(&entry).Error
 }

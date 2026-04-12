@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -81,7 +83,10 @@ func (h *AlertHandler) Ack(c *gin.Context) {
 	var input struct {
 		Comment string `json:"comment"`
 	}
-	c.ShouldBindJSON(&input)
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	var alert models.Alert
 	if err := h.db.First(&alert, "alert_id = ?", id).Error; err != nil {
@@ -93,21 +98,19 @@ func (h *AlertHandler) Ack(c *gin.Context) {
 		return
 	}
 
-	if alert.Status != "firing" {
+	username := middleware.GetUsername(c)
+	if err := alert.Ack(username, input.Comment); err != nil {
+		_ = recordAudit(h.db, c, "alert.ack", "alert", alert.AlertID, auditResultDenied, err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "alert cannot be acknowledged"})
 		return
 	}
-
-	now := time.Now()
-	alert.Status = "acked"
-	alert.AckedAt = &now
-	alert.AckComment = input.Comment
 
 	if err := h.db.Save(&alert).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	_ = recordAudit(h.db, c, "alert.ack", "alert", alert.AlertID, auditResultAllowed, fmt.Sprintf("comment=%s", input.Comment))
 	c.JSON(http.StatusOK, alert)
 }
 
@@ -138,28 +141,37 @@ func (h *AlertHandler) QuickSilence(c *gin.Context) {
 		return
 	}
 
+	createdBy := middleware.GetUsername(c)
+	if createdBy == "" {
+		createdBy = "system"
+	}
+
 	// Create a silence rule
 	silence := models.SilenceRule{
-		Name:            "Quick Silence - " + alert.AlertName,
+		Name:             "Quick Silence - " + alert.AlertName,
 		AlertNamePattern: alert.AlertName,
 		Severities:       []byte(`["` + alert.Severity + `"]`),
-		StartsAt:        time.Now(),
-		EndsAt:          time.Now().Add(time.Duration(input.Duration) * time.Second),
-		CreatedBy:       "system",
+		StartsAt:         time.Now(),
+		EndsAt:           time.Now().Add(time.Duration(input.Duration) * time.Second),
+		CreatedBy:        createdBy,
 	}
-	h.db.Create(&silence)
+	if err := h.db.Create(&silence).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
+	_ = recordAudit(h.db, c, "alert.quick_silence", "alert", alert.AlertID, auditResultAllowed, fmt.Sprintf("silence_id=%d duration_seconds=%d", silence.ID, input.Duration))
 	c.JSON(http.StatusOK, gin.H{"message": "alert silenced", "silence_id": silence.ID})
 }
 
 // Get alert statistics
 func (h *AlertHandler) Stats(c *gin.Context) {
 	var stats struct {
-		Total      int64                      `json:"total"`
-		Firing     int64                      `json:"firing"`
-		Acked      int64                      `json:"acked"`
-		Silenced   int64                      `json:"silenced"`
-		BySeverity map[string]int64            `json:"by_severity"`
+		Total      int64            `json:"total"`
+		Firing     int64            `json:"firing"`
+		Acked      int64            `json:"acked"`
+		Silenced   int64            `json:"silenced"`
+		BySeverity map[string]int64 `json:"by_severity"`
 		Trend      []struct {
 			Time  string `json:"time"`
 			Count int64  `json:"count"`

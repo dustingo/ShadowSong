@@ -51,6 +51,7 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		&models.Channel{},
 		&models.RouteRule{},
 		&models.SilenceRule{},
+		&models.AuditLog{},
 		&models.OnDuty{},
 	}
 

@@ -188,6 +188,20 @@ func (s *SilenceRule) Validate() error {
 	return nil
 }
 
+// AuditLog represents a persistent backend-authored audit event.
+type AuditLog struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	ActorUserID   uint      `gorm:"index" json:"actor_user_id"`
+	ActorUsername string    `gorm:"size:64;index" json:"actor_username"`
+	ActorRole     string    `gorm:"size:32;index" json:"actor_role"`
+	Action        string    `gorm:"size:128;index;not null" json:"action"`
+	TargetType    string    `gorm:"size:64;index;not null" json:"target_type"`
+	TargetID      string    `gorm:"size:128;index;not null" json:"target_id"`
+	Result        string    `gorm:"size:32;index;not null" json:"result"`
+	Detail        string    `gorm:"type:text" json:"detail"`
+	CreatedAt     time.Time `gorm:"index" json:"created_at"`
+}
+
 // OnDuty represents an on-duty schedule
 type OnDuty struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`

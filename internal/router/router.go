@@ -83,8 +83,8 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			alerts.GET("/stats", alertHandler.Stats)
 			alerts.GET("/active", alertHandler.Active)
 			alerts.GET("/:id", alertHandler.Get)
-			alerts.POST("/:id/ack", alertHandler.Ack)
-			alerts.POST("/:id/quick-silence", alertHandler.QuickSilence)
+			alerts.POST("/:id/ack", middleware.RequireCapability(authz.CapabilityProcessAlerts), alertHandler.Ack)
+			alerts.POST("/:id/quick-silence", middleware.RequireCapability(authz.CapabilityProcessAlerts), alertHandler.QuickSilence)
 		}
 
 		// DataSource routes (protected)
@@ -93,11 +93,11 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 		{
 			datasources.GET("", configHandler.ListDataSources)
 			datasources.GET("/:id", configHandler.GetDataSource)
-			datasources.POST("", configHandler.CreateDataSource)
+			datasources.POST("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateDataSource)
 			datasources.POST("/preview", configHandler.PreviewDataSource)
-			datasources.PUT("/:id", configHandler.UpdateDataSource)
-			datasources.DELETE("/:id", configHandler.DeleteDataSource)
-			datasources.PATCH("/:id/toggle", configHandler.ToggleDataSource)
+			datasources.PUT("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateDataSource)
+			datasources.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteDataSource)
+			datasources.PATCH("/:id/toggle", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.ToggleDataSource)
 		}
 
 		// Channel routes (protected)
@@ -106,11 +106,11 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 		{
 			channels.GET("", configHandler.ListChannels)
 			channels.GET("/:id", configHandler.GetChannel)
-			channels.POST("", configHandler.CreateChannel)
-			channels.PUT("/:id", configHandler.UpdateChannel)
-			channels.DELETE("/:id", configHandler.DeleteChannel)
-			channels.PATCH("/:id/toggle", configHandler.ToggleChannel)
-			channels.POST("/:id/test", configHandler.TestChannel)
+			channels.POST("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateChannel)
+			channels.PUT("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateChannel)
+			channels.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteChannel)
+			channels.PATCH("/:id/toggle", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.ToggleChannel)
+			channels.POST("/:id/test", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.TestChannel)
 		}
 
 		// RouteRule routes (protected)
@@ -119,10 +119,10 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 		{
 			routes.GET("", configHandler.ListRouteRules)
 			routes.GET("/:id", configHandler.GetRouteRule)
-			routes.POST("", configHandler.CreateRouteRule)
-			routes.PUT("/:id", configHandler.UpdateRouteRule)
-			routes.DELETE("/:id", configHandler.DeleteRouteRule)
-			routes.POST("/reorder", configHandler.ReorderRouteRules)
+			routes.POST("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateRouteRule)
+			routes.PUT("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateRouteRule)
+			routes.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteRouteRule)
+			routes.POST("/reorder", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.ReorderRouteRules)
 		}
 
 		// SilenceRule routes (protected)
@@ -131,10 +131,10 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 		{
 			silences.GET("", configHandler.ListSilenceRules)
 			silences.GET("/:id", configHandler.GetSilenceRule)
-			silences.POST("", configHandler.CreateSilenceRule)
-			silences.PUT("/:id", configHandler.UpdateSilenceRule)
-			silences.DELETE("/:id", configHandler.DeleteSilenceRule)
-			silences.POST("/from-alert/:alertId", configHandler.CreateSilenceFromAlert)
+			silences.POST("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateSilenceRule)
+			silences.PUT("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateSilenceRule)
+			silences.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteSilenceRule)
+			silences.POST("/from-alert/:alertId", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateSilenceFromAlert)
 		}
 
 		// OnDuty routes (protected)
@@ -144,9 +144,9 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			onduty.GET("", configHandler.ListOnDuty)
 			onduty.GET("/current", configHandler.CurrentOnDuty)
 			onduty.GET("/:id", configHandler.GetOnDuty)
-			onduty.POST("", configHandler.CreateOnDuty)
-			onduty.PUT("/:id", configHandler.UpdateOnDuty)
-			onduty.DELETE("/:id", configHandler.DeleteOnDuty)
+			onduty.POST("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateOnDuty)
+			onduty.PUT("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateOnDuty)
+			onduty.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteOnDuty)
 		}
 
 	}

@@ -293,6 +293,14 @@ func TestAdminUpdateUserInvalidatesTargetSessions(t *testing.T) {
 	require.NoError(t, db.First(&saved, target.ID).Error)
 	assert.Equal(t, authz.RoleOperator, saved.Role)
 	assert.NotNil(t, saved.TokenInvalidBefore)
+
+	var audit models.AuditLog
+	require.NoError(t, db.Order("id DESC").First(&audit).Error)
+	assert.Equal(t, "user.role_change", audit.Action)
+	assert.Equal(t, auditResultAllowed, audit.Result)
+	assert.Equal(t, admin.Username, audit.ActorUsername)
+	assert.Equal(t, authz.RoleAdmin, audit.ActorRole)
+	assert.Equal(t, fmt.Sprintf("%d", target.ID), audit.TargetID)
 }
 
 func TestUpdateOwnProfileRejectsAdminOnlyFields(t *testing.T) {
@@ -351,6 +359,43 @@ func TestUpdateOwnPasswordClearsForcedResetAndInvalidatesTokens(t *testing.T) {
 	assert.True(t, saved.CheckPassword("new-password"))
 	assert.False(t, saved.ForcePasswordReset)
 	assert.NotNil(t, saved.TokenInvalidBefore)
+
+	var audit models.AuditLog
+	require.NoError(t, db.Order("id DESC").First(&audit).Error)
+	assert.Equal(t, "user.password_change", audit.Action)
+	assert.Equal(t, auditResultAllowed, audit.Result)
+	assert.Equal(t, user.Username, audit.ActorUsername)
+	assert.Equal(t, fmt.Sprintf("%d", user.ID), audit.TargetID)
+}
+
+func TestAdminUpdateUserDeniedWritesAuditLog(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	admin := seedUser(t, db, "admin", authz.RoleAdmin)
+
+	req := newJSONRequest(t, http.MethodPatch, fmt.Sprintf("/users/%d", admin.ID), map[string]any{
+		"disabled": true,
+	})
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+	context.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", admin.ID)}}
+	context.Set(middleware.UserIDKey, admin.ID)
+	context.Set(middleware.UsernameKey, admin.Username)
+	context.Set(middleware.RoleKey, authz.RoleAdmin)
+
+	handler.AdminUpdateUser(context)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+
+	var audit models.AuditLog
+	require.NoError(t, db.Order("id DESC").First(&audit).Error)
+	assert.Equal(t, "user.disable", audit.Action)
+	assert.Equal(t, auditResultDenied, audit.Result)
+	assert.Equal(t, admin.Username, audit.ActorUsername)
+	assert.Equal(t, fmt.Sprintf("%d", admin.ID), audit.TargetID)
 }
 
 func openUserTestDB(t *testing.T) *gorm.DB {
@@ -362,6 +407,9 @@ func openUserTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("open sqlite db: %v", err)
 	}
 	if err := db.AutoMigrate(&models.User{}); err != nil {
+		t.Fatalf("migrate user model: %v", err)
+	}
+	if err := db.AutoMigrate(&models.AuditLog{}); err != nil {
 		t.Fatalf("migrate user model: %v", err)
 	}
 

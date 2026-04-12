@@ -52,11 +52,13 @@ func (h *ConfigHandler) GetDataSource(c *gin.Context) {
 func (h *ConfigHandler) CreateDataSource(c *gin.Context) {
 	var ds models.DataSource
 	if err := c.ShouldBindJSON(&ds); err != nil {
+		_ = recordAudit(h.db, c, "config.datasource.create", "datasource", "new", auditResultDenied, err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := ds.Validate(); err != nil {
+		_ = recordAudit(h.db, c, "config.datasource.create", "datasource", "new", auditResultDenied, err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -64,6 +66,7 @@ func (h *ConfigHandler) CreateDataSource(c *gin.Context) {
 	var count int64
 	h.db.Model(&models.DataSource{}).Where("name = ?", ds.Name).Count(&count)
 	if count > 0 {
+		_ = recordAudit(h.db, c, "config.datasource.create", "datasource", ds.Name, auditResultDenied, "name already exists")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "name already exists"})
 		return
 	}
@@ -72,6 +75,7 @@ func (h *ConfigHandler) CreateDataSource(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	_ = recordAudit(h.db, c, "config.datasource.create", "datasource", strconv.FormatUint(uint64(ds.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", ds.Name))
 	c.JSON(http.StatusOK, ds)
 }
 
@@ -115,6 +119,7 @@ func (h *ConfigHandler) UpdateDataSource(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	_ = recordAudit(h.db, c, "config.datasource.update", "datasource", strconv.FormatUint(uint64(ds.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", ds.Name))
 	c.JSON(http.StatusOK, ds)
 }
 
@@ -124,6 +129,7 @@ func (h *ConfigHandler) DeleteDataSource(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	_ = recordAudit(h.db, c, "config.datasource.delete", "datasource", strconv.FormatUint(id, 10), auditResultAllowed, "deleted datasource")
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
@@ -142,6 +148,7 @@ func (h *ConfigHandler) ToggleDataSource(c *gin.Context) {
 
 	ds.Enabled = input.Enabled
 	h.db.Save(&ds)
+	_ = recordAudit(h.db, c, "config.datasource.toggle", "datasource", strconv.FormatUint(uint64(ds.ID), 10), auditResultAllowed, fmt.Sprintf("enabled=%t", ds.Enabled))
 	c.JSON(http.StatusOK, ds)
 }
 
@@ -271,6 +278,7 @@ func (h *ConfigHandler) CreateChannel(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	_ = recordAudit(h.db, c, "config.channel.create", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", ch.Name))
 	ch.Config = maskChannelConfig(ch.Type, ch.Config)
 	c.JSON(http.StatusOK, ch)
 }
@@ -304,6 +312,7 @@ func (h *ConfigHandler) UpdateChannel(c *gin.Context) {
 	ch.Enabled = input.Enabled
 
 	h.db.Save(&ch)
+	_ = recordAudit(h.db, c, "config.channel.update", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", ch.Name))
 	// UpdateChannel 返回原始配置，便于确认编辑结果
 	c.JSON(http.StatusOK, ch)
 }
@@ -311,6 +320,7 @@ func (h *ConfigHandler) UpdateChannel(c *gin.Context) {
 func (h *ConfigHandler) DeleteChannel(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	h.db.Delete(&models.Channel{}, id)
+	_ = recordAudit(h.db, c, "config.channel.delete", "channel", strconv.FormatUint(id, 10), auditResultAllowed, "deleted channel")
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
@@ -326,6 +336,7 @@ func (h *ConfigHandler) ToggleChannel(c *gin.Context) {
 
 	ch.Enabled = input.Enabled
 	h.db.Save(&ch)
+	_ = recordAudit(h.db, c, "config.channel.toggle", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultAllowed, fmt.Sprintf("enabled=%t", ch.Enabled))
 	c.JSON(http.StatusOK, ch)
 }
 
@@ -346,10 +357,12 @@ func (h *ConfigHandler) TestChannel(c *gin.Context) {
 	testContent := "这是一条来自游戏运维告警系统的测试消息。"
 
 	if err := notifier.SendToChannel(&ch, testTitle, testContent); err != nil {
+		_ = recordAudit(h.db, c, "config.channel.test", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultDenied, err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	_ = recordAudit(h.db, c, "config.channel.test", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultAllowed, "test notification sent")
 	c.JSON(http.StatusOK, gin.H{"message": "test notification sent successfully"})
 }
 
@@ -387,6 +400,7 @@ func (h *ConfigHandler) CreateRouteRule(c *gin.Context) {
 	}
 
 	h.db.Create(&rule)
+	_ = recordAudit(h.db, c, "config.route.create", "route_rule", strconv.FormatUint(uint64(rule.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", rule.Name))
 	c.JSON(http.StatusOK, rule)
 }
 
@@ -411,12 +425,14 @@ func (h *ConfigHandler) UpdateRouteRule(c *gin.Context) {
 	rule.Enabled = input.Enabled
 
 	h.db.Save(&rule)
+	_ = recordAudit(h.db, c, "config.route.update", "route_rule", strconv.FormatUint(uint64(rule.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", rule.Name))
 	c.JSON(http.StatusOK, rule)
 }
 
 func (h *ConfigHandler) DeleteRouteRule(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	h.db.Delete(&models.RouteRule{}, id)
+	_ = recordAudit(h.db, c, "config.route.delete", "route_rule", strconv.FormatUint(id, 10), auditResultAllowed, "deleted route rule")
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
@@ -432,6 +448,7 @@ func (h *ConfigHandler) ReorderRouteRules(c *gin.Context) {
 	for i, id := range input.IDs {
 		h.db.Model(&models.RouteRule{}).Where("id = ?", id).Update("priority", i+1)
 	}
+	_ = recordAudit(h.db, c, "config.route.reorder", "route_rule", "bulk", auditResultAllowed, fmt.Sprintf("count=%d", len(input.IDs)))
 	c.JSON(http.StatusOK, gin.H{"message": "reordered"})
 }
 
@@ -478,6 +495,7 @@ func (h *ConfigHandler) CreateSilenceRule(c *gin.Context) {
 	}
 
 	h.db.Create(&rule)
+	_ = recordAudit(h.db, c, "config.silence.create", "silence_rule", strconv.FormatUint(uint64(rule.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", rule.Name))
 	c.JSON(http.StatusOK, rule)
 }
 
@@ -502,12 +520,14 @@ func (h *ConfigHandler) UpdateSilenceRule(c *gin.Context) {
 	rule.EndsAt = input.EndsAt
 
 	h.db.Save(&rule)
+	_ = recordAudit(h.db, c, "config.silence.update", "silence_rule", strconv.FormatUint(uint64(rule.ID), 10), auditResultAllowed, fmt.Sprintf("name=%s", rule.Name))
 	c.JSON(http.StatusOK, rule)
 }
 
 func (h *ConfigHandler) DeleteSilenceRule(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	h.db.Delete(&models.SilenceRule{}, id)
+	_ = recordAudit(h.db, c, "config.silence.delete", "silence_rule", strconv.FormatUint(id, 10), auditResultAllowed, "deleted silence rule")
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
@@ -534,6 +554,7 @@ func (h *ConfigHandler) CreateSilenceFromAlert(c *gin.Context) {
 	}
 
 	h.db.Create(&rule)
+	_ = recordAudit(h.db, c, "config.silence.create_from_alert", "alert", alert.AlertID, auditResultAllowed, fmt.Sprintf("silence_id=%d", rule.ID))
 	c.JSON(http.StatusOK, rule)
 }
 
@@ -571,6 +592,7 @@ func (h *ConfigHandler) CreateOnDuty(c *gin.Context) {
 	}
 
 	h.db.Create(&duty)
+	_ = recordAudit(h.db, c, "config.onduty.create", "onduty", strconv.FormatUint(uint64(duty.ID), 10), auditResultAllowed, fmt.Sprintf("user_name=%s", duty.UserName))
 	c.JSON(http.StatusOK, duty)
 }
 
@@ -592,12 +614,14 @@ func (h *ConfigHandler) UpdateOnDuty(c *gin.Context) {
 	duty.EndTime = input.EndTime
 
 	h.db.Save(&duty)
+	_ = recordAudit(h.db, c, "config.onduty.update", "onduty", strconv.FormatUint(uint64(duty.ID), 10), auditResultAllowed, fmt.Sprintf("user_name=%s", duty.UserName))
 	c.JSON(http.StatusOK, duty)
 }
 
 func (h *ConfigHandler) DeleteOnDuty(c *gin.Context) {
 	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
 	h.db.Delete(&models.OnDuty{}, id)
+	_ = recordAudit(h.db, c, "config.onduty.delete", "onduty", strconv.FormatUint(id, 10), auditResultAllowed, "deleted on-duty schedule")
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 

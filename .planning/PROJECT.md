@@ -16,13 +16,13 @@
 - [x] 通知模板已支持标准告警字段与原始事件字段透传，并具备模板预览能力
 - [x] 系统已具备基础 JWT 登录、用户模型和角色字段，可作为权限体系增强的基础
 - [x] 系统已统一 `admin`、`operator`、`viewer` 角色真源，并建立可复用的 principal/capability 鉴权基线（Validated in Phase 5）
+- [x] 系统已完成管理员管人与普通用户自助资料/密码边界拆分，并落地账号禁用、强制改密和旧会话失效控制（Validated in Phase 6）
 
 ### Active
 
-- [ ] 防止非授权用户修改其它用户资料、角色或系统配置
 - [ ] 让前端菜单、页面和操作按钮与后端权限校验保持一致
 - [ ] 为权限矩阵补齐验证与回归测试，避免再出现“任意登录用户可改配置”的问题
-- [ ] 为关键用户与权限操作补齐审计日志、账号禁用与强制改密能力
+- [ ] 为关键用户与权限操作补齐审计日志，并把配置类/告警动作类权限完全收口
 
 ### Out of Scope
 
@@ -33,9 +33,9 @@
 ## Current State
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效
 - 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本
-- 最新阶段：Phase 5 已完成，角色模型与鉴权基线已落地，后续进入用户管理边界与账号控制强化
+- 最新阶段：Phase 6 已完成，用户管理边界、账号禁用、强制改密和最小前端入口已落地，后续进入受保护操作与审计日志强化
 - 当前 roadmap/requirements 已归档到 `.planning/milestones/`
 
 ## Current Milestone: v1.1 Enterprise Access Control
@@ -56,7 +56,7 @@
 - 路由层只有 `/api/v1/users` 的部分接口使用了 `RequireRole("admin")`，大量配置入口如 `datasources/channels/routes/silences/onduty` 目前只要求登录即可修改
 - `UpdateUser` 已限制“非 admin 不能修改其他用户”，但系统缺少统一的权限矩阵与界面收口
 - 前端当前没有用户管理页面，也没有按角色隐藏菜单和操作；所有已登录用户都能进入配置页面
-- 当前用户体系尚未覆盖账号禁用、强制改密和关键操作审计等安全能力
+- 当前用户体系已覆盖账号禁用和强制改密，但关键操作审计和配置/告警动作权限仍待在后续 phase 收口
 - 本轮需要在 brownfield 代码库上演进，优先修复越权风险，再考虑体验收口与验证
 
 ## Constraints
@@ -106,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-12 after Phase 5 completion*
+*Last updated: 2026-04-12 after Phase 6 completion*

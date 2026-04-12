@@ -13,12 +13,12 @@
 
 ### User Administration
 
-- [ ] **USER-01**: `admin` 可以查看用户列表及其角色，明确当前谁具备管理权限
-- [ ] **USER-02**: `admin` 可以创建用户、修改其他用户资料并分配角色
-- [ ] **USER-03**: 非 `admin` 用户不能修改其他用户资料、角色或删除其他用户
-- [ ] **USER-04**: 普通用户只能维护允许自助修改的个人信息与密码，不能提升自己的权限
-- [ ] **USER-05**: `admin` 可以禁用账号，被禁用用户不能继续登录或使用现有会话访问受保护接口
-- [ ] **USER-06**: 系统可以标记用户为“强制改密”，被标记用户在完成密码更新前不能继续以旧凭据正常使用系统
+- [x] **USER-01**: `admin` 可以查看用户列表及其角色，明确当前谁具备管理权限
+- [x] **USER-02**: `admin` 可以创建用户、修改其他用户资料并分配角色
+- [x] **USER-03**: 非 `admin` 用户不能修改其他用户资料、角色或删除其他用户
+- [x] **USER-04**: 普通用户只能维护允许自助修改的个人信息与密码，不能提升自己的权限
+- [x] **USER-05**: `admin` 可以禁用账号，被禁用用户不能继续登录或使用现有会话访问受保护接口
+- [x] **USER-06**: 系统可以标记用户为“强制改密”，被标记用户在完成密码更新前不能继续以旧凭据正常使用系统
 
 ### Protected Operations
 
@@ -69,12 +69,12 @@
 | AUTHZ-01 | Phase 5 | Complete |
 | AUTHZ-02 | Phase 5 | Complete |
 | AUTHZ-03 | Phase 5 | Complete |
-| USER-01 | Phase 6 | Pending |
-| USER-02 | Phase 6 | Pending |
-| USER-03 | Phase 6 | Pending |
-| USER-04 | Phase 6 | Pending |
-| USER-05 | Phase 6 | Pending |
-| USER-06 | Phase 6 | Pending |
+| USER-01 | Phase 6 | Complete |
+| USER-02 | Phase 6 | Complete |
+| USER-03 | Phase 6 | Complete |
+| USER-04 | Phase 6 | Complete |
+| USER-05 | Phase 6 | Complete |
+| USER-06 | Phase 6 | Complete |
 | PERM-01 | Phase 7 | Pending |
 | PERM-02 | Phase 7 | Pending |
 | PERM-03 | Phase 7 | Pending |
@@ -97,4 +97,4 @@
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-12 after Phase 5 completion*
+*Last updated: 2026-04-12 after Phase 6 completion*

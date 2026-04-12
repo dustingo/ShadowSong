@@ -7,12 +7,12 @@
 
 ## Current Status
 
-当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5 已完成，Phase 6 已完成规划，下一步进入用户管理边界与账号控制实现。
+当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-6 已完成，下一步进入受保护操作收口与审计日志实现。
 
 ## Next Step
 
-- `/gsd-execute-phase 6` — 执行 Phase 6 的账号禁用、强制改密、自助资料与管理员管人边界改造
-- `/gsd-discuss-phase 7` — 在需要提前澄清审计日志与受保护操作矩阵时使用
+- `/gsd-discuss-phase 7` — 讨论告警动作、配置写权限和审计日志边界
+- `/gsd-plan-phase 7` — 为 Phase 7 生成受保护操作与审计的执行计划
 
 ## Overview
 
@@ -27,7 +27,7 @@
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 5: Normalize Role Model** - 统一现有角色语义并建立可复用的权限判定基线
-- [ ] **Phase 6: Secure User Administration** - 收紧用户管理和个人资料修改边界，并加入账号禁用与强制改密
+- [x] **Phase 6: Secure User Administration** - 收紧用户管理和个人资料修改边界，并加入账号禁用与强制改密
 - [ ] **Phase 7: Lock Down Protected Operations** - 对配置与告警操作接口补齐角色校验，并落地关键操作审计
 - [ ] **Phase 8: Ship Permission-Aware UI And Verification** - 让前端入口与按钮按权限收口，并补齐角色矩阵验证
 
@@ -63,9 +63,9 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 06-01-PLAN.md — Add account state and session invalidation foundations for disabled and forced-reset users
-- [ ] 06-02-PLAN.md — Split admin-managed user operations from self-service profile/password flows
-- [ ] 06-03-PLAN.md — Expose the minimal frontend users/profile surfaces for Phase 6
+- [x] 06-01-PLAN.md — Add account state and session invalidation foundations for disabled and forced-reset users
+- [x] 06-02-PLAN.md — Split admin-managed user operations from self-service profile/password flows
+- [x] 06-03-PLAN.md — Expose the minimal frontend users/profile surfaces for Phase 6
 
 ### Phase 7: Lock Down Protected Operations
 **Goal**: 对系统配置和运维操作接口补齐角色校验，并为关键安全动作建立后端审计，确保不同角色只能执行其职责范围内的动作。

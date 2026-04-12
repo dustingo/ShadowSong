@@ -7,12 +7,12 @@
 
 ## Current Status
 
-当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-6 已完成，下一步进入受保护操作收口与审计日志实现。
+当前里程碑为 `v1.1 Enterprise Access Control`。Phase 5-6 已完成，Phase 7 已完成规划，下一步进入受保护操作收口与审计日志实现。
 
 ## Next Step
 
-- `/gsd-discuss-phase 7` — 讨论告警动作、配置写权限和审计日志边界
-- `/gsd-plan-phase 7` — 为 Phase 7 生成受保护操作与审计的执行计划
+- `/gsd-execute-phase 7` — 执行告警动作/配置写权限收口与后端审计日志落地
+- `/gsd-discuss-phase 8` — 在需要先澄清前端显隐和验证展示面时使用
 
 ## Overview
 

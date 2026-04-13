@@ -306,7 +306,7 @@ func (h *ConfigHandler) UpdateChannel(c *gin.Context) {
 		ch.Type = input.Type
 	}
 	// 只有当 config 不为空时才更新
-	if input.Config != nil && len(input.Config) > 0 {
+	if len(input.Config) > 0 {
 		ch.Config = datatypes.JSON(input.Config)
 	}
 	ch.Enabled = input.Enabled

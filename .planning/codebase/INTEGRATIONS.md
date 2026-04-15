@@ -57,7 +57,7 @@
   - Frontend persistence: bearer token stored in browser `localStorage` in `frontend/src/api/client.ts`, `frontend/src/api/auth.ts`, and Zustand user store under `frontend/src/stores/`
 
 **Ingress API Authentication:**
-- Data-source webhook authentication uses per-source API keys stored on `models.DataSource` and validated from `X-API-Key` or `Authorization: Bearer ...` in `internal/handlers/webhook.go`
+- Data-source webhook authentication uses per-source API keys stored on `models.DataSource` and validated from `X-API-KEY` or `Authorization: Bearer ...` in `internal/handlers/webhook.go`
 
 ## Monitoring & Observability
 

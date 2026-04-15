@@ -95,8 +95,9 @@ make frontend-dev
 数据源模板分两段执行：
 
 1. `input_template`
-   作用：把原始 webhook JSON 标准化成内部 `Alert` JSON。
-   要求：模板输出必须是合法 JSON，并至少包含 `alert_id`、`alert_name`、`severity`、`message`、`source`、`status`、`trigger_time` 这些核心字段中的必需项。
+   作用：接收任意 webhook JSON，并把它映射成系统主链路使用的内部告警字段。
+   契约：原始 webhook payload 可以是任意 JSON；`input_template` 的输出需要是合法 JSON，并能被后端转换为内部 `Alert` 模型。
+   说明：如果上游平台的字段名与系统字段不一致，应由 `input_template` 负责提取、重命名或补齐必要字段；原始 payload 仍会保存在告警原文中，供通知模板通过 `event` 访问。
 
 2. `output_template`
    作用：把标准化后的告警渲染成最终通知内容。

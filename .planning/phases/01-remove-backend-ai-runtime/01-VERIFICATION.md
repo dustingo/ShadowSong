@@ -53,7 +53,7 @@ overrides_applied: 0
 | `internal/handlers/config.go` | `internal/notifier/notifier.go` | `TestChannel` -> `SendToChannel` | ✓ WIRED | `TestChannel` builds neutral `testTitle`/`testContent` and calls `notifier.SendToChannel(&ch, testTitle, testContent)`. |
 | `internal/router/router_test.go` | `internal/router/router.go` | `Setup(...).Routes()` | ✓ WIRED | Test instantiates `Setup(nil, nil, cfg)` and inspects `r.Routes()` for required and forbidden paths. |
 | `scripts/verify_backend_no_ai.ps1` | `cmd/server/main.go` | `go run cmd/server/main.go` | ✓ WIRED | Script `Start-Server` starts the server with `go run cmd/server/main.go`. |
-| `scripts/verify_backend_no_ai.ps1` | `/webhook/:source_name` | seeded datasource + `X-API-Key` POST | ✓ WIRED | Script seeds datasource/API key, posts to `/webhook/$sourceName`, and asserts `200` plus alert ID in response. |
+| `scripts/verify_backend_no_ai.ps1` | `/webhook/:source_name` | seeded datasource + `X-API-KEY` POST | ✓ WIRED | Script seeds datasource/API key, posts to `/webhook/$sourceName`, and asserts `200` plus alert ID in response. |
 | `scripts/verify_backend_no_ai.ps1` | `/api/v1/alerts/:id/ack` and `/api/v1/alerts/:id/quick-silence` | Bearer token from `/api/v1/auth/login` | ✓ WIRED | Script authenticates, stores bearer token, then calls both protected endpoints and validates `200`. |
 
 ### Data-Flow Trace (Level 4)

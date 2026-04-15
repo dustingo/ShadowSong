@@ -2,7 +2,7 @@
 
 ## What This Is
 
-这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；当前里程碑重点转向企业级用户体系与权限分配，确保不同岗位只能执行被授权的操作。
+这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设，当前文档反映的是 Phase 9 收口后的里程碑完成状态，可直接作为后续归档与 roadmap 迁移的真相源。
 
 ## Core Value
 
@@ -17,12 +17,14 @@
 - [x] 系统已具备基础 JWT 登录、用户模型和角色字段，可作为权限体系增强的基础
 - [x] 系统已统一 `admin`、`operator`、`viewer` 角色真源，并建立可复用的 principal/capability 鉴权基线（Validated in Phase 5）
 - [x] 系统已完成管理员管人与普通用户自助资料/密码边界拆分，并落地账号禁用、强制改密和旧会话失效控制（Validated in Phase 6）
+- [x] 系统已对配置写接口与告警动作完成后端强制权限收口，并为关键用户/权限操作落地持久化审计日志（Validated in Phase 7）
+- [x] 系统已完成权限感知 UI、只读/拒绝提示、角色矩阵验证文档与关键安全路径验证，23/23 个 v1 requirement 已完成（Validated in Phase 8）
 
 ### Active
 
-- [ ] 让前端菜单、页面和操作按钮与后端权限校验保持一致
-- [ ] 为权限矩阵补齐验证与回归测试，避免再出现“任意登录用户可改配置”的问题
-- [ ] 为关键用户与权限操作补齐审计日志，并把配置类/告警动作类权限完全收口
+- [ ] 评估 v1.2 是否需要在现有固定角色之上扩展更细粒度的权限点或授权继承模型
+- [ ] 评估是否引入 SSO / LDAP / OAuth 等企业身份源集成，而不是继续只依赖系统内账号
+- [ ] 评估是否需要为关键管理操作增加审批流或更强的治理能力
 
 ### Out of Scope
 
@@ -33,31 +35,32 @@
 ## Current State
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效
-- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本
-- 最新阶段：Phase 6 已完成，用户管理边界、账号禁用、强制改密和最小前端入口已落地，后续进入受保护操作与审计日志强化
-- 当前 roadmap/requirements 已归档到 `.planning/milestones/`
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档
+- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
+- 最新阶段：Phase 9 已完成，PROJECT 文档、前端验证噪音和残余权限实现细节已收口；v1.1 Enterprise Access Control 已完成并可归档
+- 当前 roadmap/requirements 仍以 `.planning/ROADMAP.md`、`.planning/REQUIREMENTS.md`、`.planning/STATE.md` 与 `.planning/v1.1-MILESTONE-AUDIT.md` 作为执行完成后的对应证据源
 
 ## Current Milestone: v1.1 Enterprise Access Control
 
-**Goal:** 重新设计企业级用户体系和权限分配，确保 `admin`、`operator`、`viewer` 角色在后端和前端都按最小权限原则执行操作。
+**Goal:** 已完成企业级用户体系和权限分配重构，确保 `admin`、`operator`、`viewer` 角色在后端和前端都按最小权限原则执行操作，并让该里程碑进入可归档状态。
 
-**Target features:**
-- 在保留现有 `admin`、`operator`、`viewer` 角色命名的前提下，补齐清晰一致的企业权限分级
-- 用户管理接口收敛为“管理员管人、普通用户仅能维护安全的个人资料”
-- 配置类与运维类接口按角色做服务端强制鉴权，明确仅 `admin` 可修改系统配置，`operator` 可处理告警
-- 前端菜单、页面入口、按钮和错误提示按权限感知，避免展示无权操作入口
-- 为权限矩阵补齐自动化验证和角色回归测试
-- 为关键用户与权限变更加入审计日志、账号禁用和强制改密能力
+**Delivered outcomes:**
+- 在保留现有 `admin`、`operator`、`viewer` 角色命名的前提下，完成清晰一致的企业权限分级
+- 用户管理接口已收敛为“管理员管人、普通用户仅能维护安全的个人资料”
+- 配置类与运维类接口已按角色完成服务端强制鉴权，仅 `admin` 可修改系统配置，`operator` 可处理告警
+- 前端菜单、页面入口、按钮和错误提示已完成权限感知收口，不再暴露无权操作入口
+- 权限矩阵自动化验证、角色回归测试与使用说明已补齐
+- 关键用户与权限变更已具备审计日志、账号禁用和强制改密能力
+- Phase 9 已收口 PROJECT 文档漂移、前端验证噪音与残余权限实现细节，里程碑审计结果为 `tech_debt resolved for archive prep`
 
 ## Context
 
 - 当前 `User` 模型已经包含 `role` 字段，角色命名为 `admin`、`operator`、`viewer`，本轮继续沿用该命名
-- 路由层只有 `/api/v1/users` 的部分接口使用了 `RequireRole("admin")`，大量配置入口如 `datasources/channels/routes/silences/onduty` 目前只要求登录即可修改
-- `UpdateUser` 已限制“非 admin 不能修改其他用户”，但系统缺少统一的权限矩阵与界面收口
-- 前端当前没有用户管理页面，也没有按角色隐藏菜单和操作；所有已登录用户都能进入配置页面
-- 当前用户体系已覆盖账号禁用和强制改密，但关键操作审计和配置/告警动作权限仍待在后续 phase 收口
-- 本轮需要在 brownfield 代码库上演进，优先修复越权风险，再考虑体验收口与验证
+- 后端路由、handler 和 capability middleware 已统一按 capability matrix 收口，不再依赖零散原始角色判断
+- 前端已具备用户管理页、个人资料页、权限感知菜单、按钮显隐和只读提示，角色体验与后端授权边界保持一致
+- 当前用户体系已覆盖账号禁用、强制改密、旧会话失效和关键安全操作审计日志
+- v1.1 里程碑审计确认 23/23 requirements、4/4 phase verification、4/4 integration 与 5/5 end-to-end flows 已完成
+- 后续演进仍需在 brownfield 代码库上继续推进，但 v1.1 本身已闭环完成，不再处于待补洞状态
 
 ## Constraints
 
@@ -106,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-12 after Phase 6 completion*
+*Last updated: 2026-04-15 after Phase 9 completion*

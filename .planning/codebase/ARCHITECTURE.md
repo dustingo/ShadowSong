@@ -76,7 +76,7 @@
 1. The SPA route in `frontend/src/App.tsx` renders a page only through `RequireAuth`, which checks the token in `frontend/src/stores/userStore.ts`.
 2. Page components call store actions in `frontend/src/stores/alertStore.ts` or `frontend/src/stores/configStore.ts`, or call auth functions in `frontend/src/api/auth.ts`.
 3. Axios clients in `frontend/src/api/client.ts` and `frontend/src/api/auth.ts` attach the `Authorization` header from `localStorage` and send requests to `/api/v1/*`.
-4. Gin groups in `internal/router/router.go` apply `middleware.JWTAuth` and optional `middleware.RequireRole` from `internal/middleware/auth.go`.
+4. Gin groups in `internal/router/router.go` apply `middleware.JWTAuth` from `internal/middleware/auth.go`, then gate protected writes with `middleware.RequireCapability` from `internal/middleware/authorize.go`.
 5. The selected handler in `internal/handlers/*.go` binds input, queries or mutates GORM models from `internal/models/*.go`, and returns JSON directly.
 
 **Webhook Ingestion and Notification Flow:**

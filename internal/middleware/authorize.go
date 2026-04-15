@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RequireCapability creates a middleware that requires a specific capability.
+// RequireCapability is the single route-facing authz seam for protected endpoints.
 func RequireCapability(capability authz.Capability) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		principal, ok := GetPrincipal(c)
@@ -24,27 +24,5 @@ func RequireCapability(capability authz.Capability) gin.HandlerFunc {
 		}
 
 		c.Next()
-	}
-}
-
-// RequireRole keeps compatibility with older route declarations.
-func RequireRole(roles ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		principal, ok := GetPrincipal(c)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			c.Abort()
-			return
-		}
-
-		for _, role := range roles {
-			if principal.Role == role {
-				c.Next()
-				return
-			}
-		}
-
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
-		c.Abort()
 	}
 }

@@ -11,6 +11,8 @@ import (
 )
 
 func TestRequireCapability(t *testing.T) {
+	t.Parallel()
+
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -45,7 +46,7 @@ func SendToChannel(channel *models.Channel, title, content string) error {
 
 type FeishuConfig struct {
 	WebhookURL string `json:"webhook_url"`
-	Secret      string `json:"secret"`
+	Secret     string `json:"secret"`
 }
 
 type FeishuSender struct {
@@ -79,15 +80,33 @@ func (s *FeishuSender) Send(title, content string) error {
 	msg.MsgType = "text"
 	msg.Content.Text = fmt.Sprintf("**%s**\n%s", title, content)
 
-	body, _ := json.Marshal(msg)
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal feishu message: %v", err)
+	}
 	resp, err := s.client.Post(s.config.WebhookURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to send feishu notification: %v", err)
 	}
 	defer resp.Body.Close()
-
+	// 必须读取body连接才能复用
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
+	if err != nil {
+		return fmt.Errorf("failed to read feishu response body: %v", err)
+	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("feishu notification failed with status: %d", resp.StatusCode)
+		return fmt.Errorf("feishu notification failed, status: %d, body: %s", resp.StatusCode, respBody)
+	}
+	// 解析飞书业务状态码，因为飞书正常都是返回200
+	var result struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return fmt.Errorf("failed to unmarshal feishu response body: %v", err)
+	}
+	if result.Code != 0 {
+		return fmt.Errorf("feishu notification failed, code: %d, msg: %s", result.Code, result.Msg)
 	}
 	return nil
 }
@@ -96,7 +115,7 @@ func (s *FeishuSender) Send(title, content string) error {
 
 type DingTalkConfig struct {
 	WebhookURL string `json:"webhook_url"`
-	Secret      string `json:"secret"`
+	Secret     string `json:"secret"`
 }
 
 type DingTalkSender struct {
@@ -196,10 +215,10 @@ func (s *WeComSender) Send(title, content string) error {
 // ============ Webhook Sender ============
 
 type WebhookConfig struct {
-	URL         string            `json:"url"`
-	Method      string            `json:"method"`
-	Headers     map[string]string `json:"headers"`
-	Template    string            `json:"template"`
+	URL      string            `json:"url"`
+	Method   string            `json:"method"`
+	Headers  map[string]string `json:"headers"`
+	Template string            `json:"template"`
 }
 
 type WebhookSender struct {

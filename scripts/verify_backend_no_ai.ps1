@@ -456,7 +456,7 @@ VALUES (
     timestamp   = (Get-Date).ToUniversalTime().ToString('o')
   }
   $webhook = Invoke-JsonRequest -Method Post -Uri "http://127.0.0.1:$($script:ServerPort)/webhook/$sourceName" -Headers @{
-    'X-API-Key' = "$runId-api-key"
+    'X-API-KEY' = "$runId-api-key"
   } -Body $webhookPayload
   Assert ($webhook.StatusCode -eq 200) 'webhook ingestion failed'
   Write-Step '/webhook/{source}=200'

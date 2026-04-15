@@ -2,7 +2,7 @@
 
 ## What This Is
 
-这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设，当前文档反映的是 Phase 9 收口后的里程碑完成状态，可直接作为后续归档与 roadmap 迁移的真相源。
+这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设。当前项目已完成两轮稳定化里程碑，下一步将围绕更细粒度权限治理和企业身份集成评估新的里程碑范围。
 
 ## Core Value
 
@@ -34,24 +34,18 @@
 
 ## Current State
 
-- 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）
+- 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）
 - 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档
 - 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
-- 最新阶段：Phase 9 已完成，PROJECT 文档、前端验证噪音和残余权限实现细节已收口；对应 `.planning/STATE.md` 的当前定位应视为“Phase 9 complete / ready for archive”，v1.1 Enterprise Access Control 已完成并可归档
-- 当前 roadmap/requirements 仍以 `.planning/ROADMAP.md`、`.planning/REQUIREMENTS.md`、`.planning/STATE.md` 与 `.planning/v1.1-MILESTONE-AUDIT.md` 作为执行完成后的对应证据源
+- 最新阶段：`v1.1 Enterprise Access Control` 已完成并归档待发版，当前没有进行中的 milestone
+- 里程碑证据已归档到 `.planning/milestones/`；新的 requirements / roadmap 周期将在下一里程碑启动时重新建立
 
-## Current Milestone: v1.1 Enterprise Access Control
+## Next Milestone Goals
 
-**Goal:** 已完成企业级用户体系和权限分配重构，确保 `admin`、`operator`、`viewer` 角色在后端和前端都按最小权限原则执行操作，并让该里程碑进入可归档状态。
-
-**Delivered outcomes:**
-- 在保留现有 `admin`、`operator`、`viewer` 角色命名的前提下，完成清晰一致的企业权限分级
-- 用户管理接口已收敛为“管理员管人、普通用户仅能维护安全的个人资料”
-- 配置类与运维类接口已按角色完成服务端强制鉴权，仅 `admin` 可修改系统配置，`operator` 可处理告警
-- 前端菜单、页面入口、按钮和错误提示已完成权限感知收口，不再暴露无权操作入口
-- 权限矩阵自动化验证、角色回归测试与使用说明已补齐
-- 关键用户与权限变更已具备审计日志、账号禁用和强制改密能力
-- Phase 9 已收口 PROJECT 文档漂移、前端验证噪音与残余权限实现细节；与 `.planning/ROADMAP.md`、`.planning/REQUIREMENTS.md` 和 `.planning/v1.1-MILESTONE-AUDIT.md` 对齐的最终结论是：23/23 requirement、4/4 phase verification、5/5 flows 已完成，里程碑进入 archive prep
+**Candidate directions:**
+- 评估在固定角色之上引入更细粒度权限点或授权继承模型
+- 评估 SSO / LDAP / OAuth 等企业身份源集成方案
+- 评估关键管理操作审批流和更强治理能力的必要性
 
 ## Context
 
@@ -59,8 +53,8 @@
 - 后端路由、handler 和 capability middleware 已统一按 capability matrix 收口，不再依赖零散原始角色判断
 - 前端已具备用户管理页、个人资料页、权限感知菜单、按钮显隐和只读提示，角色体验与后端授权边界保持一致
 - 当前用户体系已覆盖账号禁用、强制改密、旧会话失效和关键安全操作审计日志
-- v1.1 里程碑审计确认 23/23 requirements、4/4 phase verification、4/4 integration 与 5/5 end-to-end flows 已完成
-- 后续演进仍需在 brownfield 代码库上继续推进，但 v1.1 本身已闭环完成，不再处于待补洞状态
+- v1.1 里程碑已确认 23/23 requirements、5/5 phases、15/15 plans 完成，权限治理基线已经稳定
+- 后续演进仍需在 brownfield 代码库上继续推进，但新的需求范围将由下一里程碑重新定义
 
 ## Constraints
 
@@ -108,5 +102,14 @@ This document evolves at phase transitions and milestone boundaries.
 
 </details>
 
+<details>
+<summary>v1.1 Historical Context</summary>
+
+- v1.1 包含 5 个 phase、15 个 plans，完整归档见 `.planning/milestones/v1.1-ROADMAP.md`
+- 历史 requirements 见 `.planning/milestones/v1.1-REQUIREMENTS.md`
+- 里程碑审计与收口记录见 `.planning/v1.1-MILESTONE-AUDIT.md` 以及 `.planning/phases/09-close-v1-1-milestone-tech-debt/`
+
+</details>
+
 ---
-*Last updated: 2026-04-15 after Phase 9 completion*
+*Last updated: 2026-04-15 after v1.1 milestone completion*

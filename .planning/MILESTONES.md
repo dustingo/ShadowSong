@@ -16,3 +16,17 @@
 - Phase 03 已补齐可复用的前后端无 AI 验证入口，并记录了实际通过的验证证据
 
 ---
+
+## v1.1 Enterprise Access Control (Shipped: 2026-04-15)
+
+**Phases completed:** 5 phases, 15 plans, 12 summary-reported tasks
+
+**Key accomplishments:**
+
+- 建立了统一的 `admin` / `operator` / `viewer` 角色真源、JWT principal 和 capability matrix 基线
+- 收紧了用户管理边界，补齐了账号禁用、强制改密和旧会话失效控制
+- 对配置写接口与告警动作完成了后端权限收口，并落地了持久化审计日志
+- 前端完成了权限感知菜单、页面、按钮、只读提示和角色矩阵验证
+- 收口了 `PROJECT` 真相文档、前端测试 warning 噪音以及 capability-only authz seam
+
+---

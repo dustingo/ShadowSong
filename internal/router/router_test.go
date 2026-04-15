@@ -110,6 +110,14 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 	}
 	require.NoError(t, passwordUser.SetPassword("password"))
 	require.NoError(t, db.Create(passwordUser).Error)
+	disabledUser := &models.User{
+		Username: "disabled-user",
+		Name:     "Disabled User",
+		Role:     authz.RoleOperator,
+	}
+	require.NoError(t, disabledUser.SetPassword("password"))
+	disabledUser.SetDisabled(true, time.Now().Add(-time.Second))
+	require.NoError(t, db.Create(disabledUser).Error)
 	resetUser := &models.User{
 		Username: "reset-user",
 		Name:     "Reset User",
@@ -137,6 +145,8 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 	require.NoError(t, err)
 	passwordUserToken, err := jwtAuth.GenerateToken(passwordUser.ID, passwordUser.Username, authz.RoleOperator)
 	require.NoError(t, err)
+	disabledToken, err := jwtAuth.GenerateToken(disabledUser.ID, disabledUser.Username, authz.RoleOperator)
+	require.NoError(t, err)
 	forcedResetToken, err := jwtAuth.GenerateToken(resetUser.ID, resetUser.Username, authz.RoleOperator)
 	require.NoError(t, err)
 	resetUser.SetForcePasswordReset(true, time.Now().Add(-time.Second))
@@ -158,10 +168,12 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 		{name: "user list requires auth", method: http.MethodGet, path: "/api/v1/users", expectedStatus: http.StatusUnauthorized},
 		{name: "operator denied user management capability", method: http.MethodGet, path: "/api/v1/users", token: operatorToken, expectedStatus: http.StatusForbidden},
 		{name: "admin allowed user management capability", method: http.MethodGet, path: "/api/v1/users", token: adminToken, expectedStatus: http.StatusOK},
+		{name: "disabled user rejected before capability-protected user management route", method: http.MethodGet, path: "/api/v1/users", token: disabledToken, expectedStatus: http.StatusUnauthorized, expectedBody: `{"error":"account disabled"}`},
 		{name: "operator can read self context", method: http.MethodGet, path: "/api/v1/users/me", token: operatorToken, expectedStatus: http.StatusOK},
 		{name: "operator can update own password", method: http.MethodPut, path: "/api/v1/users/me/password", body: `{"password":"new-password"}`, token: passwordUserToken, expectedStatus: http.StatusOK},
-		{name: "forced reset blocks normal alerts route", method: http.MethodGet, path: "/api/v1/alerts", token: forcedResetToken, expectedStatus: http.StatusUnauthorized},
+		{name: "forced reset blocks capability-protected alert ack route", method: http.MethodPost, path: "/api/v1/alerts/alert-1/ack", body: `{"comment":"ack"}`, token: forcedResetToken, expectedStatus: http.StatusUnauthorized, expectedBody: `{"error":"password reset required"}`},
 		{name: "forced reset still allows self context", method: http.MethodGet, path: "/api/v1/users/me", token: forcedResetToken, expectedStatus: http.StatusOK},
+		{name: "forced reset still allows self-service password change", method: http.MethodPut, path: "/api/v1/users/me/password", body: `{"password":"rotated-password"}`, token: forcedResetToken, expectedStatus: http.StatusOK},
 		{name: "alerts ack requires auth", method: http.MethodPost, path: "/api/v1/alerts/alert-1/ack", body: `{"comment":"ack"}`, expectedStatus: http.StatusUnauthorized},
 		{name: "operator can ack alerts", method: http.MethodPost, path: "/api/v1/alerts/alert-1/ack", body: `{"comment":"ack"}`, token: operatorToken, expectedStatus: http.StatusOK},
 		{name: "viewer denied ack alerts", method: http.MethodPost, path: "/api/v1/alerts/alert-1/ack", body: `{"comment":"ack"}`, token: viewerToken, expectedStatus: http.StatusForbidden, expectedBody: `{"error":"insufficient permissions"}`},

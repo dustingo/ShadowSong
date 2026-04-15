@@ -275,7 +275,9 @@ func TestAdminUpdateUserInvalidatesTargetSessions(t *testing.T) {
 	target := seedUser(t, db, "target", authz.RoleViewer)
 
 	req := newJSONRequest(t, http.MethodPatch, fmt.Sprintf("/users/%d", target.ID), map[string]any{
-		"role": authz.RoleOperator,
+		"role":                 authz.RoleOperator,
+		"disabled":             true,
+		"force_password_reset": true,
 	})
 	recorder := httptest.NewRecorder()
 	context, _ := gin.CreateTestContext(recorder)
@@ -292,15 +294,25 @@ func TestAdminUpdateUserInvalidatesTargetSessions(t *testing.T) {
 	var saved models.User
 	require.NoError(t, db.First(&saved, target.ID).Error)
 	assert.Equal(t, authz.RoleOperator, saved.Role)
+	assert.True(t, saved.IsDisabled())
+	assert.True(t, saved.ForcePasswordReset)
 	assert.NotNil(t, saved.TokenInvalidBefore)
 
-	var audit models.AuditLog
-	require.NoError(t, db.Order("id DESC").First(&audit).Error)
-	assert.Equal(t, "user.role_change", audit.Action)
-	assert.Equal(t, auditResultAllowed, audit.Result)
-	assert.Equal(t, admin.Username, audit.ActorUsername)
-	assert.Equal(t, authz.RoleAdmin, audit.ActorRole)
-	assert.Equal(t, fmt.Sprintf("%d", target.ID), audit.TargetID)
+	audits := loadAuditLogs(t, db)
+	require.Len(t, audits, 3)
+	assert.Equal(t, "user.role_change", audits[0].Action)
+	assert.Equal(t, "user.disable", audits[1].Action)
+	assert.Equal(t, "user.force_password_reset", audits[2].Action)
+
+	for _, audit := range audits {
+		assert.Equal(t, auditResultAllowed, audit.Result)
+		assert.Equal(t, admin.Username, audit.ActorUsername)
+		assert.Equal(t, authz.RoleAdmin, audit.ActorRole)
+		assert.Equal(t, fmt.Sprintf("%d", target.ID), audit.TargetID)
+	}
+	assert.Equal(t, "role=operator", audits[0].Detail)
+	assert.Equal(t, "disabled=true", audits[1].Detail)
+	assert.Equal(t, "force_password_reset=true", audits[2].Detail)
 }
 
 func TestUpdateOwnProfileRejectsAdminOnlyFields(t *testing.T) {
@@ -365,7 +377,9 @@ func TestUpdateOwnPasswordClearsForcedResetAndInvalidatesTokens(t *testing.T) {
 	assert.Equal(t, "user.password_change", audit.Action)
 	assert.Equal(t, auditResultAllowed, audit.Result)
 	assert.Equal(t, user.Username, audit.ActorUsername)
+	assert.Equal(t, authz.RoleViewer, audit.ActorRole)
 	assert.Equal(t, fmt.Sprintf("%d", user.ID), audit.TargetID)
+	assert.Equal(t, "self-service password update", audit.Detail)
 }
 
 func TestAdminUpdateUserDeniedWritesAuditLog(t *testing.T) {
@@ -375,27 +389,65 @@ func TestAdminUpdateUserDeniedWritesAuditLog(t *testing.T) {
 
 	admin := seedUser(t, db, "admin", authz.RoleAdmin)
 
-	req := newJSONRequest(t, http.MethodPatch, fmt.Sprintf("/users/%d", admin.ID), map[string]any{
-		"disabled": true,
-	})
-	recorder := httptest.NewRecorder()
-	context, _ := gin.CreateTestContext(recorder)
-	context.Request = req
-	context.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", admin.ID)}}
-	context.Set(middleware.UserIDKey, admin.ID)
-	context.Set(middleware.UsernameKey, admin.Username)
-	context.Set(middleware.RoleKey, authz.RoleAdmin)
+	tests := []struct {
+		name           string
+		body           map[string]any
+		expectedAction string
+		expectedDetail string
+		expectedBody   string
+	}{
+		{
+			name:           "self disable denied writes audit log",
+			body:           map[string]any{"disabled": true},
+			expectedAction: "user.disable",
+			expectedDetail: "cannot disable yourself",
+			expectedBody:   `{"error":"cannot disable yourself"}`,
+		},
+		{
+			name:           "self role change denied writes audit log",
+			body:           map[string]any{"role": authz.RoleViewer},
+			expectedAction: "user.role_change",
+			expectedDetail: "cannot change your own role",
+			expectedBody:   `{"error":"cannot change your own role"}`,
+		},
+	}
 
-	handler.AdminUpdateUser(context)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NoError(t, db.Exec("DELETE FROM audit_logs").Error)
 
-	require.Equal(t, http.StatusBadRequest, recorder.Code)
+			req := newJSONRequest(t, http.MethodPatch, fmt.Sprintf("/users/%d", admin.ID), tt.body)
+			recorder := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(recorder)
+			context.Request = req
+			context.Params = gin.Params{{Key: "id", Value: fmt.Sprintf("%d", admin.ID)}}
+			context.Set(middleware.UserIDKey, admin.ID)
+			context.Set(middleware.UsernameKey, admin.Username)
+			context.Set(middleware.RoleKey, authz.RoleAdmin)
 
-	var audit models.AuditLog
-	require.NoError(t, db.Order("id DESC").First(&audit).Error)
-	assert.Equal(t, "user.disable", audit.Action)
-	assert.Equal(t, auditResultDenied, audit.Result)
-	assert.Equal(t, admin.Username, audit.ActorUsername)
-	assert.Equal(t, fmt.Sprintf("%d", admin.ID), audit.TargetID)
+			handler.AdminUpdateUser(context)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			assert.JSONEq(t, tt.expectedBody, recorder.Body.String())
+
+			var audit models.AuditLog
+			require.NoError(t, db.Order("id DESC").First(&audit).Error)
+			assert.Equal(t, tt.expectedAction, audit.Action)
+			assert.Equal(t, auditResultDenied, audit.Result)
+			assert.Equal(t, tt.expectedDetail, audit.Detail)
+			assert.Equal(t, admin.Username, audit.ActorUsername)
+			assert.Equal(t, authz.RoleAdmin, audit.ActorRole)
+			assert.Equal(t, fmt.Sprintf("%d", admin.ID), audit.TargetID)
+		})
+	}
+}
+
+func loadAuditLogs(t *testing.T, db *gorm.DB) []models.AuditLog {
+	t.Helper()
+
+	var audits []models.AuditLog
+	require.NoError(t, db.Order("id ASC").Find(&audits).Error)
+	return audits
 }
 
 func openUserTestDB(t *testing.T) *gorm.DB {

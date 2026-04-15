@@ -56,10 +56,22 @@ const renderAt = (path: string) => {
   return render(<App />)
 }
 
+const collectCalls = (calls: unknown[][]) =>
+  calls
+    .map((args) => args.map((value) => String(value)).join(' '))
+    .join('\n')
+
 describe('App routing', () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>
+
   beforeEach(() => {
     localStorage.clear()
     setAuthState(null, '')
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    warnSpy.mockRestore()
   })
 
   it('redirects force-password-reset users to profile', () => {
@@ -72,6 +84,7 @@ describe('App routing', () => {
 
     expect(screen.getByText('Profile Page')).toBeInTheDocument()
     expect(screen.getByText('必须先完成密码修改')).toBeInTheDocument()
+    expect(collectCalls(warnSpy.mock.calls)).not.toMatch(/future flag|React Router will begin wrapping state updates/i)
   })
 
   it('shows forbidden notice when viewer opens user management', () => {
@@ -81,5 +94,6 @@ describe('App routing', () => {
 
     expect(screen.getByText('当前角色无权执行该操作')).toBeInTheDocument()
     expect(screen.queryByText('Users Page')).not.toBeInTheDocument()
+    expect(collectCalls(warnSpy.mock.calls)).not.toMatch(/future flag|React Router will begin wrapping state updates/i)
   })
 })

@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import App from './App'
 import { useUserStore } from './stores/userStore'
 import type { User } from './types'
@@ -51,9 +51,17 @@ const setAuthState = (user: User | null, token = 'token') => {
   })
 }
 
-const renderAt = (path: string) => {
+const waitForAntd = async () => {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
+const renderAt = async (path: string) => {
   window.history.pushState({}, '', path)
-  return render(<App />)
+  const view = render(<App />)
+  await waitForAntd()
+  return view
 }
 
 const collectCalls = (calls: unknown[][]) =>
@@ -62,38 +70,37 @@ const collectCalls = (calls: unknown[][]) =>
     .join('\n')
 
 describe('App routing', () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>
-
   beforeEach(() => {
     localStorage.clear()
     setAuthState(null, '')
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
-  afterEach(() => {
-    warnSpy.mockRestore()
-  })
+  it('redirects force-password-reset users to profile', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-  it('redirects force-password-reset users to profile', () => {
     setAuthState({
       ...baseUser,
       force_password_reset: true,
     })
 
-    renderAt('/alerts')
+    await renderAt('/alerts')
 
-    expect(screen.getByText('Profile Page')).toBeInTheDocument()
-    expect(screen.getByText('必须先完成密码修改')).toBeInTheDocument()
+    expect(await screen.findByText('Profile Page')).toBeInTheDocument()
+    expect(await screen.findByText('必须先完成密码修改')).toBeInTheDocument()
     expect(collectCalls(warnSpy.mock.calls)).not.toMatch(/future flag|React Router will begin wrapping state updates/i)
+    warnSpy.mockRestore()
   })
 
-  it('shows forbidden notice when viewer opens user management', () => {
+  it('shows forbidden notice when viewer opens user management', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
     setAuthState(baseUser)
 
-    renderAt('/users')
+    await renderAt('/users')
 
-    expect(screen.getByText('当前角色无权执行该操作')).toBeInTheDocument()
+    expect(await screen.findByText('当前角色无权执行该操作')).toBeInTheDocument()
     expect(screen.queryByText('Users Page')).not.toBeInTheDocument()
     expect(collectCalls(warnSpy.mock.calls)).not.toMatch(/future flag|React Router will begin wrapping state updates/i)
+    warnSpy.mockRestore()
   })
 })

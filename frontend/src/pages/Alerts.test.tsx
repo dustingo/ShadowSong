@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { Alerts } from './Alerts'
 import { useUserStore } from '../stores/userStore'
 import type { Alert, User } from '../types'
@@ -48,6 +48,14 @@ const firingAlert: Alert = {
   updated_at: '2026-04-12T00:00:00Z',
 }
 
+const renderAlerts = async () => {
+  const view = render(<Alerts />)
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  return view
+}
+
 describe('Alerts page permissions', () => {
   beforeEach(() => {
     alertStoreState.fetchAlerts.mockClear()
@@ -59,26 +67,26 @@ describe('Alerts page permissions', () => {
     useUserStore.setState({ user: null, token: null })
   })
 
-  it('renders read-only state for viewer', () => {
+  it('renders read-only state for viewer', async () => {
     useUserStore.setState({ user: baseUser, token: 'token' })
 
-    render(<Alerts />)
+    await renderAlerts()
 
-    expect(screen.getByText('当前角色可查看告警，但不能确认或静默')).toBeInTheDocument()
-    expect(screen.getByText('只读')).toBeInTheDocument()
+    expect(await screen.findByText('当前角色可查看告警，但不能确认或静默')).toBeInTheDocument()
+    expect(await screen.findByText('只读')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '确认' })).not.toBeInTheDocument()
   })
 
-  it('renders alert action buttons for operator', () => {
+  it('renders alert action buttons for operator', async () => {
     useUserStore.setState({
       user: { ...baseUser, role: 'operator' },
       token: 'token',
     })
 
-    render(<Alerts />)
+    await renderAlerts()
 
     expect(screen.queryByText('当前角色可查看告警，但不能确认或静默')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '确认' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '静默' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '确认' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '静默' })).toBeInTheDocument()
   })
 })

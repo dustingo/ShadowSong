@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { DataSources } from './DataSources'
 import { useUserStore } from '../stores/userStore'
 import type { DataSource, User } from '../types'
@@ -56,6 +56,14 @@ const sampleDataSource: DataSource = {
   updated_at: '2026-04-12T00:00:00Z',
 }
 
+const renderDataSources = async () => {
+  const view = render(<DataSources />)
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  return view
+}
+
 describe('DataSources page permissions', () => {
   beforeEach(() => {
     configStoreState.fetchDataSources.mockClear()
@@ -63,27 +71,27 @@ describe('DataSources page permissions', () => {
     useUserStore.setState({ user: null, token: null })
   })
 
-  it('shows read-only config view for viewer', () => {
+  it('shows read-only config view for viewer', async () => {
     useUserStore.setState({ user: baseUser, token: 'token' })
 
-    render(<DataSources />)
+    await renderDataSources()
 
-    expect(screen.getByText('当前角色可查看配置，但不能修改')).toBeInTheDocument()
+    expect(await screen.findByText('当前角色可查看配置，但不能修改')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '新建数据源' })).not.toBeInTheDocument()
-    expect(screen.getByText('只读')).toBeInTheDocument()
+    expect(await screen.findByText('只读')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '编辑' })).not.toBeInTheDocument()
   })
 
-  it('shows write controls for admin', () => {
+  it('shows write controls for admin', async () => {
     useUserStore.setState({
       user: { ...baseUser, role: 'admin' },
       token: 'token',
     })
 
-    render(<DataSources />)
+    await renderDataSources()
 
-    expect(screen.getByRole('button', { name: /新建数据源/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /编辑/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /新建数据源/ })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /编辑/ })).toBeInTheDocument()
     expect(screen.queryByText('当前角色可查看配置，但不能修改')).not.toBeInTheDocument()
   })
 })

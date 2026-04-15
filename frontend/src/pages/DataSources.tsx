@@ -313,7 +313,7 @@ export const DataSources: React.FC = () => {
         extra={
           <Space>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              接收 Webhook、标准化事件，再按 output template 渲染通知
+              接收任意 Webhook JSON，经 input template 映射后再渲染通知
             </Text>
             {canManageConfig && (
               <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
@@ -339,6 +339,7 @@ export const DataSources: React.FC = () => {
       onCancel={closeEditor}
       width={960}
       destroyOnHidden
+      forceRender
       footer={[
           <Button key="cancel" onClick={closeEditor}>
             取消
@@ -396,6 +397,8 @@ export const DataSources: React.FC = () => {
           <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <Text strong>模板字段契约</Text>
+              <Text>{'原始 webhook payload 可以是任意 JSON。`input_template` 的职责是把它映射成系统主链路使用的告警字段，而不是要求上游天然符合内部 `Alert` 结构。'}</Text>
+              <Text>{'映射后的原始 payload 仍会完整保存在 `event` 中；需要直接读取平台原字段时，优先使用 `event.xxx`。'}</Text>
               <Text>{'旧模板继续使用顶层字段：`alert_name`、`severity`、`message`、`source`、`status`、`trigger_time`、`labels`。'}</Text>
               <Text>{'其中 `severity` / `severity_code` 是系统标准化后的等级：`critical -> P0`、`warning/error -> P1`、`info -> P2`、`debug -> P3`。'}</Text>
               <Text>{'如果你想判断原始 webhook 值，直接用 `severity_raw` 或 `event.severity`。原始 webhook JSON 也会完整暴露在 `event` 上。'}</Text>
@@ -423,30 +426,59 @@ export const DataSources: React.FC = () => {
                 <Switch disabled={!canManageConfig} />
               </Form.Item>
               <Form.Item name="deduplicate_window" label="去重窗口" style={{ marginBottom: 0 }}>
-                <Input
-                  type="number"
-                  placeholder="3600"
-                  addonAfter="秒"
-                  style={{ width: 220 }}
-                  disabled={!canManageConfig}
-                />
+                <Space.Compact style={{ width: 220 }}>
+                  <Input
+                    type="number"
+                    placeholder="3600"
+                    disabled={!canManageConfig}
+                  />
+                  <span
+                    style={{
+                      padding: '4px 11px',
+                      border: '1px solid #d9d9d9',
+                      borderLeft: 0,
+                      borderRadius: '0 6px 6px 0',
+                      background: '#fafafa',
+                      color: 'rgba(0, 0, 0, 0.45)',
+                    }}
+                  >
+                    秒
+                  </span>
+                </Space.Compact>
               </Form.Item>
               <Form.Item name="group_enabled" label="启用分组" valuePropName="checked" style={{ marginBottom: 0 }}>
                 <Switch disabled={!canManageConfig} />
               </Form.Item>
               <Form.Item name="group_window" label="分组窗口" style={{ marginBottom: 0 }}>
-                <Input
-                  type="number"
-                  placeholder="300"
-                  addonAfter="秒"
-                  style={{ width: 220 }}
-                  disabled={!canManageConfig}
-                />
+                <Space.Compact style={{ width: 220 }}>
+                  <Input
+                    type="number"
+                    placeholder="300"
+                    disabled={!canManageConfig}
+                  />
+                  <span
+                    style={{
+                      padding: '4px 11px',
+                      border: '1px solid #d9d9d9',
+                      borderLeft: 0,
+                      borderRadius: '0 6px 6px 0',
+                      background: '#fafafa',
+                      color: 'rgba(0, 0, 0, 0.45)',
+                    }}
+                  >
+                    秒
+                  </span>
+                </Space.Compact>
               </Form.Item>
             </Space>
           </Card>
 
-          <Form.Item name="input_template" label="输入模板 (Go Template)" rules={[{ required: true, message: '请输入输入模板' }]}>
+          <Form.Item
+            name="input_template"
+            label="输入模板 (Go Template)"
+            extra="原始 webhook 可以是任意 JSON。这里负责把上游字段映射成系统告警字段；预览会显示映射后的规范化告警。"
+            rules={[{ required: true, message: '请输入输入模板' }]}
+          >
             <CodeEditor
               height={180}
               value={form.getFieldValue('input_template') || ''}
@@ -477,7 +509,7 @@ export const DataSources: React.FC = () => {
             showIcon
             style={{ marginBottom: 16 }}
             message="预览说明"
-            description="点击“预览模板”会把当前编辑中的 input/output template 和样例 JSON 一起发到后端，用真实通知渲染契约返回规范化告警与最终 title/content。"
+            description="点击“预览模板”会把当前编辑中的 input/output template 和任意样例 JSON 一起发到后端，返回映射后的规范化告警与最终 title/content。"
           />
 
           <Form.Item name="enabled" label="启用" valuePropName="checked">

@@ -27,6 +27,16 @@ Object.defineProperty(window.HTMLElement.prototype, 'scrollIntoView', {
   value: () => {},
 })
 
+Object.defineProperty(window, 'requestAnimationFrame', {
+  writable: true,
+  value: (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 0),
+})
+
+Object.defineProperty(window, 'cancelAnimationFrame', {
+  writable: true,
+  value: (id: number) => window.clearTimeout(id),
+})
+
 const originalGetComputedStyle = window.getComputedStyle.bind(window)
 
 window.getComputedStyle = ((element: Element, pseudoElt?: string) => {

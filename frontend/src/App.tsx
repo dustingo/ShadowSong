@@ -38,6 +38,11 @@ import { PermissionNotice } from './components'
 
 const { Header, Sider, Content } = Layout
 
+const routerFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const
+
 type MenuItem = {
   key: string
   icon: React.ReactNode
@@ -251,7 +256,7 @@ function LoginPage() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={routerFuture}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />

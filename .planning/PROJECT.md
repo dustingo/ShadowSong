@@ -37,7 +37,7 @@
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）
 - 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档
 - 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
-- 最新阶段：Phase 9 已完成，PROJECT 文档、前端验证噪音和残余权限实现细节已收口；v1.1 Enterprise Access Control 已完成并可归档
+- 最新阶段：Phase 9 已完成，PROJECT 文档、前端验证噪音和残余权限实现细节已收口；对应 `.planning/STATE.md` 的当前定位应视为“Phase 9 complete / ready for archive”，v1.1 Enterprise Access Control 已完成并可归档
 - 当前 roadmap/requirements 仍以 `.planning/ROADMAP.md`、`.planning/REQUIREMENTS.md`、`.planning/STATE.md` 与 `.planning/v1.1-MILESTONE-AUDIT.md` 作为执行完成后的对应证据源
 
 ## Current Milestone: v1.1 Enterprise Access Control
@@ -51,7 +51,7 @@
 - 前端菜单、页面入口、按钮和错误提示已完成权限感知收口，不再暴露无权操作入口
 - 权限矩阵自动化验证、角色回归测试与使用说明已补齐
 - 关键用户与权限变更已具备审计日志、账号禁用和强制改密能力
-- Phase 9 已收口 PROJECT 文档漂移、前端验证噪音与残余权限实现细节，里程碑审计结果为 `tech_debt resolved for archive prep`
+- Phase 9 已收口 PROJECT 文档漂移、前端验证噪音与残余权限实现细节；与 `.planning/ROADMAP.md`、`.planning/REQUIREMENTS.md` 和 `.planning/v1.1-MILESTONE-AUDIT.md` 对齐的最终结论是：23/23 requirement、4/4 phase verification、5/5 flows 已完成，里程碑进入 archive prep
 
 ## Context
 

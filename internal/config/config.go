@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -30,8 +31,9 @@ type RedisConfig struct {
 }
 
 type ServerConfig struct {
-	Port string
-	Mode string
+	Port           string
+	Mode           string
+	AllowedOrigins []string
 }
 
 type SecurityConfig struct {
@@ -54,8 +56,9 @@ func Load() *Config {
 			DB:       getEnvAsInt("REDIS_DB", 0),
 		},
 		Server: ServerConfig{
-			Port: getEnv("SERVER_PORT", "8080"),
-			Mode: getEnv("SERVER_MODE", "debug"),
+			Port:           getEnv("SERVER_PORT", "8080"),
+			Mode:           getEnv("SERVER_MODE", "debug"),
+			AllowedOrigins: getEnvAsCSV("ALLOWED_ORIGINS", []string{"http://localhost:*", "http://127.0.0.1:*"}),
 		},
 		Security: SecurityConfig{
 			JWTSecret:   jwtSecret,
@@ -96,4 +99,26 @@ func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvAsCSV(key string, defaultValue []string) []string {
+	valueStr := strings.TrimSpace(os.Getenv(key))
+	if valueStr == "" {
+		return defaultValue
+	}
+
+	parts := strings.Split(valueStr, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+
+	if len(values) == 0 {
+		return defaultValue
+	}
+
+	return values
 }

@@ -2,8 +2,11 @@ package router
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/game-ops/ai-alert-system/internal/models"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -206,10 +210,107 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 	}
 }
 
+func TestRouterWebSocketAuthAndOrigin(t *testing.T) {
+	t.Parallel()
+
+	db := newRouterTestDB(t)
+	alert := models.Alert{
+		AlertID:     "ws-alert-1",
+		Source:      "system",
+		AlertName:   "RealtimeAlert",
+		Severity:    "P1",
+		Message:     "realtime message",
+		TriggerTime: time.Now(),
+		ReceivedAt:  time.Now(),
+		Status:      "firing",
+	}
+	require.NoError(t, db.Create(&alert).Error)
+
+	user := &models.User{
+		Username: "ws-user",
+		Name:     "WS User",
+		Role:     authz.RoleOperator,
+	}
+	require.NoError(t, user.SetPassword("password"))
+	require.NoError(t, db.Create(user).Error)
+
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			Mode:           "test",
+			AllowedOrigins: []string{"http://allowed.example", "http://localhost:*", "http://127.0.0.1:*"},
+		},
+		Security: config.SecurityConfig{
+			JWTSecret:   "test-secret",
+			TokenExpiry: time.Hour,
+		},
+	}
+
+	jwtAuth := auth.NewJWT(&cfg.Security)
+	validToken, err := jwtAuth.GenerateToken(user.ID, user.Username, user.Role)
+	require.NoError(t, err)
+
+	server := httptest.NewServer(Setup(db, nil, cfg))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/alerts"
+
+	t.Run("rejects missing token", func(t *testing.T) {
+		dialer := websocket.Dialer{}
+		headers := http.Header{}
+		headers.Set("Origin", "http://allowed.example")
+
+		conn, resp, err := dialer.Dial(wsURL, headers)
+		require.Error(t, err)
+		if conn != nil {
+			conn.Close()
+		}
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("rejects disallowed origin", func(t *testing.T) {
+		dialer := websocket.Dialer{}
+		headers := http.Header{}
+		headers.Set("Origin", "http://blocked.example")
+
+		conn, resp, err := dialer.Dial(wsURL+"?token="+validToken, headers)
+		require.Error(t, err)
+		if conn != nil {
+			conn.Close()
+		}
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	})
+
+	t.Run("allows valid token and origin", func(t *testing.T) {
+		dialer := websocket.Dialer{}
+		headers := http.Header{}
+		headers.Set("Origin", "http://allowed.example")
+
+		conn, resp, err := dialer.Dial(wsURL+"?token="+validToken, headers)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		defer conn.Close()
+
+		var payload struct {
+			Type   string         `json:"type"`
+			Alerts []models.Alert `json:"alerts"`
+		}
+		require.NoError(t, conn.SetReadDeadline(time.Now().Add(2*time.Second)))
+		_, message, err := conn.ReadMessage()
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(message, &payload))
+		assert.Equal(t, "init", payload.Type)
+		require.Len(t, payload.Alerts, 1)
+		assert.Equal(t, "ws-alert-1", payload.Alerts[0].AlertID)
+	})
+}
+
 func newRouterTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open("file:router_authz?mode=memory&cache=shared"), &gorm.Config{})
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(
 		&models.User{},

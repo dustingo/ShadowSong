@@ -37,12 +37,12 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(db)
 	configHandler := handlers.NewConfigHandler(db)
-	wsHandler := handlers.NewWSHandler(db)
 	webhookHandler := handlers.NewWebhookHandler(db, redisClient)
 
 	// Initialize auth
 	jwtAuth := auth.NewJWT(&cfg.Security)
 	userHandler := handlers.NewUserHandler(db, jwtAuth)
+	wsHandler := handlers.NewWSHandler(db, jwtAuth, cfg.Server.AllowedOrigins)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -159,9 +159,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	}
 
 	// WebSocket routes
-	r.GET("/ws/alerts", func(c *gin.Context) {
-		wsHandler.HandleAlerts(c)
-	})
+	r.GET("/ws/alerts", wsHandler.HandleAlerts)
 
 	return r
 }

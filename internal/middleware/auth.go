@@ -28,69 +28,73 @@ type Principal struct {
 // JWTAuth creates a middleware that validates JWT tokens
 func JWTAuth(jwtAuth *auth.JWT, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader(AuthorizationHeader)
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header required"})
-			c.Abort()
-			return
-		}
-
-		// Extract token from "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
-			c.Abort()
-			return
-		}
-
-		claims, err := jwtAuth.ValidateToken(parts[1])
+		tokenString, err := bearerTokenFromHeader(c.GetHeader(AuthorizationHeader))
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			c.Abort()
 			return
 		}
 
-		var user models.User
-		if err := db.First(&user, claims.UserID).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+		user, principal, err := AuthenticateToken(jwtAuth, db, tokenString)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			c.Abort()
 			return
 		}
-
-		if user.IsDisabled() {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "account disabled"})
-			c.Abort()
-			return
-		}
-
-		if !authz.IsSupportedRole(user.Role) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
-			c.Abort()
-			return
-		}
-
-		if claims.IssuedAt == nil || !user.IsTokenValid(claims.IssuedAt.Time) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "session expired"})
-			c.Abort()
-			return
-		}
-
 		if user.RequiresPasswordReset() && !isAllowedForcedResetPath(c) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "password reset required"})
 			c.Abort()
 			return
 		}
 
-		principal, err := NewPrincipal(user.ID, user.Username, user.Role)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
-			c.Abort()
-			return
-		}
 		SetPrincipal(c, principal)
 
 		c.Next()
 	}
+}
+
+func AuthenticateToken(jwtAuth *auth.JWT, db *gorm.DB, tokenString string) (*models.User, Principal, error) {
+	claims, err := jwtAuth.ValidateToken(tokenString)
+	if err != nil {
+		return nil, Principal{}, errors.New("invalid or expired token")
+	}
+
+	var user models.User
+	if err := db.First(&user, claims.UserID).Error; err != nil {
+		return nil, Principal{}, errors.New("invalid or expired token")
+	}
+
+	if user.IsDisabled() {
+		return nil, Principal{}, errors.New("account disabled")
+	}
+
+	if !authz.IsSupportedRole(user.Role) {
+		return nil, Principal{}, errors.New("invalid or expired token")
+	}
+
+	if claims.IssuedAt == nil || !user.IsTokenValid(claims.IssuedAt.Time) {
+		return nil, Principal{}, errors.New("session expired")
+	}
+
+	principal, err := NewPrincipal(user.ID, user.Username, user.Role)
+	if err != nil {
+		return nil, Principal{}, errors.New("invalid or expired token")
+	}
+
+	return &user, principal, nil
+}
+
+func bearerTokenFromHeader(authHeader string) (string, error) {
+	if authHeader == "" {
+		return "", errors.New("authorization header required")
+	}
+
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return "", errors.New("invalid authorization header format")
+	}
+
+	return parts[1], nil
 }
 
 func isAllowedForcedResetPath(c *gin.Context) bool {

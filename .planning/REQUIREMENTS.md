@@ -13,9 +13,9 @@
 
 ### Frontend Quality Gate
 
-- [ ] **FEQ-01**: 前端代码库中的 lint error 必须清零，`pnpm lint` 在默认项目环境下可以通过
-- [ ] **FEQ-02**: 前端高风险的 hook 依赖和无效变量问题需要收口到可持续维护的状态，避免继续在关键页面积累质量债
-- [ ] **FEQ-03**: 前端生产构建和现有测试在修复 lint 后仍然能够通过，不引入新的运行时错误
+- [x] **FEQ-01**: 前端代码库中的 lint error 必须清零，`pnpm lint` 在默认项目环境下可以通过
+- [x] **FEQ-02**: 前端高风险的 hook 依赖和无效变量问题需要收口到可持续维护的状态，避免继续在关键页面积累质量债
+- [x] **FEQ-03**: 前端生产构建和现有测试在修复 lint 后仍然能够通过，不引入新的运行时错误
 
 ### CI And Verification
 
@@ -58,9 +58,9 @@
 | RTAL-01 | Phase 10 | Complete |
 | RTAL-02 | Phase 10 | Complete |
 | RTAL-03 | Phase 10 | Complete |
-| FEQ-01 | Phase 11 | Pending |
-| FEQ-02 | Phase 11 | Pending |
-| FEQ-03 | Phase 11 | Pending |
+| FEQ-01 | Phase 11 | Complete |
+| FEQ-02 | Phase 11 | Complete |
+| FEQ-03 | Phase 11 | Complete |
 | CIV-01 | Phase 12 | Pending |
 | CIV-02 | Phase 12 | Pending |
 | CIV-03 | Phase 12 | Pending |
@@ -77,4 +77,4 @@
 
 ---
 *Requirements defined: 2026-04-20*
-*Last updated: 2026-04-20 after Phase 10 completion*
+*Last updated: 2026-04-20 after Phase 11 completion*

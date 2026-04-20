@@ -20,10 +20,11 @@
 - [x] 系统已对配置写接口与告警动作完成后端强制权限收口，并为关键用户/权限操作落地持久化审计日志（Validated in Phase 7）
 - [x] 系统已完成权限感知 UI、只读/拒绝提示、角色矩阵验证文档与关键安全路径验证，23/23 个 v1 requirement 已完成（Validated in Phase 8）
 - [x] 系统已完成实时告警 WebSocket 鉴权与来源限制收口，实时订阅入口不再对匿名或非法来源公开（Validated in Phase 10）
+- [x] 系统已恢复前端本地质量基线，`pnpm lint`、`pnpm test -- --run` 与 `pnpm build` 均可通过（Validated in Phase 11）
 
 ### Active
 
-- [ ] 前端质量门禁需要恢复为 green 状态，并建立自动执行的 CI 检查，覆盖后端测试、前端 lint、前端测试和前端构建
+- [ ] 需要建立自动执行的 CI 检查，覆盖后端测试、前端 lint、前端测试和前端构建
 - [ ] Webhook 异步通知链路需要具备基础的 panic 防护、失败可观测性与可追踪日志，降低静默丢通知风险
 - [ ] 项目文档、命名和工程入口应继续与“非 AI 告警系统”现状保持一致，避免后续里程碑在错误基线上迭代
 
@@ -38,7 +39,7 @@
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）
 - 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档
 - 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
-- 最新阶段：Phase 10 `Secure Realtime Alert Access` 已完成验证，下一步进入 Phase 11 前端质量基线恢复
+- 最新阶段：Phase 11 `Restore Frontend Quality Baseline` 已完成验证，下一步进入 Phase 12 自动化质量门禁建设
 - 旧 milestone phase 目录已清理，历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将从 Phase 10 继续编号
 
 ## Next Milestone Goals
@@ -67,7 +68,7 @@
 - 当前用户体系已覆盖账号禁用、强制改密、旧会话失效和关键安全操作审计日志
 - v1.1 里程碑已确认 23/23 requirements、5/5 phases、15/15 plans 完成，权限治理基线已经稳定
 - v1.2 继续在 brownfield 代码库上演进，不做技术迁移，优先补齐安全边界、工程门禁和通知可靠性短板
-- 当前仓库前后端测试可运行，WebSocket 访问面已完成服务端收口；后续主要风险集中在前端 lint 红线、CI 缺位和通知链路可靠性
+- 当前仓库前后端测试可运行，WebSocket 访问面和前端质量基线均已收口；后续主要风险集中在 CI 缺位、文档命名对齐和通知链路可靠性
 
 ## Constraints
 
@@ -125,4 +126,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-20 after Phase 10 completion*
+*Last updated: 2026-04-20 after Phase 11 completion*

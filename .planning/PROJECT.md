@@ -2,7 +2,7 @@
 
 ## What This Is
 
-这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设。当前项目已完成两轮稳定化里程碑，下一步将围绕更细粒度权限治理和企业身份集成评估新的里程碑范围。
+这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设。当前里程碑为 v1.2 `Alert Pipeline Hardening`，重点转向告警链路安全加固、工程化门禁补齐与通知可靠性提升。
 
 ## Core Value
 
@@ -22,9 +22,10 @@
 
 ### Active
 
-- [ ] 评估 v1.2 是否需要在现有固定角色之上扩展更细粒度的权限点或授权继承模型
-- [ ] 评估是否引入 SSO / LDAP / OAuth 等企业身份源集成，而不是继续只依赖系统内账号
-- [ ] 评估是否需要为关键管理操作增加审批流或更强的治理能力
+- [ ] WebSocket 告警流必须具备鉴权与可配置来源限制，未授权请求不能直接订阅实时告警数据
+- [ ] 前端质量门禁需要恢复为 green 状态，并建立自动执行的 CI 检查，覆盖后端测试、前端 lint、前端测试和前端构建
+- [ ] Webhook 异步通知链路需要具备基础的 panic 防护、失败可观测性与可追踪日志，降低静默丢通知风险
+- [ ] 项目文档、命名和工程入口应继续与“非 AI 告警系统”现状保持一致，避免后续里程碑在错误基线上迭代
 
 ### Out of Scope
 
@@ -37,15 +38,26 @@
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）
 - 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档
 - 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
-- 最新阶段：`v1.1 Enterprise Access Control` 已完成并归档待发版，当前没有进行中的 milestone
-- 里程碑证据已归档到 `.planning/milestones/`；新的 requirements / roadmap 周期将在下一里程碑启动时重新建立
+- 最新阶段：`v1.2 Alert Pipeline Hardening` 已启动，当前处于 requirements / roadmap 定义完成、等待 Phase 10 上下文收敛的状态
+- 旧 milestone phase 目录已清理，历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将从 Phase 10 继续编号
 
 ## Next Milestone Goals
 
-**Candidate directions:**
-- 评估在固定角色之上引入更细粒度权限点或授权继承模型
-- 评估 SSO / LDAP / OAuth 等企业身份源集成方案
-- 评估关键管理操作审批流和更强治理能力的必要性
+**v1.2 Alert Pipeline Hardening**
+- 收紧 WebSocket 告警流的认证与来源控制，堵住实时告警流的公开访问面
+- 收口前端 lint / build 质量问题，并建立 CI 质量门禁，防止后续回归静默进入主干
+- 提升 webhook 异步通知的可靠性、失败日志与可追踪性，减少丢通知和排障盲区
+- 统一本轮涉及的文档、命名与工程入口，确保项目继续沿“非 AI 告警系统”的真相演进
+
+## Current Milestone: v1.2 Alert Pipeline Hardening
+
+**Goal:** 在不改变现有技术栈和核心产品能力边界的前提下，加固告警实时链路安全性、补齐工程质量门禁，并提高通知分发链路的运行可靠性。
+
+**Target features:**
+- WebSocket 实时告警流鉴权与来源限制
+- 前端 lint 修复与持续集成质量门禁
+- Webhook 异步通知链路 panic 防护、失败日志与追踪改进
+- 文档与命名对齐，保持“非 AI 告警系统”表述一致
 
 ## Context
 
@@ -54,7 +66,8 @@
 - 前端已具备用户管理页、个人资料页、权限感知菜单、按钮显隐和只读提示，角色体验与后端授权边界保持一致
 - 当前用户体系已覆盖账号禁用、强制改密、旧会话失效和关键安全操作审计日志
 - v1.1 里程碑已确认 23/23 requirements、5/5 phases、15/15 plans 完成，权限治理基线已经稳定
-- 后续演进仍需在 brownfield 代码库上继续推进，但新的需求范围将由下一里程碑重新定义
+- v1.2 继续在 brownfield 代码库上演进，不做技术迁移，优先补齐安全边界、工程门禁和通知可靠性短板
+- 当前仓库前后端测试可运行，但前端 lint 仍为红线，WebSocket 与通知链路存在应优先收口的运行风险
 
 ## Constraints
 
@@ -107,9 +120,9 @@ This document evolves at phase transitions and milestone boundaries.
 
 - v1.1 包含 5 个 phase、15 个 plans，完整归档见 `.planning/milestones/v1.1-ROADMAP.md`
 - 历史 requirements 见 `.planning/milestones/v1.1-REQUIREMENTS.md`
-- 里程碑审计与收口记录见 `.planning/v1.1-MILESTONE-AUDIT.md` 以及 `.planning/phases/09-close-v1-1-milestone-tech-debt/`
+- 里程碑审计与收口记录见 `.planning/v1.1-MILESTONE-AUDIT.md`
 
 </details>
 
 ---
-*Last updated: 2026-04-15 after v1.1 milestone completion*
+*Last updated: 2026-04-20 after v1.2 milestone start*

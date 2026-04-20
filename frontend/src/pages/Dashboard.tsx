@@ -4,6 +4,7 @@ import ReactECharts from 'echarts-for-react'
 import { useAlertStore } from '../stores/alertStore'
 import { useUserStore } from '../stores/userStore'
 import { AlertCard } from '../components/AlertCard'
+import type { Alert as AlertItem } from '../types'
 
 const { Text } = Typography
 
@@ -21,7 +22,7 @@ export const Dashboard: React.FC = () => {
     quickSilence,
   } = useAlertStore()
 
-  const handleAck = async (alert: any) => {
+  const handleAck = async (alert: AlertItem) => {
     try {
       await ackAlert(alert.alert_id, '')
       message.success('已确认')
@@ -30,7 +31,7 @@ export const Dashboard: React.FC = () => {
     }
   }
 
-  const handleQuickSilence = async (alert: any) => {
+  const handleQuickSilence = async (alert: AlertItem) => {
     try {
       await quickSilence(alert.alert_id, 3600)
       message.success('已静默')

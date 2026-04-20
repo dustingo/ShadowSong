@@ -26,9 +26,7 @@ import {
   Profile,
 } from './pages'
 import {
-  canProcessAlerts,
   canUser,
-  capabilityManageConfig,
   capabilityManageUsers,
   capabilityViewConfig,
 } from './authz/capabilities'

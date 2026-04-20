@@ -47,7 +47,7 @@ export const OnDutyPage: React.FC = () => {
   useEffect(() => {
     fetchOnDuty()
     fetchChannels()
-  }, [])
+  }, [fetchChannels, fetchOnDuty])
 
   const handleCreate = () => {
     if (!canManageConfig) {
@@ -149,7 +149,7 @@ export const OnDutyPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: OnDutyType) => (
+      render: (_: unknown, record: OnDutyType) => (
         canManageConfig ? (
           <Space>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>

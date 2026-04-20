@@ -229,7 +229,7 @@ export const DataSources: React.FC = () => {
       setPreviewResult(result)
       setPreviewDrawerVisible(true)
       message.success('模板预览已更新')
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage =
         error instanceof SyntaxError
           ? `JSON 格式错误: ${error.message}`
@@ -405,7 +405,7 @@ export const DataSources: React.FC = () => {
               <Paragraph style={{ marginBottom: 0 }}>
                 标准化等级示例：
                 <br />
-                <Text code>{`{"title":"[{{.severity_code}}] {{.alert_name}}","content":"{{default .event.annotations.runbook \"无 runbook\"}}"}`}</Text>
+                <Text code>{`{"title":"[{{.severity_code}}] {{.alert_name}}","content":"{{default .event.annotations.runbook "无 runbook"}}"}`}</Text>
               </Paragraph>
               <Paragraph style={{ marginBottom: 0 }}>
                 原始 severity 示例：

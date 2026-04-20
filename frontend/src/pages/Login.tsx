@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Form, Input, Button, Card, message, Typography, Space } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import axios from 'axios'
+import { getApiErrorMessage } from '../api/client'
+import type { User } from '../types'
 
 const { Title, Text } = Typography
 
@@ -12,7 +14,12 @@ interface LoginForm {
 }
 
 interface LoginProps {
-  onSuccess?: (token: string, user: any) => void
+  onSuccess?: (token: string, user: User) => void
+}
+
+interface LoginResponse {
+  token: string
+  user: User
 }
 
 export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
@@ -21,7 +28,7 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
   const handleSubmit = async (values: LoginForm) => {
     setLoading(true)
     try {
-      const res = await axios.post('/api/v1/auth/login', {
+      const res = await axios.post<LoginResponse>('/api/v1/auth/login', {
         username: values.username,
         password: values.password,
       })
@@ -36,9 +43,8 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
         message.success('登录成功')
         window.location.href = '/'
       }
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.error || error?.message || '登录失败'
-      message.error(errorMsg)
+    } catch (error: unknown) {
+      message.error(getApiErrorMessage(error, '登录失败'))
     } finally {
       setLoading(false)
     }

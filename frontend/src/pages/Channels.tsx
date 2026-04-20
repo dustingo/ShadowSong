@@ -137,7 +137,7 @@ export const Channels: React.FC = () => {
 
   useEffect(() => {
     fetchChannels()
-  }, [])
+  }, [fetchChannels])
 
   const channelTypeOptions = [
     { value: 'feishu', label: '飞书', icon: '📱' },
@@ -274,7 +274,7 @@ export const Channels: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Channel) => (
+      render: (_: unknown, record: Channel) => (
         canManageConfig ? (
           <Space>
             <Button

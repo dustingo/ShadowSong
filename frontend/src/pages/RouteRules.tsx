@@ -14,7 +14,7 @@ import {
   Badge,
   InputNumber,
 } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, HolderOutlined } from '@ant-design/icons'
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { PermissionNotice } from '../components'
 import { canUser, capabilityManageConfig, isReadOnlyConfigUser } from '../authz/capabilities'
 import { getApiErrorMessage } from '../api/client'
@@ -37,7 +37,6 @@ export const RouteRules: React.FC = () => {
     createRouteRule,
     updateRouteRule,
     deleteRouteRule,
-    reorderRouteRules,
   } = useConfigStore()
 
   const [modalVisible, setModalVisible] = useState(false)
@@ -50,7 +49,7 @@ export const RouteRules: React.FC = () => {
     fetchRouteRules()
     fetchDataSources()
     fetchChannels()
-  }, [])
+  }, [fetchChannels, fetchDataSources, fetchRouteRules])
 
   const handleCreate = () => {
     if (!canManageConfig) {
@@ -115,27 +114,6 @@ export const RouteRules: React.FC = () => {
       setModalVisible(false)
     } catch (error) {
       // Validation error
-    }
-  }
-
-  const handleDragEnd = async (oldIndex: number, newIndex: number) => {
-    if (!canManageConfig) {
-      message.warning('当前角色无权执行该操作')
-      return
-    }
-    if (oldIndex === newIndex) return
-
-    const newRules = [...routeRules]
-    const [removed] = newRules.splice(oldIndex, 1)
-    newRules.splice(newIndex, 0, removed)
-
-    // Update priorities
-    const ids = newRules.map((r) => r.id)
-    try {
-      await reorderRouteRules(ids)
-      message.success('排序已更新')
-    } catch (error) {
-      message.error(getApiErrorMessage(error, '排序失败'))
     }
   }
 
@@ -206,7 +184,7 @@ export const RouteRules: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: RouteRule) => (
+      render: (_: unknown, record: RouteRule) => (
         canManageConfig ? (
           <Space>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>

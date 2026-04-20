@@ -1,5 +1,11 @@
 // Common types for the application
 
+export type JsonValue = string | number | boolean | null | JsonObject | JsonValue[]
+
+export interface JsonObject {
+  [key: string]: JsonValue
+}
+
 export interface Alert {
   alert_id: string
   source: string
@@ -11,7 +17,7 @@ export interface Alert {
   trigger_time: string
   received_at: string
   status: 'pending' | 'firing' | 'acked' | 'silenced' | 'resolved' | 'deduplicated'
-  raw: any
+  raw: JsonValue
   acked_by?: string
   acked_at?: string
   ack_comment?: string
@@ -46,7 +52,7 @@ export interface DataSourcePreviewRequest {
   source_name?: string
   input_template?: string
   output_template?: string
-  sample_payload: Record<string, any> | Array<Record<string, any>>
+  sample_payload: JsonObject | JsonObject[]
 }
 
 export interface DataSourcePreviewResponse {
@@ -67,7 +73,7 @@ export interface Channel {
   id: number
   name: string
   type: 'feishu' | 'dingtalk' | 'wecom' | 'webhook'
-  config: any
+  config: JsonObject
   enabled: boolean
   created_at: string
   updated_at: string

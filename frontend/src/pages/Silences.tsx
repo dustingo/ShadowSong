@@ -47,7 +47,7 @@ export const Silences: React.FC = () => {
 
   useEffect(() => {
     fetchSilenceRules({ status: activeTab as 'active' | 'expired' })
-  }, [activeTab])
+  }, [activeTab, fetchSilenceRules])
 
   const handleTabChange = (key: string) => {
     setActiveTab(key)
@@ -211,7 +211,7 @@ export const Silences: React.FC = () => {
     {
       title: '剩余时间',
       key: 'remaining',
-      render: (_: any, record: SilenceRule) => {
+      render: (_: unknown, record: SilenceRule) => {
         if (activeTab === 'expired') return '-'
         return <Text type="warning">{getTimeRemaining(record.ends_at)}</Text>
       },
@@ -219,7 +219,7 @@ export const Silences: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: SilenceRule) => (
+      render: (_: unknown, record: SilenceRule) => (
         canManageConfig ? (
           <Space>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>

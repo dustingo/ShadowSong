@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Button,
   Card,
@@ -44,7 +44,7 @@ export const Users: React.FC = () => {
   const [form] = Form.useForm<UserFormValues>()
   const canManageUsers = canUser(currentUser, capabilityManageUsers)
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!canManageUsers) {
       return
     }
@@ -57,11 +57,11 @@ export const Users: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [canManageUsers])
 
   useEffect(() => {
     fetchUsers()
-  }, [canManageUsers])
+  }, [fetchUsers])
 
   if (!canManageUsers) {
     return (
@@ -133,9 +133,8 @@ export const Users: React.FC = () => {
       await authApi.updateUser(user.id, { disabled: !user.disabled_at })
       message.success(user.disabled_at ? '账号已启用' : '账号已禁用')
       fetchUsers()
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.error || '更新账号状态失败'
-      message.error(errorMsg)
+    } catch (error: unknown) {
+      message.error(getApiErrorMessage(error, '更新账号状态失败'))
     }
   }
 
@@ -144,9 +143,8 @@ export const Users: React.FC = () => {
       await authApi.updateUser(user.id, { force_password_reset: true })
       message.success('已标记为强制改密')
       fetchUsers()
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.error || '设置强制改密失败'
-      message.error(errorMsg)
+    } catch (error: unknown) {
+      message.error(getApiErrorMessage(error, '设置强制改密失败'))
     }
   }
 
@@ -155,9 +153,8 @@ export const Users: React.FC = () => {
       await authApi.deleteUser(user.id)
       message.success('用户已删除')
       fetchUsers()
-    } catch (error: any) {
-      const errorMsg = error?.response?.data?.error || '删除用户失败'
-      message.error(errorMsg)
+    } catch (error: unknown) {
+      message.error(getApiErrorMessage(error, '删除用户失败'))
     }
   }
 

@@ -53,7 +53,7 @@ export const Alerts: React.FC = () => {
 
   useEffect(() => {
     fetchAlerts()
-  }, [])
+  }, [fetchAlerts])
 
   const handleSearch = () => {
     fetchAlerts(1)
@@ -165,7 +165,7 @@ export const Alerts: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
-      render: (_: any, record: Alert) => (
+      render: (_: unknown, record: Alert) => (
         <Space>
           {record.status === 'firing' && (
             canProcessAlerts ? (

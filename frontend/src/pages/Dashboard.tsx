@@ -2,11 +2,13 @@ import React, { useEffect, useRef } from 'react'
 import { Row, Col, Card, Statistic, Spin, Typography, Space, Alert, message } from 'antd'
 import ReactECharts from 'echarts-for-react'
 import { useAlertStore } from '../stores/alertStore'
+import { useUserStore } from '../stores/userStore'
 import { AlertCard } from '../components/AlertCard'
 
 const { Text } = Typography
 
 export const Dashboard: React.FC = () => {
+  const token = useUserStore((state) => state.token)
   const {
     activeAlerts,
     stats,
@@ -52,9 +54,13 @@ export const Dashboard: React.FC = () => {
       if (isConnecting || wsRef.current?.readyState === WebSocket.OPEN) {
         return
       }
+      if (!token) {
+        setWsConnected(false)
+        return
+      }
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/ws/alerts`
+      const wsUrl = `${protocol}//${window.location.host}/ws/alerts?token=${encodeURIComponent(token)}`
 
       try {
         isConnecting = true
@@ -117,7 +123,7 @@ export const Dashboard: React.FC = () => {
       }
       clearInterval(interval)
     }
-  }, [])
+  }, [fetchActiveAlerts, fetchStats, setWsConnected, token])
 
   const getTrendOption = () => {
     const trendData = stats?.trend || []
@@ -212,11 +218,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Trend chart */}
         <Card title="24 小时告警趋势">
-          <ReactECharts
-            option={getTrendOption()}
-            style={{ height: 250 }}
-            showLoading={loading}
-          />
+          <ReactECharts option={getTrendOption()} style={{ height: 250 }} showLoading={loading} />
         </Card>
 
         {/* Active alerts */}
@@ -227,21 +229,14 @@ export const Dashboard: React.FC = () => {
               <Text type="secondary">({activeAlerts.length})</Text>
             </Space>
           }
-          extra={
-            <a href="/alerts">查看全部</a>
-          }
+          extra={<a href="/alerts">查看全部</a>}
         >
           {loading ? (
             <div style={{ textAlign: 'center', padding: 40 }}>
               <Spin />
             </div>
           ) : sortedAlerts.length === 0 ? (
-            <Alert
-              message="暂无活跃告警"
-              description="系统运行正常"
-              type="success"
-              showIcon
-            />
+            <Alert message="暂无活跃告警" description="系统运行正常" type="success" showIcon />
           ) : (
             <div style={{ maxHeight: 600, overflowY: 'auto' }}>
               {sortedAlerts.map((alert) => (

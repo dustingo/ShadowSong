@@ -3,29 +3,29 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Alert Pipeline Hardening
 status: planning
-last_updated: "2026-04-20T09:45:19.027Z"
+last_updated: "2026-04-20T10:00:00.000Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 8
+  completed_plans: 2
+  percent: 25
 ---
 
 # Current Position
 
-Phase: 10
-Plan: Context gathered
-Status: Ready for planning
-Last activity: 2026-04-20
+Phase: 11
+Plan: Phase 10 complete
+Status: Phase 10 verified; ready for planning
+Last activity: 2026-04-20 - Phase 10 verified and closed
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-04-20)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Plan and execute Phase 10 Secure Realtime Alert Access
+**Current focus:** Plan and execute Phase 11 Restore Frontend Quality Baseline
 
 ## Accumulated Context
 
@@ -37,6 +37,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-20)
 - Phase 9 已完成：PROJECT 真相文档、前端测试 warning 噪音和 capability-only authz seam 收口已完成，3/3 plans 与 3/3 summaries 均已落盘
 - v1.1 已完成并归档，历史路线图与 requirement 基线保存在 `.planning/milestones/`
 - v1.2 已启动，当前范围聚焦 WebSocket 鉴权与来源限制、前端 lint/CI 门禁、通知链路可靠性增强
+- Phase 10 已完成：`/ws/alerts` 现已要求 JWT token 且受来源 allowlist 限制，Dashboard 已接入带 token 的握手和测试覆盖
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移
 
 ### Roadmap Evolution
@@ -48,5 +49,5 @@ See: `.planning/PROJECT.md` (updated 2026-04-20)
 
 ## Session Resume
 
-- Resume file: `.planning/phases/10-secure-realtime-alert-access/10-CONTEXT.md`
-- Stopped at: Phase 10 context gathered
+- Resume file: `.planning/ROADMAP.md`
+- Stopped at: Phase 10 complete; next step is Phase 11 planning

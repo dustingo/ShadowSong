@@ -7,9 +7,9 @@
 
 ### Real-Time Alert Access
 
-- [ ] **RTAL-01**: 只有已登录且通过服务端鉴权的用户才能建立实时告警 WebSocket 连接
-- [ ] **RTAL-02**: WebSocket 连接会对来源域名执行显式校验，避免任意站点直接订阅告警流
-- [ ] **RTAL-03**: 未授权或来源不合法的实时连接请求会得到明确拒绝，而不是静默建立连接
+- [x] **RTAL-01**: 只有已登录且通过服务端鉴权的用户才能建立实时告警 WebSocket 连接
+- [x] **RTAL-02**: WebSocket 连接会对来源域名执行显式校验，避免任意站点直接订阅告警流
+- [x] **RTAL-03**: 未授权或来源不合法的实时连接请求会得到明确拒绝，而不是静默建立连接
 
 ### Frontend Quality Gate
 
@@ -55,9 +55,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RTAL-01 | Phase 10 | Pending |
-| RTAL-02 | Phase 10 | Pending |
-| RTAL-03 | Phase 10 | Pending |
+| RTAL-01 | Phase 10 | Complete |
+| RTAL-02 | Phase 10 | Complete |
+| RTAL-03 | Phase 10 | Complete |
 | FEQ-01 | Phase 11 | Pending |
 | FEQ-02 | Phase 11 | Pending |
 | FEQ-03 | Phase 11 | Pending |
@@ -77,4 +77,4 @@
 
 ---
 *Requirements defined: 2026-04-20*
-*Last updated: 2026-04-20 after v1.2 milestone definition*
+*Last updated: 2026-04-20 after Phase 10 completion*

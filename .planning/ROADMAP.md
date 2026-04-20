@@ -34,7 +34,7 @@ See `.planning/milestones/v1.1-ROADMAP.md`
 
 **Milestone Goal:** 在不改变现有技术栈和核心告警产品能力边界的前提下，加固实时告警访问安全、恢复工程质量门禁，并提升通知分发链路的基础可靠性。
 
-- [ ] **Phase 10: Secure Realtime Alert Access** - 收紧 WebSocket 告警流鉴权与来源限制
+- [x] **Phase 10: Secure Realtime Alert Access** - 收紧 WebSocket 告警流鉴权与来源限制
 - [ ] **Phase 11: Restore Frontend Quality Baseline** - 修复前端 lint 红线并收口关键页面质量问题
 - [ ] **Phase 12: Establish Automated Quality Gates** - 接入 CI 并同步收口文档与工程命名基线
 - [ ] **Phase 13: Harden Notification Delivery Path** - 加固 webhook 异步通知的 panic 防护、失败日志与追踪链路
@@ -52,8 +52,8 @@ See `.planning/milestones/v1.1-ROADMAP.md`
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01: Add JWT-backed WebSocket auth and reject unauthorized realtime sessions
-- [ ] 10-02: Make allowed origins configurable and verify allow/deny websocket cases
+- [x] 10-01: Add JWT-backed WebSocket auth and reject unauthorized realtime sessions
+- [x] 10-02: Make allowed origins configurable and verify allow/deny websocket cases
 
 ### Phase 11: Restore Frontend Quality Baseline
 **Goal**: 清理前端 lint 红线并收口会持续制造噪音或潜在缺陷的关键质量问题，让前端本地质量基线恢复为 green。  
@@ -101,7 +101,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 10. Secure Realtime Alert Access | v1.2 | 0/2 | Not started | - |
+| 10. Secure Realtime Alert Access | v1.2 | 2/2 | Complete | 2026-04-20 |
 | 11. Restore Frontend Quality Baseline | v1.2 | 0/2 | Not started | - |
 | 12. Establish Automated Quality Gates | v1.2 | 0/2 | Not started | - |
 | 13. Harden Notification Delivery Path | v1.2 | 0/2 | Not started | - |

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
@@ -114,6 +116,123 @@ func TestWebhookHandlerHandleWebhookTraceIgnoresCallerSuppliedValue(t *testing.T
 	require.NoError(t, db.First(&alert, "alert_id = ?", "external-3").Error)
 	require.NotEmpty(t, alert.TraceID)
 	assert.NotEqual(t, "caller-controlled-trace", alert.TraceID)
+}
+
+func TestWebhookHandlerHandleWebhookDedupLogsRequestTraceContext(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:               "trace-dedup",
+		DisplayName:        "Trace Dedup",
+		APIKey:             "key",
+		DeduplicateWindow:  3600,
+		DeduplicateEnabled: true,
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"source": "trace-dedup",
+			"status": "firing"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		Enabled:        true,
+	}).Error)
+
+	payload := map[string]interface{}{
+		"external_id": "repeat-1",
+		"alert_name":  "CPUHigh",
+		"severity":    "warning",
+		"message":     "cpu high",
+	}
+
+	first := performWebhookRequest(t, handler, "trace-dedup", "key", payload)
+	require.Equal(t, http.StatusOK, first.Code)
+	logBuffer.Reset()
+
+	second := performWebhookRequest(t, handler, "trace-dedup", "key", payload)
+	require.Equal(t, http.StatusOK, second.Code)
+
+	var alerts []models.Alert
+	require.NoError(t, db.Find(&alerts).Error)
+	require.Len(t, alerts, 1)
+	assert.Equal(t, "repeat-1", alerts[0].AlertID)
+	assert.Equal(t, 2, alerts[0].TriggerCount)
+
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "stage=dedup")
+	assert.Contains(t, logOutput, "trace_id=")
+	assert.Contains(t, logOutput, "existing_alert_id=repeat-1")
+	assert.Contains(t, logOutput, "fingerprint="+alerts[0].Fingerprint)
+}
+
+func TestWebhookHandlerPublishToRedisTracePayload(t *testing.T) {
+	handler, _ := newWebhookTestHandler(nil)
+	var captured map[string]interface{}
+	handler.redisXAdd = func(_ context.Context, args *redis.XAddArgs) *redis.StringCmd {
+		captured = args.Values
+		return redis.NewStringResult("1-0", nil)
+	}
+
+	handler.publishToRedis([]models.Alert{{
+		AlertID:     "alert-redis",
+		TraceID:     "trace-redis",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-1",
+		Status:      "firing",
+		TriggerTime: time.Unix(1710000000, 0),
+	}})
+
+	require.NotNil(t, captured)
+	assert.Equal(t, "trace-redis", captured["trace_id"])
+	assert.Equal(t, "alert-redis", captured["alert_id"])
+}
+
+func TestWebhookHandlerProcessAlertNotificationsTraceLogging(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		return fmt.Errorf("send exploded")
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+	require.NoError(t, db.Create(&models.Channel{
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}).Error)
+	require.NoError(t, db.Create(&models.RouteRule{
+		Name:       "all",
+		Priority:   1,
+		ChannelIDs: datatypes.JSON(`[1]`),
+		Enabled:    true,
+	}).Error)
+
+	handler.processAlertNotificationsAsync([]models.Alert{{
+		AlertID:     "alert-trace",
+		TraceID:     "trace-notify",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-notify",
+		Status:      "firing",
+	}})
+
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "trace_id=trace-notify")
+	assert.Contains(t, logOutput, "alert_id=alert-trace")
 }
 
 func TestWebhookHandler_mapSeverity_KeepPLevels(t *testing.T) {

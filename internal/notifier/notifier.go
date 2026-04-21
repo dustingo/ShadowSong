@@ -32,14 +32,18 @@ func SendToChannel(channel *models.Channel, title, content string) error {
 	case "webhook":
 		sender, err = NewWebhookSender(configBytes)
 	default:
-		return fmt.Errorf("unsupported channel type: %s", channel.Type)
+		return fmt.Errorf("channel %d (%s) unsupported type: %s", channel.ID, channel.Name, channel.Type)
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("channel %d (%s) sender init failed: %w", channel.ID, channel.Name, err)
 	}
 
-	return sender.Send(title, content)
+	if err := sender.Send(title, content); err != nil {
+		return fmt.Errorf("channel %d (%s) send failed: %w", channel.ID, channel.Name, err)
+	}
+
+	return nil
 }
 
 // ============ Feishu Sender ============

@@ -1,12 +1,19 @@
 package handlers
 
 import (
+	"bytes"
+	"fmt"
+	"log"
 	"testing"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/models"
+	"github.com/game-ops/ai-alert-system/internal/notifier"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func TestWebhookHandler_mapSeverity_KeepPLevels(t *testing.T) {
@@ -150,4 +157,106 @@ func TestMarshalRawAlertData_PrefersIndividualAlertObject(t *testing.T) {
 
 	assert.JSONEq(t, `{"summary":"array item summary","annotations":{"runbook":"https://runbook.local/array-item"}}`, string(rawAlertBody))
 	assert.Equal(t, "array item summary", decodeJSONMap(rawAlertBody)["summary"])
+}
+
+func TestWebhookHandlerProcessAlertNotificationsAsync_RecoversFromPanic(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		panic("boom")
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+	require.NoError(t, db.Create(&models.Channel{
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}).Error)
+	require.NoError(t, db.Create(&models.RouteRule{
+		Name:       "all",
+		Priority:   1,
+		ChannelIDs: datatypes.JSON(`[1]`),
+		Enabled:    true,
+	}).Error)
+
+	handler.processAlertNotificationsAsync([]models.Alert{{
+		AlertID:   "alert-panic",
+		Source:    "prometheus",
+		AlertName: "CPUHigh",
+		Severity:  "P1",
+		Message:   "cpu high",
+		Status:    "firing",
+	}})
+
+	assert.Contains(t, logBuffer.String(), "stage=async_panic")
+	assert.Contains(t, logBuffer.String(), "recovered panic=boom")
+}
+
+func TestWebhookHandlerSendNotification_LogsAlertAndChannelContext(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		return fmt.Errorf("send exploded")
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+
+	alert := &models.Alert{
+		AlertID:   "alert-log",
+		Source:    "prometheus",
+		AlertName: "CPUHigh",
+		Severity:  "P1",
+		Message:   "cpu high",
+		Status:    "firing",
+	}
+	channel := &models.Channel{
+		ID:      42,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}
+
+	handler.sendNotification(alert, channel)
+
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "stage=send_notification")
+	assert.Contains(t, logOutput, "alert_id=alert-log")
+	assert.Contains(t, logOutput, "source=prometheus")
+	assert.Contains(t, logOutput, "channel_id=42")
+	assert.Contains(t, logOutput, "channel_name=ops-webhook")
+	assert.Contains(t, logOutput, "failed to send rendered notification")
+}
+
+func newWebhookTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&models.Alert{}, &models.DataSource{}, &models.Channel{}, &models.RouteRule{}))
+
+	return db
+}
+
+func newWebhookTestHandler(db *gorm.DB) (*WebhookHandler, *bytes.Buffer) {
+	buffer := &bytes.Buffer{}
+	return &WebhookHandler{
+		db:            db,
+		logger:        log.New(buffer, "", 0),
+		sendToChannel: notifier.SendToChannel,
+	}, buffer
 }

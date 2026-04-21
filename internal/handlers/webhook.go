@@ -9,7 +9,10 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
+	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -29,12 +32,16 @@ const (
 type WebhookHandler struct {
 	db          *gorm.DB
 	redisClient *redis.Client
+	logger      *log.Logger
+	sendToChannel func(channel *models.Channel, title, content string) error
 }
 
 func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
 	return &WebhookHandler{
-		db:          db,
-		redisClient: redisClient,
+		db:            db,
+		redisClient:   redisClient,
+		logger:        log.New(os.Stdout, "notification ", log.LstdFlags),
+		sendToChannel: notifier.SendToChannel,
 	}
 }
 
@@ -182,7 +189,7 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 
 	// 10. 执行路由规则和推送通知（只发送新告警）
 	if len(newAlerts) > 0 {
-		go h.processAlertNotifications(newAlerts)
+		go h.processAlertNotificationsAsync(newAlerts)
 	}
 
 	// 10. 返回结果
@@ -658,6 +665,54 @@ func (h *WebhookHandler) TestInputTemplate(c *gin.Context) {
 
 // ============ 路由和推送逻辑 ============
 
+func (h *WebhookHandler) notificationLogger() *log.Logger {
+	if h.logger != nil {
+		return h.logger
+	}
+	return log.New(io.Discard, "", 0)
+}
+
+func (h *WebhookHandler) notificationSender() func(channel *models.Channel, title, content string) error {
+	if h.sendToChannel != nil {
+		return h.sendToChannel
+	}
+	return notifier.SendToChannel
+}
+
+func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, channel *models.Channel, format string, args ...interface{}) {
+	fields := []string{fmt.Sprintf("stage=%s", stage)}
+	if alert != nil {
+		fields = append(fields,
+			fmt.Sprintf("alert_id=%s", alert.AlertID),
+			fmt.Sprintf("source=%s", alert.Source),
+		)
+	}
+	if channel != nil {
+		fields = append(fields,
+			fmt.Sprintf("channel_id=%d", channel.ID),
+			fmt.Sprintf("channel_name=%s", channel.Name),
+			fmt.Sprintf("channel_type=%s", channel.Type),
+		)
+	}
+
+	message := format
+	if len(args) > 0 {
+		message = fmt.Sprintf(format, args...)
+	}
+
+	h.notificationLogger().Printf("%s %s", strings.Join(fields, " "), message)
+}
+
+func (h *WebhookHandler) processAlertNotificationsAsync(alerts []models.Alert) {
+	defer func() {
+		if r := recover(); r != nil {
+			h.logNotification("async_panic", nil, nil, "recovered panic=%v stack=%s", r, string(debug.Stack()))
+		}
+	}()
+
+	h.processAlertNotifications(alerts)
+}
+
 // processAlertNotifications 处理告警的路由和推送
 func (h *WebhookHandler) processAlertNotifications(alerts []models.Alert) {
 	// 1. 获取所有启用的路由规则（按优先级排序）
@@ -665,7 +720,7 @@ func (h *WebhookHandler) processAlertNotifications(alerts []models.Alert) {
 	h.db.Where("enabled = ?", true).Order("priority ASC").Find(&rules)
 
 	if len(rules) == 0 {
-		fmt.Println("No route rules found, skipping notification")
+		h.logNotification("route_rules", nil, nil, "no enabled route rules found, skipping notification batch alerts=%d", len(alerts))
 		return
 	}
 
@@ -675,7 +730,7 @@ func (h *WebhookHandler) processAlertNotifications(alerts []models.Alert) {
 		matchedChannels := h.findMatchedChannels(alert, rules)
 
 		if len(matchedChannels) == 0 {
-			fmt.Printf("Alert %s no matched route rules\n", alert.AlertID)
+			h.logNotification("route_match", &alert, nil, "no matched route rules")
 			continue
 		}
 
@@ -724,6 +779,7 @@ func (h *WebhookHandler) findMatchedChannels(alert models.Alert, rules []models.
 		for _, channelID := range channelIDs {
 			var channel models.Channel
 			if err := h.db.First(&channel, channelID).Error; err != nil {
+				h.logNotification("channel_lookup", &alert, nil, "failed to load channel_id=%d err=%v", channelID, err)
 				continue
 			}
 			if channel.Enabled {
@@ -827,7 +883,7 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 	// 获取 output_template
 	var ds models.DataSource
 	if err := h.db.First(&ds, "name = ?", alert.Source).Error; err != nil {
-		fmt.Printf("DataSource not found: %s\n", alert.Source)
+		h.logNotification("datasource_lookup", alert, channel, "data source not found for source=%s err=%v", alert.Source, err)
 		// 使用默认模板
 		h.sendDefaultNotification(alert, channel)
 		return
@@ -836,16 +892,16 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 	// 使用 output_template 渲染通知内容
 	title, content, err := h.renderNotification(alert, string(ds.OutputTemplate))
 	if err != nil {
-		fmt.Printf("Failed to render notification: %v\n", err)
+		h.logNotification("render_notification", alert, channel, "failed to render notification err=%v", err)
 		h.sendDefaultNotification(alert, channel)
 		return
 	}
 
 	// 发送通知
-	if err := notifier.SendToChannel(channel, title, content); err != nil {
-		fmt.Printf("Failed to send notification to channel %d: %v\n", channel.ID, err)
+	if err := h.notificationSender()(channel, title, content); err != nil {
+		h.logNotification("send_notification", alert, channel, "failed to send rendered notification err=%v", err)
 	} else {
-		fmt.Printf("Notification sent to channel %d: %s\n", channel.ID, channel.Name)
+		h.logNotification("send_notification", alert, channel, "notification sent")
 	}
 }
 
@@ -853,8 +909,8 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 func (h *WebhookHandler) sendDefaultNotification(alert *models.Alert, channel *models.Channel) {
 	title := fmt.Sprintf("[%s] %s", alert.Severity, alert.AlertName)
 	content := alert.Message
-	if err := notifier.SendToChannel(channel, title, content); err != nil {
-		fmt.Printf("Failed to send default notification: %v\n", err)
+	if err := h.notificationSender()(channel, title, content); err != nil {
+		h.logNotification("send_default_notification", alert, channel, "failed to send default notification err=%v", err)
 	}
 }
 

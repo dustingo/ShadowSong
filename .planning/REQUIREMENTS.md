@@ -19,9 +19,9 @@
 
 ### CI And Verification
 
-- [ ] **CIV-01**: 仓库提供自动执行的 CI 流程，至少覆盖 `go test ./...`
-- [ ] **CIV-02**: CI 同时覆盖前端 `pnpm lint`、`pnpm test -- --run` 和 `pnpm build`
-- [ ] **CIV-03**: 质量门禁失败时能够明确暴露失败步骤，便于在合并前阻断回归
+- [x] **CIV-01**: 仓库提供自动执行的 CI 流程，至少覆盖 `go test ./...`
+- [x] **CIV-02**: CI 同时覆盖前端 `pnpm lint`、`pnpm test -- --run` 和 `pnpm build`
+- [x] **CIV-03**: 质量门禁失败时能够明确暴露失败步骤，便于在合并前阻断回归
 
 ### Notification Reliability
 
@@ -31,8 +31,8 @@
 
 ### Documentation Alignment
 
-- [ ] **DOCS-01**: 项目文档、工程入口和命名继续保持“非 AI 告警系统”的真实表述，不引入过期 AI 名称或误导性说明
-- [ ] **DOCS-02**: 新里程碑的 requirements、roadmap 和 state 文档应准确反映当前目标与执行顺序，能直接作为后续 phase 的真相来源
+- [x] **DOCS-01**: 项目文档、工程入口和命名继续保持“非 AI 告警系统”的真实表述，不引入过期 AI 名称或误导性说明
+- [x] **DOCS-02**: 新里程碑的 requirements、roadmap 和 state 文档应准确反映当前目标与执行顺序，能直接作为后续 phase 的真相来源
 
 ## v2 Requirements
 
@@ -61,14 +61,14 @@
 | FEQ-01 | Phase 11 | Complete |
 | FEQ-02 | Phase 11 | Complete |
 | FEQ-03 | Phase 11 | Complete |
-| CIV-01 | Phase 12 | Pending |
-| CIV-02 | Phase 12 | Pending |
-| CIV-03 | Phase 12 | Pending |
+| CIV-01 | Phase 12 | Complete |
+| CIV-02 | Phase 12 | Complete |
+| CIV-03 | Phase 12 | Complete |
 | NTFY-01 | Phase 13 | Pending |
 | NTFY-02 | Phase 13 | Pending |
 | NTFY-03 | Phase 13 | Pending |
-| DOCS-01 | Phase 12 | Pending |
-| DOCS-02 | Phase 12 | Pending |
+| DOCS-01 | Phase 12 | Complete |
+| DOCS-02 | Phase 12 | Complete |
 
 **Coverage:**
 - v1 requirements: 14 total
@@ -77,4 +77,4 @@
 
 ---
 *Requirements defined: 2026-04-20*
-*Last updated: 2026-04-20 after Phase 11 completion*
+*Last updated: 2026-04-21 after Phase 12 completion*

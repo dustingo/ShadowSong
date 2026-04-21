@@ -3,29 +3,29 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Alert Pipeline Hardening
 status: planning
-last_updated: "2026-04-20T10:38:00.000Z"
-last_activity: 2026-04-20
+last_updated: "2026-04-21T10:00:00.000Z"
+last_activity: 2026-04-21
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 4
-  percent: 50
+  completed_plans: 6
+  percent: 75
 ---
 
 # Current Position
 
-Phase: 12
-Plan: Phase 11 complete
-Status: Phase 11 verified; ready for planning
-Last activity: 2026-04-20 - Phase 11 verified and closed
+Phase: 13
+Plan: Phase 12 complete
+Status: Phase 12 verified; ready for planning
+Last activity: 2026-04-21 - Phase 12 verified and closed
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-04-20)
+See: `.planning/PROJECT.md` (updated 2026-04-21)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Plan and execute Phase 12 Establish Automated Quality Gates
+**Current focus:** Plan and execute Phase 13 Harden Notification Delivery Path
 
 ## Accumulated Context
 
@@ -39,15 +39,17 @@ See: `.planning/PROJECT.md` (updated 2026-04-20)
 - v1.2 已启动，当前范围聚焦 WebSocket 鉴权与来源限制、前端 lint/CI 门禁、通知链路可靠性增强
 - Phase 10 已完成：`/ws/alerts` 现已要求 JWT token 且受来源 allowlist 限制，Dashboard 已接入带 token 的握手和测试覆盖
 - Phase 11 已完成：前端 lint 已恢复 green，关键页面 hook 依赖、死变量与明显 `any` 噪音已收口，前端 test/build 均通过
+- Phase 12 已完成：GitHub Actions 质量门禁已覆盖后端测试与前端 lint/test/build，README 与低风险工程命名已对齐当前非 AI 基线
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移
 
 ### Roadmap Evolution
 
 - Phase 10 added: Secure Realtime Alert Access
+- Phase 11 added: Restore Frontend Quality Baseline
 - Phase 12 added: Establish Automated Quality Gates
 - Phase 13 added: Harden Notification Delivery Path
 
 ## Session Resume
 
 - Resume file: `.planning/ROADMAP.md`
-- Stopped at: Phase 11 complete; next step is Phase 12 planning
+- Stopped at: Phase 12 complete; next step is Phase 13 planning

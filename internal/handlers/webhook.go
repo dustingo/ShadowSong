@@ -37,6 +37,7 @@ type WebhookHandler struct {
 	logger        *log.Logger
 	redisXAdd     func(ctx context.Context, args *redis.XAddArgs) *redis.StringCmd
 	sendToChannel func(channel *models.Channel, title, content string) error
+	runAsync      func(fn func())
 }
 
 func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
@@ -46,6 +47,9 @@ func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
 		logger:        log.New(os.Stdout, "notification ", log.LstdFlags),
 		redisXAdd:     redisClient.XAdd,
 		sendToChannel: notifier.SendToChannel,
+		runAsync: func(fn func()) {
+			go fn()
+		},
 	}
 }
 
@@ -116,6 +120,10 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 	var errors []string
 
 	alerts := h.normalizeData(rawData)
+	h.logTraceStage("ingest", map[string]string{
+		"trace_id": traceID,
+		"source":   sourceName,
+	}, "received alerts=%d", len(alerts))
 
 	// 获取去重窗口配置
 	dedupEnabled := ds.DeduplicateEnabled
@@ -190,6 +198,7 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 			errors = append(errors, fmt.Sprintf("failed to save alert: %v", err))
 			continue
 		}
+		h.logTraceStage("persist", h.traceFieldsForAlert(alert), "created alert")
 
 		results = append(results, alert)
 		newAlerts = append(newAlerts, alert)
@@ -202,7 +211,9 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 
 	// 10. 执行路由规则和推送通知（只发送新告警）
 	if len(newAlerts) > 0 {
-		go h.processAlertNotificationsAsync(newAlerts)
+		h.asyncRunner()(func() {
+			h.processAlertNotificationsAsync(newAlerts)
+		})
 	}
 
 	// 10. 返回结果
@@ -559,17 +570,18 @@ func (h *WebhookHandler) publishToRedis(alerts []models.Alert) {
 		}
 
 		fields := map[string]string{
-			"trace_id":    alert.TraceID,
-			"alert_id":    alert.AlertID,
-			"fingerprint": alert.Fingerprint,
-			"source":      alert.Source,
-			"stream":      "alerts:pending",
+			"trace_id":     alert.TraceID,
+			"alert_id":     alert.AlertID,
+			"fingerprint":  alert.Fingerprint,
+			"source":       alert.Source,
+			"redis_stream": "alerts:pending",
 		}
 		if err := result.Err(); err != nil {
 			h.logTraceStage("redis_publish", fields, "failed err=%v", err)
 			continue
 		}
 
+		fields["redis_message_id"] = result.Val()
 		h.logTraceStage("redis_publish", fields, "published")
 	}
 }
@@ -721,6 +733,15 @@ func (h *WebhookHandler) notificationSender() func(channel *models.Channel, titl
 	return notifier.SendToChannel
 }
 
+func (h *WebhookHandler) asyncRunner() func(fn func()) {
+	if h.runAsync != nil {
+		return h.runAsync
+	}
+	return func(fn func()) {
+		go fn()
+	}
+}
+
 func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, channel *models.Channel, format string, args ...interface{}) {
 	fields := []string{fmt.Sprintf("stage=%s", stage)}
 	if alert != nil {
@@ -770,6 +791,29 @@ func (h *WebhookHandler) logTraceStage(stage string, fields map[string]string, f
 	h.notificationLogger().Printf("%s %s", strings.Join(parts, " "), message)
 }
 
+func (h *WebhookHandler) traceFieldsForAlert(alert models.Alert) map[string]string {
+	return map[string]string{
+		"trace_id":    alert.TraceID,
+		"alert_id":    alert.AlertID,
+		"fingerprint": alert.Fingerprint,
+		"source":      alert.Source,
+	}
+}
+
+func (h *WebhookHandler) traceFieldsForNotification(alert *models.Alert, channel *models.Channel) map[string]string {
+	fields := map[string]string{}
+	if alert != nil {
+		for key, value := range h.traceFieldsForAlert(*alert) {
+			fields[key] = value
+		}
+	}
+	if channel != nil {
+		fields["channel_id"] = fmt.Sprintf("%d", channel.ID)
+		fields["channel_name"] = channel.Name
+	}
+	return fields
+}
+
 func (h *WebhookHandler) processAlertNotificationsAsync(alerts []models.Alert) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -800,9 +844,11 @@ func (h *WebhookHandler) processAlertNotifications(alerts []models.Alert) {
 			h.logNotification("route_match", &alert, nil, "no matched route rules")
 			continue
 		}
+		h.logTraceStage("route_match", h.traceFieldsForAlert(alert), "matched_channels=%d", len(matchedChannels))
 
 		// 4. 使用 output_template 生成通知内容
 		for _, channel := range matchedChannels {
+			h.logTraceStage("notification_entry", h.traceFieldsForNotification(&alert, &channel), "starting notification send")
 			h.sendNotification(&alert, &channel)
 		}
 	}

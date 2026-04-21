@@ -566,6 +566,9 @@ func newWebhookTestHandler(db *gorm.DB) (*WebhookHandler, *bytes.Buffer) {
 			return redis.NewStringResult("1-0", nil)
 		},
 		sendToChannel: notifier.SendToChannel,
+		runAsync: func(fn func()) {
+			fn()
+		},
 	}, buffer
 }
 

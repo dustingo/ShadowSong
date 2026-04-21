@@ -2,19 +2,121 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+func TestWebhookHandlerHandleWebhookTraceSharedAcrossNewAlerts(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, _ := newWebhookTestHandler(db)
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:              "trace-source",
+		DisplayName:       "Trace Source",
+		APIKey:            "key",
+		DeduplicateWindow: 3600,
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"source": "trace-source",
+			"status": "firing"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		GroupByLabels:  datatypes.JSON(`["alert_name","severity","source"]`),
+		Enabled:        true,
+	}).Error)
+
+	payload := []map[string]interface{}{
+		{
+			"external_id": "external-1",
+			"alert_name":  "CPUHigh",
+			"severity":    "warning",
+			"message":     "cpu high on game-01",
+			"trace_id":    "caller-supplied-a",
+		},
+		{
+			"external_id": "external-2",
+			"alert_name":  "DiskHigh",
+			"severity":    "warning",
+			"message":     "disk high on game-02",
+			"trace_id":    "caller-supplied-b",
+		},
+	}
+
+	recorder := performWebhookRequest(t, handler, "trace-source", "key", payload)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var alerts []models.Alert
+	require.NoError(t, db.Order("alert_id asc").Find(&alerts).Error)
+	require.Len(t, alerts, 2)
+
+	firstTraceID := alerts[0].TraceID
+	require.NotEmpty(t, firstTraceID)
+	assert.Equal(t, firstTraceID, alerts[1].TraceID)
+	assert.NotEqual(t, "caller-supplied-a", alerts[0].TraceID)
+	assert.NotEqual(t, "caller-supplied-b", alerts[1].TraceID)
+	assert.Equal(t, "external-1", alerts[0].AlertID)
+	assert.Equal(t, "external-2", alerts[1].AlertID)
+	assert.Equal(t, computeExpectedFingerprint(t, alerts[0]), alerts[0].Fingerprint)
+	assert.Equal(t, computeExpectedFingerprint(t, alerts[1]), alerts[1].Fingerprint)
+}
+
+func TestWebhookHandlerHandleWebhookTraceIgnoresCallerSuppliedValue(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, _ := newWebhookTestHandler(db)
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:        "trace-ignore",
+		DisplayName: "Trace Ignore",
+		APIKey:      "key",
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"trace_id": "{{.trace_id}}",
+			"source": "trace-ignore",
+			"status": "firing"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		Enabled:        true,
+	}).Error)
+
+	payload := map[string]interface{}{
+		"external_id": "external-3",
+		"alert_name":  "MemoryHigh",
+		"severity":    "critical",
+		"message":     "memory high",
+		"trace_id":    "caller-controlled-trace",
+	}
+
+	recorder := performWebhookRequest(t, handler, "trace-ignore", "key", payload)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var alert models.Alert
+	require.NoError(t, db.First(&alert, "alert_id = ?", "external-3").Error)
+	require.NotEmpty(t, alert.TraceID)
+	assert.NotEqual(t, "caller-controlled-trace", alert.TraceID)
+}
 
 func TestWebhookHandler_mapSeverity_KeepPLevels(t *testing.T) {
 	tests := []struct {
@@ -259,4 +361,41 @@ func newWebhookTestHandler(db *gorm.DB) (*WebhookHandler, *bytes.Buffer) {
 		logger:        log.New(buffer, "", 0),
 		sendToChannel: notifier.SendToChannel,
 	}, buffer
+}
+
+func performWebhookRequest(
+	t *testing.T,
+	handler *WebhookHandler,
+	sourceName string,
+	apiKey string,
+	payload interface{},
+) *httptest.ResponseRecorder {
+	t.Helper()
+
+	body, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/webhook/"+sourceName, strings.NewReader(string(body)))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-API-KEY", apiKey)
+
+	router := gin.New()
+	router.POST("/webhook/:source_name", handler.HandleWebhook)
+	router.ServeHTTP(recorder, request)
+
+	return recorder
+}
+
+func computeExpectedFingerprint(t *testing.T, alert models.Alert) string {
+	t.Helper()
+
+	payload := strings.Join([]string{
+		fmt.Sprintf("alert_name=%s", alert.AlertName),
+		fmt.Sprintf("severity=%s", alert.Severity),
+		fmt.Sprintf("source=%s", alert.Source),
+	}, ",")
+
+	hash := sha256.Sum256([]byte(payload))
+	return hex.EncodeToString(hash[:])
 }

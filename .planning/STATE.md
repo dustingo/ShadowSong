@@ -3,29 +3,29 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Alert Pipeline Hardening
 status: planning
-last_updated: "2026-04-21T10:00:00.000Z"
+last_updated: "2026-04-21T10:40:00.000Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 8
+  percent: 100
 ---
 
 # Current Position
 
-Phase: 13
-Plan: Phase 12 complete
-Status: Phase 12 verified; ready for planning
-Last activity: 2026-04-21 - Phase 12 verified and closed
+Phase: complete
+Plan: Phase 13 complete
+Status: v1.2 milestone verified; ready for milestone closeout
+Last activity: 2026-04-21 - Phase 13 verified and closed
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-04-21)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Plan and execute Phase 13 Harden Notification Delivery Path
+**Current focus:** Close out v1.2 Alert Pipeline Hardening and prepare the next milestone
 
 ## Accumulated Context
 
@@ -40,6 +40,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-21)
 - Phase 10 已完成：`/ws/alerts` 现已要求 JWT token 且受来源 allowlist 限制，Dashboard 已接入带 token 的握手和测试覆盖
 - Phase 11 已完成：前端 lint 已恢复 green，关键页面 hook 依赖、死变量与明显 `any` 噪音已收口，前端 test/build 均通过
 - Phase 12 已完成：GitHub Actions 质量门禁已覆盖后端测试与前端 lint/test/build，README 与低风险工程命名已对齐当前非 AI 基线
+- Phase 13 已完成：异步通知 goroutine 已补 panic recover，失败日志具备告警/渠道上下文，通知链路可靠性测试已纳入后端门禁
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移
 
 ### Roadmap Evolution
@@ -52,4 +53,4 @@ See: `.planning/PROJECT.md` (updated 2026-04-21)
 ## Session Resume
 
 - Resume file: `.planning/ROADMAP.md`
-- Stopped at: Phase 12 complete; next step is Phase 13 planning
+- Stopped at: Phase 13 complete; next step is milestone closeout

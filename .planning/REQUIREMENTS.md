@@ -25,9 +25,9 @@
 
 ### Notification Reliability
 
-- [ ] **NTFY-01**: Webhook 异步通知处理发生 panic 时不会直接把服务进程带崩
-- [ ] **NTFY-02**: 通知发送失败时会留下结构化或至少稳定可检索的后端日志，便于定位失败原因
-- [ ] **NTFY-03**: 通知链路关键失败点需要可追踪到具体告警或渠道上下文，而不是只有模糊报错
+- [x] **NTFY-01**: Webhook 异步通知处理发生 panic 时不会直接把服务进程带崩
+- [x] **NTFY-02**: 通知发送失败时会留下结构化或至少稳定可检索的后端日志，便于定位失败原因
+- [x] **NTFY-03**: 通知链路关键失败点需要可追踪到具体告警或渠道上下文，而不是只有模糊报错
 
 ### Documentation Alignment
 
@@ -64,9 +64,9 @@
 | CIV-01 | Phase 12 | Complete |
 | CIV-02 | Phase 12 | Complete |
 | CIV-03 | Phase 12 | Complete |
-| NTFY-01 | Phase 13 | Pending |
-| NTFY-02 | Phase 13 | Pending |
-| NTFY-03 | Phase 13 | Pending |
+| NTFY-01 | Phase 13 | Complete |
+| NTFY-02 | Phase 13 | Complete |
+| NTFY-03 | Phase 13 | Complete |
 | DOCS-01 | Phase 12 | Complete |
 | DOCS-02 | Phase 12 | Complete |
 
@@ -77,4 +77,4 @@
 
 ---
 *Requirements defined: 2026-04-20*
-*Last updated: 2026-04-21 after Phase 12 completion*
+*Last updated: 2026-04-21 after Phase 13 completion*

@@ -37,7 +37,7 @@ See `.planning/milestones/v1.1-ROADMAP.md`
 - [x] **Phase 10: Secure Realtime Alert Access** - 收紧 WebSocket 告警流鉴权与来源限制
 - [x] **Phase 11: Restore Frontend Quality Baseline** - 修复前端 lint 红线并收口关键页面质量问题
 - [x] **Phase 12: Establish Automated Quality Gates** - 接入 CI 并同步收口文档与工程命名基线
-- [ ] **Phase 13: Harden Notification Delivery Path** - 加固 webhook 异步通知的 panic 防护、失败日志与追踪链路
+- [x] **Phase 13: Harden Notification Delivery Path** - 加固 webhook 异步通知的 panic 防护、失败日志与追踪链路
 
 ## Phase Details
 
@@ -94,8 +94,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: Add panic recovery and failure boundaries around async notification processing
-- [ ] 13-02: Improve notification failure logging and traceability verification
+- [x] 13-01: Add panic recovery and failure boundaries around async notification processing
+- [x] 13-02: Improve notification failure logging and traceability verification
 
 ## Progress
 
@@ -104,4 +104,4 @@ Plans:
 | 10. Secure Realtime Alert Access | v1.2 | 2/2 | Complete | 2026-04-20 |
 | 11. Restore Frontend Quality Baseline | v1.2 | 2/2 | Complete | 2026-04-20 |
 | 12. Establish Automated Quality Gates | v1.2 | 2/2 | Complete | 2026-04-21 |
-| 13. Harden Notification Delivery Path | v1.2 | 0/2 | Not started | - |
+| 13. Harden Notification Delivery Path | v1.2 | 2/2 | Complete | 2026-04-21 |

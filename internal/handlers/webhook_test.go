@@ -235,6 +235,92 @@ func TestWebhookHandlerProcessAlertNotificationsTraceLogging(t *testing.T) {
 	assert.Contains(t, logOutput, "alert_id=alert-trace")
 }
 
+func TestWebhookHandlerLogsLifecycleStages(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		return nil
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:              "lifecycle-source",
+		DisplayName:       "Lifecycle Source",
+		APIKey:            "key",
+		DeduplicateWindow: 3600,
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"source": "lifecycle-source",
+			"status": "firing"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		Enabled:        true,
+	}).Error)
+	require.NoError(t, db.Create(&models.Channel{
+		ID:      9,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}).Error)
+	require.NoError(t, db.Create(&models.RouteRule{
+		Name:       "all",
+		Priority:   1,
+		Sources:    datatypes.JSON(`["lifecycle-source"]`),
+		ChannelIDs: datatypes.JSON(`[9]`),
+		Enabled:    true,
+	}).Error)
+
+	recorder := performWebhookRequest(t, handler, "lifecycle-source", "key", map[string]interface{}{
+		"external_id": "lifecycle-1",
+		"alert_name":  "CPUHigh",
+		"severity":    "warning",
+		"message":     "cpu high on game-01",
+	})
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var alert models.Alert
+	require.NoError(t, db.First(&alert, "alert_id = ?", "lifecycle-1").Error)
+	require.NotEmpty(t, alert.TraceID)
+
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "stage=ingest")
+	assert.Contains(t, logOutput, "stage=persist")
+	assert.Contains(t, logOutput, "stage=redis_publish")
+	assert.Contains(t, logOutput, "stage=route_match")
+	assert.Contains(t, logOutput, "stage=notification_entry")
+	assert.Contains(t, logOutput, "trace_id="+alert.TraceID)
+	assert.Contains(t, logOutput, "redis_stream=alerts:pending")
+	assert.Contains(t, logOutput, "redis_message_id=1-0")
+}
+
+func TestWebhookHandlerRedisPublishFailure(t *testing.T) {
+	handler, logBuffer := newWebhookTestHandler(nil)
+	handler.redisXAdd = func(_ context.Context, _ *redis.XAddArgs) *redis.StringCmd {
+		return redis.NewStringResult("", fmt.Errorf("redis unavailable"))
+	}
+
+	handler.publishToRedis([]models.Alert{{
+		AlertID:     "alert-redis-fail",
+		TraceID:     "trace-redis-fail",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-redis-fail",
+		Status:      "firing",
+		TriggerTime: time.Unix(1710000000, 0),
+	}})
+
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "stage=redis_publish")
+	assert.Contains(t, logOutput, "trace_id=trace-redis-fail")
+	assert.Contains(t, logOutput, "redis_stream=alerts:pending")
+	assert.Contains(t, logOutput, "failed err=redis unavailable")
+}
+
 func TestWebhookHandler_mapSeverity_KeepPLevels(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/models"
@@ -13,6 +15,15 @@ import (
 
 type Sender interface {
 	Send(title, content string) error
+}
+
+var retryableHTTPStatusCodes = map[int]struct{}{
+	http.StatusRequestTimeout:      {},
+	http.StatusTooManyRequests:     {},
+	http.StatusInternalServerError: {},
+	http.StatusBadGateway:          {},
+	http.StatusServiceUnavailable:  {},
+	http.StatusGatewayTimeout:      {},
 }
 
 // SendToChannel sends notification to the specified channel
@@ -44,6 +55,80 @@ func SendToChannel(channel *models.Channel, title, content string) error {
 	}
 
 	return nil
+}
+
+// IsRetryableSendError reports whether a wrapped SendToChannel error is a transient send-stage failure.
+func IsRetryableSendError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	if !strings.Contains(message, " send failed: ") {
+		return false
+	}
+
+	if strings.Contains(message, "failed to create webhook request") ||
+		strings.Contains(message, "failed to marshal") ||
+		strings.Contains(message, "failed to unmarshal") {
+		return false
+	}
+
+	if status, ok := extractTrailingStatusCode(message); ok {
+		_, retryable := retryableHTTPStatusCodes[status]
+		return retryable
+	}
+
+	transientMarkers := []string{
+		"timeout",
+		"tempor",
+		"connection reset",
+		"connection refused",
+		"broken pipe",
+		"unexpected eof",
+		"eof",
+		"no such host",
+		"tls handshake timeout",
+		"i/o timeout",
+		"dial tcp",
+	}
+
+	for _, marker := range transientMarkers {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func extractTrailingStatusCode(message string) (int, bool) {
+	statusMarkers := []string{"status: ", "status code: "}
+	for _, marker := range statusMarkers {
+		idx := strings.Index(message, marker)
+		if idx == -1 {
+			continue
+		}
+
+		start := idx + len(marker)
+		end := start
+		for end < len(message) && message[end] >= '0' && message[end] <= '9' {
+			end++
+		}
+
+		if end == start {
+			continue
+		}
+
+		status, err := strconv.Atoi(message[start:end])
+		if err != nil {
+			continue
+		}
+
+		return status, true
+	}
+
+	return 0, false
 }
 
 // ============ Feishu Sender ============

@@ -291,7 +291,7 @@ func TestWebhookHandlerLogsLifecycleStages(t *testing.T) {
 	assert.Contains(t, logOutput, "stage=redis_publish")
 	assert.Contains(t, logOutput, "stage=route_match")
 	assert.Contains(t, logOutput, "stage=notification_entry")
-	assert.Contains(t, logOutput, "trace_id="+alert.TraceID)
+	assert.GreaterOrEqual(t, strings.Count(logOutput, "trace_id="+alert.TraceID), 5)
 	assert.Contains(t, logOutput, "redis_stream=alerts:pending")
 	assert.Contains(t, logOutput, "redis_message_id=1-0")
 }
@@ -319,6 +319,112 @@ func TestWebhookHandlerRedisPublishFailure(t *testing.T) {
 	assert.Contains(t, logOutput, "trace_id=trace-redis-fail")
 	assert.Contains(t, logOutput, "redis_stream=alerts:pending")
 	assert.Contains(t, logOutput, "failed err=redis unavailable")
+}
+
+func TestWebhookHandlerRedisPublishFailureLeavesLifecycleInspectable(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	handler.redisXAdd = func(_ context.Context, _ *redis.XAddArgs) *redis.StringCmd {
+		return redis.NewStringResult("", fmt.Errorf("redis unavailable"))
+	}
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		return nil
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:              "redis-failure-source",
+		DisplayName:       "Redis Failure Source",
+		APIKey:            "key",
+		DeduplicateWindow: 3600,
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"source": "redis-failure-source",
+			"status": "firing"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		Enabled:        true,
+	}).Error)
+	require.NoError(t, db.Create(&models.Channel{
+		ID:      10,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}).Error)
+	require.NoError(t, db.Create(&models.RouteRule{
+		Name:       "all",
+		Priority:   1,
+		Sources:    datatypes.JSON(`["redis-failure-source"]`),
+		ChannelIDs: datatypes.JSON(`[10]`),
+		Enabled:    true,
+	}).Error)
+
+	recorder := performWebhookRequest(t, handler, "redis-failure-source", "key", map[string]interface{}{
+		"external_id": "redis-failure-1",
+		"alert_name":  "CPUHigh",
+		"severity":    "warning",
+		"message":     "cpu high on game-01",
+	})
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var alert models.Alert
+	require.NoError(t, db.First(&alert, "alert_id = ?", "redis-failure-1").Error)
+
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "stage=redis_publish")
+	assert.Contains(t, logOutput, "failed err=redis unavailable")
+	assert.Contains(t, logOutput, "stage=route_match")
+	assert.Contains(t, logOutput, "stage=notification_entry")
+	assert.GreaterOrEqual(t, strings.Count(logOutput, "trace_id="+alert.TraceID), 4)
+}
+
+func TestWebhookHandlerDedupTrace(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:               "dedup-trace",
+		DisplayName:        "Dedup Trace",
+		APIKey:             "key",
+		DeduplicateWindow:  3600,
+		DeduplicateEnabled: true,
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"source": "dedup-trace",
+			"status": "firing"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		Enabled:        true,
+	}).Error)
+
+	payload := map[string]interface{}{
+		"external_id": "repeat-2",
+		"alert_name":  "CPUHigh",
+		"severity":    "warning",
+		"message":     "cpu high",
+	}
+
+	first := performWebhookRequest(t, handler, "dedup-trace", "key", payload)
+	require.Equal(t, http.StatusOK, first.Code)
+	logBuffer.Reset()
+
+	second := performWebhookRequest(t, handler, "dedup-trace", "key", payload)
+	require.Equal(t, http.StatusOK, second.Code)
+
+	var alert models.Alert
+	require.NoError(t, db.First(&alert, "alert_id = ?", "repeat-2").Error)
+
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "stage=dedup")
+	assert.Contains(t, logOutput, "trace_id=")
+	assert.Contains(t, logOutput, "existing_alert_id=repeat-2")
+	assert.Contains(t, logOutput, "fingerprint="+alert.Fingerprint)
 }
 
 func TestWebhookHandler_mapSeverity_KeepPLevels(t *testing.T) {

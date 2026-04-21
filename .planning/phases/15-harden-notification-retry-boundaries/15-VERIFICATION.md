@@ -24,8 +24,14 @@ go test ./... -count=1
 
 - Covered by `TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures`.
 - Confirms transient send-stage failures retry inside the same async goroutine window and succeed before the retry cap is exhausted.
-- Confirms datasource lookup or render failures may still degrade to default notification content before the same send-stage retry boundary begins.
 - Confirms attempt logs carry stable diagnosis fields while the terminal-failure branch stays absent on eventual success.
+
+### 2.1 Fallback branches still enter the same retry boundary
+
+- Covered by `TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetryBoundary`.
+- Covered by `TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary`.
+- Confirms datasource lookup and template/render failures can degrade to default notification content before the same bounded `SendToChannel` retry contract begins.
+- Confirms the fallback path still emits `stage=send_attempt` logs with `mode=default` and honors the same three-attempt budget.
 
 ### 3. Retry exhausted
 

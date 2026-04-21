@@ -756,6 +756,112 @@ func TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures(t *te
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
 }
 
+func TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetryBoundary(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	attempts := 0
+	var titles []string
+	var contents []string
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		attempts++
+		titles = append(titles, title)
+		contents = append(contents, content)
+		if attempts < notificationMaxAttempts {
+			return fmt.Errorf("channel %d (%s) send failed: webhook notification failed with status: 503", channel.ID, channel.Name)
+		}
+		return nil
+	}
+
+	alert := &models.Alert{
+		AlertID:     "alert-datasource-fallback",
+		TraceID:     "trace-datasource-fallback",
+		Source:      "missing-source",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-datasource-fallback",
+		Status:      "firing",
+	}
+	channel := &models.Channel{
+		ID:      45,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}
+
+	handler.sendNotification(alert, channel)
+
+	logOutput := logBuffer.String()
+	assert.Equal(t, notificationMaxAttempts, attempts)
+	assert.Equal(t, notificationMaxAttempts, strings.Count(logOutput, "stage=send_attempt"))
+	assert.Contains(t, logOutput, "stage=datasource_lookup")
+	assert.Contains(t, logOutput, "mode=default")
+	assert.Contains(t, logOutput, "trace_id=trace-datasource-fallback")
+	assert.Contains(t, logOutput, "alert_id=alert-datasource-fallback")
+	assert.Contains(t, logOutput, "channel_id=45")
+	assert.Contains(t, titles, "[P1] CPUHigh")
+	assert.Contains(t, contents, "cpu high")
+	assert.NotContains(t, logOutput, "stage=terminal_failure")
+}
+
+func TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	attempts := 0
+	var titles []string
+	var contents []string
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		attempts++
+		titles = append(titles, title)
+		contents = append(contents, content)
+		if attempts < notificationMaxAttempts {
+			return fmt.Errorf("channel %d (%s) send failed: webhook notification failed with status: 503", channel.ID, channel.Name)
+		}
+		return nil
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{{`,
+	}).Error)
+
+	alert := &models.Alert{
+		AlertID:     "alert-render-fallback",
+		TraceID:     "trace-render-fallback",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-render-fallback",
+		Status:      "firing",
+	}
+	channel := &models.Channel{
+		ID:      46,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}
+
+	handler.sendNotification(alert, channel)
+
+	logOutput := logBuffer.String()
+	assert.Equal(t, notificationMaxAttempts, attempts)
+	assert.Equal(t, notificationMaxAttempts, strings.Count(logOutput, "stage=send_attempt"))
+	assert.Contains(t, logOutput, "stage=render_notification")
+	assert.Contains(t, logOutput, "mode=default")
+	assert.Contains(t, logOutput, "trace_id=trace-render-fallback")
+	assert.Contains(t, logOutput, "alert_id=alert-render-fallback")
+	assert.Contains(t, logOutput, "channel_id=46")
+	assert.Contains(t, titles, "[P1] CPUHigh")
+	assert.Contains(t, contents, "cpu high")
+	assert.NotContains(t, logOutput, "stage=terminal_failure")
+}
+
 func TestWebhookHandlerSendNotification_NonRetryableFailureStopsAfterFirstAttempt(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)

@@ -45,7 +45,7 @@ completed: 2026-04-21
 
 ## Accomplishments
 
-- Added handler regression coverage for immediate success, retry-assisted success, and retry exhaustion without introducing any new persistence surface.
+- Added handler regression coverage for immediate success, fallback-to-default retry flows, retry-assisted success, and retry exhaustion without introducing any new persistence surface.
 - Proved retry exhaustion emits one explicit terminal failure log and leaves database-backed notification state unchanged.
 - Recorded the executed verification commands, minimum final-failure fields, and the Phase 14 `trace_id` troubleshooting path in `15-VERIFICATION.md`.
 
@@ -56,7 +56,7 @@ completed: 2026-04-21
 
 ## Files Created/Modified
 
-- `internal/handlers/webhook_test.go` - adds named scenario coverage for first-attempt success, retry success, and exact three-attempt retry exhaustion without persistence side effects.
+- `internal/handlers/webhook_test.go` - adds named scenario coverage for first-attempt success, datasource/render fallback retry flows, retry success, and exact three-attempt retry exhaustion without persistence side effects.
 - `.planning/phases/15-harden-notification-retry-boundaries/15-VERIFICATION.md` - captures the executed commands, terminal-failure log contract, and Phase 14 trace-based diagnosis path.
 
 ## Decisions Made

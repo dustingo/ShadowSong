@@ -25,13 +25,6 @@ func TestSendToChannel_UnsupportedTypeIncludesChannelContext(t *testing.T) {
 }
 
 func TestIsRetryableSendError_TransientSendFailuresAreRetryable(t *testing.T) {
-	channel := &models.Channel{
-		ID:     11,
-		Name:   "ops-webhook",
-		Type:   "webhook",
-		Config: datatypes.JSON(`{"url":"https://example.com"}`),
-	}
-
 	testCases := []struct {
 		name string
 		err  error
@@ -55,8 +48,6 @@ func TestIsRetryableSendError_TransientSendFailuresAreRetryable(t *testing.T) {
 			assert.True(t, IsRetryableSendError(tc.err))
 		})
 	}
-
-	assert.False(t, IsRetryableSendError(SendToChannel(channel, "title", "content")))
 }
 
 func TestIsRetryableSendError_DeterministicFailuresRemainTerminal(t *testing.T) {

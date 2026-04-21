@@ -34,7 +34,7 @@ completed: 2026-04-21
 
 # Phase 15 Plan 02: Harden Notification Retry Boundaries Summary
 
-**Phase 15 verification now locks the three retry outcomes in tests and documents terminal failure as a log-only landing zone that operators can trace back through the Phase 14 lifecycle**
+**Phase 15 verification now locks the three retry outcomes and exact three-attempt exhaustion behavior in tests, and documents terminal failure as a log-only landing zone that operators can trace back through the Phase 14 lifecycle**
 
 ## Performance
 
@@ -56,7 +56,7 @@ completed: 2026-04-21
 
 ## Files Created/Modified
 
-- `internal/handlers/webhook_test.go` - adds named scenario coverage for first-attempt success, retry success, and retry exhaustion without persistence side effects.
+- `internal/handlers/webhook_test.go` - adds named scenario coverage for first-attempt success, retry success, and exact three-attempt retry exhaustion without persistence side effects.
 - `.planning/phases/15-harden-notification-retry-boundaries/15-VERIFICATION.md` - captures the executed commands, terminal-failure log contract, and Phase 14 trace-based diagnosis path.
 
 ## Decisions Made

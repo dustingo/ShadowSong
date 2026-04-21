@@ -24,12 +24,14 @@ go test ./... -count=1
 
 - Covered by `TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures`.
 - Confirms transient send-stage failures retry inside the same async goroutine window and succeed before the retry cap is exhausted.
+- Confirms datasource lookup or render failures may still degrade to default notification content before the same send-stage retry boundary begins.
 - Confirms attempt logs carry stable diagnosis fields while the terminal-failure branch stays absent on eventual success.
 
 ### 3. Retry exhausted
 
 - Covered by `TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPersistenceSideEffects`.
 - Confirms repeated retryable send-stage failures end in one explicit `stage=terminal_failure` log.
+- Confirms the retry budget is fixed at exactly three send attempts, with one `stage=send_attempt` log per attempt.
 - Confirms retry exhaustion does not create any new durable delivery record or other database persistence side effect.
 
 ## Final Failure Contract
@@ -62,5 +64,6 @@ Reference: `.planning/phases/14-establish-alert-trace-context/14-VERIFICATION.md
 ## Notes
 
 - Retryability remains scoped to send-stage failures classified by `internal/notifier.IsRetryableSendError`.
-- Unsupported channel types, sender init failures, datasource lookup failures, and template/render failures remain terminal and do not consume multiple retry attempts.
+- Unsupported channel types and sender init failures remain terminal and do not consume multiple retry attempts.
+- Datasource lookup and template/render failures can fall back to default notification content, after which the final `SendToChannel` stage still follows the same bounded retry contract.
 - The final automated proof for this plan is `go test ./... -count=1`.

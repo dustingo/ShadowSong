@@ -843,7 +843,8 @@ func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPe
 	afterCounts := countWebhookNotificationState(t, db)
 
 	logOutput := logBuffer.String()
-	assert.GreaterOrEqual(t, attempts, 2)
+	assert.Equal(t, notificationMaxAttempts, attempts)
+	assert.Equal(t, notificationMaxAttempts, strings.Count(logOutput, "stage=send_attempt"))
 	assert.Equal(t, 1, strings.Count(logOutput, "stage=terminal_failure"))
 	assert.Contains(t, logOutput, "trace_id=trace-terminal")
 	assert.Contains(t, logOutput, "alert_id=alert-terminal")

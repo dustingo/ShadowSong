@@ -20,7 +20,7 @@ key-files:
   created: []
   modified: [internal/notifier/notifier.go, internal/notifier/notifier_test.go, internal/handlers/webhook.go, internal/handlers/webhook_test.go]
 key-decisions:
-  - "Retryability stays scoped to wrapped SendToChannel send-stage failures so datasource, template, and config errors remain terminal."
+  - "Retryability stays scoped to wrapped SendToChannel send-stage failures; datasource and render problems can still degrade to default content before entering the same send-stage retry boundary."
   - "All channel types share one fixed retry budget of three attempts with a short in-goroutine delay instead of channel-specific policies."
 patterns-established:
   - "Notification attempts log trace_id, alert_id, channel_id, attempt, max_attempts, and error on every send try."
@@ -60,7 +60,7 @@ Each task was committed atomically through the TDD cycle:
 ## Files Created/Modified
 
 - `internal/notifier/notifier.go` - adds the shared send-stage retryability classifier used by webhook notification retries.
-- `internal/notifier/notifier_test.go` - proves transient send failures are retryable while unsupported/init/template/datasource failures remain terminal.
+- `internal/notifier/notifier_test.go` - proves transient send failures are retryable while unsupported types and sender init failures remain terminal without relying on a live outbound call.
 - `internal/handlers/webhook.go` - adds bounded retry orchestration, attempt-field logging, terminal failure logging, and a testable sleep seam.
 - `internal/handlers/webhook_test.go` - verifies transient retry success, non-retryable early stop, and retry exhaustion logging.
 

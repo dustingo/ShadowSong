@@ -270,22 +270,16 @@ GORM documents `type` and `index` tags for model fields, and the repo already mi
 | A2 | A small helper in `internal/handlers/webhook.go` or a tiny local `internal/observability/trace.go` package is acceptable without triggering a broader architecture refactor. | Recommended Project Structure | Planner may choose the wrong seam and create unnecessary churn. |
 | A3 | A 16-byte random trace encoded to 32 hex chars is the right length/format for this phase’s stable correlation field. | Code Examples, Don't Hand-Roll | Planner may need to revisit column size or external search ergonomics. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `trace_id` be returned in the webhook HTTP response body?**
-   What we know: The phase scope requires backend observability, not client-facing trace UX. [VERIFIED: `.planning/phases/14-establish-alert-trace-context/14-CONTEXT.md`]
-   What's unclear: Returning the field could simplify manual replay/debug workflows, but it is not currently required. [ASSUMED]
-   Recommendation: Treat response exposure as optional unless the planner wants a low-risk operator convenience addition. [ASSUMED]
+1. **Should `trace_id` be returned in the webhook HTTP response body?**  
+   **RESOLVED:** No. Phase 14 remains backend-only, and exposing `trace_id` in the HTTP response is deferred because the locked scope does not include client-facing trace UX. The plan should keep trace truth inside backend persistence, Redis propagation, and lifecycle logs only. [VERIFIED: `.planning/phases/14-establish-alert-trace-context/14-CONTEXT.md`] [ASSUMED]
 
-2. **How durable must dedup-only request lookup be after logs age out?**
-   What we know: The current code path does not create a new alert row for a dedup hit. [VERIFIED: `internal/handlers/webhook.go`]
-   What's unclear: The locked scope does not require an event table, so long-term persistence for dedup-only traces is still a product decision. [VERIFIED: `.planning/phases/14-establish-alert-trace-context/14-CONTEXT.md`]
-   Recommendation: Call out the limitation in planning and keep the solution log-first for Phase 14 unless the user explicitly expands scope. [ASSUMED]
+2. **How durable must dedup-only request lookup be after logs age out?**  
+   **RESOLVED:** Phase 14 accepts a log-first answer for dedup-only requests. Newly created alerts get durable `Alert.TraceID`; dedup requests must emit explicit lifecycle logs with `trace_id`, `fingerprint`, and `existing_alert_id`, but they do not require a new event table or long-term dedup trace store in this phase. [VERIFIED: `internal/handlers/webhook.go`] [VERIFIED: `.planning/phases/14-establish-alert-trace-context/14-CONTEXT.md`] [ASSUMED]
 
-3. **Should the planner standardize field names now or wait for Phase 16?**
-   What we know: Phase 16 owns log-format consistency, while Phase 14 owns trace baseline only. [VERIFIED: `.planning/REQUIREMENTS.md`]
-   What's unclear: Some field naming decisions must still be made now to avoid later churn. [ASSUMED]
-   Recommendation: Lock only the minimum Phase 14 fields now, such as `trace_id`, `stage`, `alert_id`, `fingerprint`, `source`, and optional `channel_id`. [ASSUMED]
+3. **Should the planner standardize field names now or wait for Phase 16?**  
+   **RESOLVED:** Lock only the minimum Phase 14 field contract now: `trace_id`, `stage`, `alert_id`, `fingerprint`, `existing_alert_id`, `source`, and Redis metadata where applicable. Broader logging-field standardization remains Phase 16 work. [VERIFIED: `.planning/REQUIREMENTS.md`] [VERIFIED: `.planning/phases/14-establish-alert-trace-context/14-CONTEXT.md`] [ASSUMED]
 
 ## Security Domain
 

@@ -104,7 +104,11 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 	}
 
 	// 3. 读取原始数据
-	traceID := newTraceID()
+	traceID, err := newTraceID()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to initialize trace context"})
+		return
+	}
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -258,12 +262,12 @@ func (h *WebhookHandler) normalizeData(data interface{}) []map[string]interface{
 	return alerts
 }
 
-func newTraceID() string {
+func newTraceID() (string, error) {
 	traceBytes := make([]byte, 16)
 	if _, err := rand.Read(traceBytes); err != nil {
-		panic(fmt.Sprintf("failed to generate trace id: %v", err))
+		return "", fmt.Errorf("generate trace id: %w", err)
 	}
-	return hex.EncodeToString(traceBytes)
+	return hex.EncodeToString(traceBytes), nil
 }
 
 // renderAlert 使用 input_template 渲染告警数据

@@ -64,8 +64,8 @@ Plans:
 
 Plans:
 
-- [ ] 15-01: Add bounded retry behavior and attempt-level context to async notification delivery
-- [ ] 15-02: Verify terminal failure handling and retry diagnostics without changing the current stack
+- [x] 15-01: Add bounded retry behavior and attempt-level context to async notification delivery
+- [x] 15-02: Verify terminal failure handling and retry diagnostics without changing the current stack
 
 **Success criteria:**
 - 瞬时失败通知不会在首次失败后直接结束
@@ -106,7 +106,7 @@ Plans:
 
 ## Next Step
 
-- Use `/gsd-discuss-phase 15` to clarify Phase 15 implementation details, or `/gsd-plan-phase 15` to plan directly
+- Use `/gsd-discuss-phase 16` to clarify Phase 16 implementation details, or `/gsd-plan-phase 16` to plan directly
 
 ## Progress
 
@@ -117,6 +117,6 @@ Plans:
 | 12. Establish Automated Quality Gates | v1.2 | 2/2 | Complete | 2026-04-21 |
 | 13. Harden Notification Delivery Path | v1.2 | 2/2 | Complete | 2026-04-21 |
 | 14. Establish Alert Trace Context | v1.3 | 2/2 | Complete    | 2026-04-21 |
-| 15. Harden Notification Retry Boundaries | v1.3 | 0/2 | Planned | — |
+| 15. Harden Notification Retry Boundaries | v1.3 | 2/2 | Complete    | 2026-04-21 |
 | 16. Standardize Alert Path Logging | v1.3 | 0/2 | Planned | — |
 | 17. Clean Truth And Operational Docs | v1.3 | 0/2 | Planned | — |

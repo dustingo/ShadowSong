@@ -30,3 +30,18 @@
 - 收口了 `PROJECT` 真相文档、前端测试 warning 噪音以及 capability-only authz seam
 
 ---
+
+## v1.2 Alert Pipeline Hardening (Shipped: 2026-04-21)
+
+**Phases completed:** 4 phases, 8 plans, 8 summary-reported tasks
+
+**Key accomplishments:**
+
+- 收紧了 `/ws/alerts` 实时告警访问面，WebSocket 握手已要求 JWT 且受来源 allowlist 限制
+- 前端质量基线已恢复为 green，`pnpm lint`、`pnpm test -- --run` 与 `pnpm build` 均已打通
+- 仓库已新增 GitHub Actions 质量门禁，覆盖后端测试与前端 lint/test/build
+- README 与前端包名等低风险入口已继续对齐到当前非 AI 告警系统基线
+- webhook 异步通知 goroutine 已补 panic recover，失败日志具备告警/渠道上下文
+- 通知链路可靠性路径已纳入直接 Go 测试和后端自动门禁
+
+---

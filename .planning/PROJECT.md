@@ -2,7 +2,7 @@
 
 ## What This Is
 
-这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设。当前里程碑为 v1.2 `Alert Pipeline Hardening`，重点转向告警链路安全加固、工程化门禁补齐与通知可靠性提升。
+这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设；v1.2 已完成告警链路安全与工程化加固。当前代码库已经具备安全收口后的实时告警访问、前端质量基线、自动化质量门禁和基础通知可靠性。
 
 ## Core Value
 
@@ -24,10 +24,6 @@
 - [x] 系统已建立 GitHub Actions 质量门禁，覆盖后端测试与前端 lint/test/build，并同步收口低风险工程命名与真相文档（Validated in Phase 12）
 - [x] 系统已加固 webhook 异步通知链路，通知 goroutine panic 不再裸奔，失败日志具备基础可追踪性（Validated in Phase 13）
 
-### Active
-
-- [ ] Webhook 异步通知链路需要具备基础的 panic 防护、失败可观测性与可追踪日志，降低静默丢通知风险
-
 ### Out of Scope
 
 - 细粒度自定义权限编辑器或任意 RBAC DSL - 本轮先落地固定角色分级，优先消除高风险越权问题
@@ -36,29 +32,18 @@
 
 ## Current State
 
-- 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档
-- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
-- 最新阶段：Phase 13 `Harden Notification Delivery Path` 已完成验证，v1.2 计划内 hardening phases 已全部完成
-- 旧 milestone phase 目录已清理，历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将从 Phase 10 继续编号
+- 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）、`v1.2 Alert Pipeline Hardening`（2026-04-21）
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文日志
+- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
+- 最新阶段：v1.2 `Alert Pipeline Hardening` 已完成归档前收尾，下一步是定义新里程碑
+- 历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将沿现有 phase 编号继续推进
 
 ## Next Milestone Goals
 
-**v1.2 Alert Pipeline Hardening**
-- 收紧 WebSocket 告警流的认证与来源控制，堵住实时告警流的公开访问面
-- 收口前端 lint / build 质量问题，并建立 CI 质量门禁，防止后续回归静默进入主干
-- 提升 webhook 异步通知的可靠性、失败日志与可追踪性，减少丢通知和排障盲区
-- 统一本轮涉及的文档、命名与工程入口，确保项目继续沿“非 AI 告警系统”的真相演进
-
-## Current Milestone: v1.2 Alert Pipeline Hardening
-
-**Goal:** 在不改变现有技术栈和核心产品能力边界的前提下，加固告警实时链路安全性、补齐工程质量门禁，并提高通知分发链路的运行可靠性。
-
-**Target features:**
-- WebSocket 实时告警流鉴权与来源限制
-- 前端 lint 修复与持续集成质量门禁
-- Webhook 异步通知链路 panic 防护、失败日志与追踪改进
-- 文档与命名对齐，保持“非 AI 告警系统”表述一致
+**To Be Defined**
+- 使用 `/gsd-new-milestone` 明确下一轮目标、需求和 phase 拆分
+- 评估是否提升通知链路的重试/持久化能力、继续清理历史命名、或扩展治理能力
+- 在不破坏现有 brownfield 基线的前提下，确定下一轮最值得投入的产品/工程短板
 
 ## Context
 
@@ -68,7 +53,7 @@
 - 当前用户体系已覆盖账号禁用、强制改密、旧会话失效和关键安全操作审计日志
 - v1.1 里程碑已确认 23/23 requirements、5/5 phases、15/15 plans 完成，权限治理基线已经稳定
 - v1.2 继续在 brownfield 代码库上演进，不做技术迁移，优先补齐安全边界、工程门禁和通知可靠性短板
-- 当前仓库前后端测试可运行，WebSocket 访问面、前端质量基线、自动化门禁和通知链路基础可靠性均已收口；后续工作可转向新里程碑或遗留增强项筛选
+- 当前仓库前后端测试可运行，WebSocket 访问面、前端质量基线、自动化门禁和通知链路基础可靠性均已收口；后续工作应转入新里程碑定义或遗留增强项筛选
 
 ## Constraints
 

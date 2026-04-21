@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Alert Pipeline Hardening
-status: planning
+status: milestone_complete
 last_updated: "2026-04-21T10:40:00.000Z"
 last_activity: 2026-04-21
 progress:
@@ -17,15 +17,15 @@ progress:
 
 Phase: complete
 Plan: Phase 13 complete
-Status: v1.2 milestone verified; ready for milestone closeout
-Last activity: 2026-04-21 - Phase 13 verified and closed
+Status: v1.2 milestone archived; ready for next milestone definition
+Last activity: 2026-04-21 - v1.2 milestone archival prepared
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-04-21)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Close out v1.2 Alert Pipeline Hardening and prepare the next milestone
+**Current focus:** Start the next milestone definition flow
 
 ## Accumulated Context
 
@@ -52,5 +52,5 @@ See: `.planning/PROJECT.md` (updated 2026-04-21)
 
 ## Session Resume
 
-- Resume file: `.planning/ROADMAP.md`
-- Stopped at: Phase 13 complete; next step is milestone closeout
+- Resume file: `.planning/PROJECT.md`
+- Stopped at: v1.2 milestone complete; next step is `/gsd-new-milestone`

@@ -23,11 +23,11 @@
 - [x] 系统已恢复前端本地质量基线，`pnpm lint`、`pnpm test -- --run` 与 `pnpm build` 均可通过（Validated in Phase 11）
 - [x] 系统已建立 GitHub Actions 质量门禁，覆盖后端测试与前端 lint/test/build，并同步收口低风险工程命名与真相文档（Validated in Phase 12）
 - [x] 系统已加固 webhook 异步通知链路，通知 goroutine panic 不再裸奔，失败日志具备基础可追踪性（Validated in Phase 13）
+- [x] 系统已为 webhook 接入到通知分发主链路建立服务端 trace_id 真源，并补齐 ingest / persist / dedup / Redis / route_match / notification_entry 生命周期观测点（Validated in Phase 14）
 
 ### Active
 
 - [ ] 通知发送链路需要从“基础失败可排查”提升到“瞬时失败可恢复、最终失败有明确落点”的可靠性基线
-- [ ] 告警从 webhook 接入到通知分发的关键阶段需要具备统一的关联标识和生命周期观测点，降低跨链路排障成本
 - [ ] 后端告警链路日志需要统一格式和字段约定，减少 `fmt` 风格散乱日志带来的检索困难
 - [ ] 历史命名和文档真相需要继续清理，确保仓库入口、运行说明和阶段文档反映当前非 AI 告警系统现状
 
@@ -40,9 +40,9 @@
 ## Current State
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）、`v1.2 Alert Pipeline Hardening`（2026-04-21）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文日志
-- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`
-- 最新阶段：v1.3 `Notification Reliability and Observability` 已启动，当前正在定义 requirements 与 roadmap
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文日志、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志
+- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、Phase 14 trace/context handlers 与 phase verification
+- 最新阶段：Phase 14 complete — v1.3 下一步进入 Phase 15 `Harden Notification Retry Boundaries`
 - 历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将沿现有 phase 编号继续推进
 
 ## Current Milestone: v1.3 Notification Reliability and Observability
@@ -86,6 +86,7 @@
 | 配置类写权限仅授予 `admin`，`operator` 保留告警处理能力 | 配置变更风险高于日常值班处理，需要明确职责分层 | ✓ Good |
 | 将审计日志、账号禁用和强制改密纳入本里程碑 | 这些能力直接关系到账户控制安全性，不能只做静态角色收口 | ✓ Good |
 | v1.3 先在现有应用内补齐通知重试、关联标识和日志统一，不引入新队列或外部观测平台 | 先以最小迁移成本提升主链路可靠性和排障效率，避免在 brownfield 阶段把问题扩大成基础设施改造 | ✓ Good |
+| Phase 14 先把 trace 真源和生命周期观测点锁在 webhook 主链路，再继续 Phase 15/16 的重试与日志统一 | 先建立稳定关联字段和阶段证据，后续可靠性与日志格式化才有一致排障真源 | ✓ Good |
 
 ## Evolution
 
@@ -123,4 +124,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-21 after milestone v1.3 initialization*
+*Last updated: 2026-04-21 after Phase 14 completion*

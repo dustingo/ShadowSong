@@ -48,8 +48,8 @@ See `.planning/milestones/v1.2-ROADMAP.md`
 
 Plans:
 
-- [ ] 14-01: Generate and propagate stable correlation fields through webhook ingest and alert processing
-- [ ] 14-02: Verify alert lifecycle observability across ingest, persistence, routing, and notification entrypoints
+- [x] 14-01: Generate and propagate stable correlation fields through webhook ingest and alert processing
+- [x] 14-02: Verify alert lifecycle observability across ingest, persistence, routing, and notification entrypoints
 
 **Success criteria:**
 - 单次告警处理具备可跨阶段检索的统一关联字段
@@ -106,7 +106,7 @@ Plans:
 
 ## Next Step
 
-- Use `/gsd-discuss-phase 14` to clarify Phase 14 implementation details, or `/gsd-plan-phase 14` to plan directly
+- Use `/gsd-discuss-phase 15` to clarify Phase 15 implementation details, or `/gsd-plan-phase 15` to plan directly
 
 ## Progress
 
@@ -116,7 +116,7 @@ Plans:
 | 11. Restore Frontend Quality Baseline | v1.2 | 2/2 | Complete | 2026-04-20 |
 | 12. Establish Automated Quality Gates | v1.2 | 2/2 | Complete | 2026-04-21 |
 | 13. Harden Notification Delivery Path | v1.2 | 2/2 | Complete | 2026-04-21 |
-| 14. Establish Alert Trace Context | v1.3 | 0/2 | Planned | — |
+| 14. Establish Alert Trace Context | v1.3 | 2/2 | Complete    | 2026-04-21 |
 | 15. Harden Notification Retry Boundaries | v1.3 | 0/2 | Planned | — |
 | 16. Standardize Alert Path Logging | v1.3 | 0/2 | Planned | — |
 | 17. Clean Truth And Operational Docs | v1.3 | 0/2 | Planned | — |

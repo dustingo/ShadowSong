@@ -1,4 +1,3 @@
 # Deferred Items
 
-- `go test ./... -count=1` currently fails in `internal/router` because `internal/router/router_test.go` calls `handlers.NewWebhookHandler(nil, nil)`, and the constructor still dereferences a nil Redis client. This is pre-existing test debt outside plan `14-02` scope.
-- `go test ./... -count=1` also hit a Windows-specific file lock while building `internal/database.test.exe` (`The process cannot access the file because it is being used by another process`). This is environmental and unrelated to the webhook lifecycle changes in plan `14-02`.
+- Resolved during Phase 14 completion: `go test ./... -count=1` initially failed in `internal/router` because `internal/router/router_test.go` calls `handlers.NewWebhookHandler(nil, nil)`, and the constructor had started dereferencing a nil Redis client. Commit `2fcb8f0` restored the previous nil-safe behavior and the full Go suite passed afterward.

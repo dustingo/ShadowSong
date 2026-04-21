@@ -30,7 +30,7 @@ completed: 2026-04-21
 
 # Phase 14 Plan 02: Establish Alert Trace Context Summary
 
-**Webhook lifecycle logs now expose one searchable trace across ingest, persist or dedup, Redis handoff, route matching, and notification entry with explicit Redis outcome metadata**
+**Webhook lifecycle logs now expose one searchable trace across ingest, persist or dedup, Redis handoff, route matching, and notification entry with explicit Redis outcome metadata, and the constructor remains nil-safe for router tests without Redis**
 
 ## Performance
 
@@ -45,6 +45,7 @@ completed: 2026-04-21
 - Added explicit lifecycle stages for webhook ingest, persist, dedup, Redis publish, route match, and notification entry
 - Logged Redis stream/message metadata on success and explicit failure evidence on `XAdd` errors without dumping raw payload bodies
 - Locked the observability contract with focused handler tests covering shared trace reuse, dedup metadata, and Redis failure visibility
+- Restored nil-safe `NewWebhookHandler(nil, nil)` construction so full backend route tests stay green after the new Redis seam
 
 ## Task Commits
 
@@ -53,18 +54,21 @@ Each task was committed atomically through TDD-style steps:
 1. **Task 1 RED: add failing lifecycle observability tests** - `e8b5400` (test)
 2. **Task 1 GREEN: add webhook lifecycle observability stages** - `2eb8f7b` (feat)
 3. **Task 2: lock lifecycle observability regressions** - `ae7a50e` (test)
+4. **Post-verification regression fix: keep webhook handler nil-safe without Redis** - `2fcb8f0` (fix)
 
 ## Verification
 
 - `go test ./internal/handlers -run "TestWebhookHandler(LogsLifecycleStages|RedisPublishFailure|Dedup).*" -count=1`
 - `go test ./internal/handlers -count=1`
-- `go test ./... -count=1`  (fails outside plan scope; see Deferred Issues)
+- `go test ./internal/router -run "TestSetup_RoutesWithoutAIRuntime" -count=1`
+- `go test ./... -count=1`
 
 ## Files Created/Modified
 
 - `internal/handlers/webhook.go` - lifecycle stage emission, Redis metadata logging, and deterministic async runner seam
+- `internal/handlers/webhook.go` - nil-safe constructor fallback when Redis is absent in router tests
 - `internal/handlers/webhook_test.go` - lifecycle, dedup, and Redis failure observability tests
-- `.planning/phases/14-establish-alert-trace-context/deferred-items.md` - out-of-scope regression notes from full backend verification
+- `.planning/phases/14-establish-alert-trace-context/deferred-items.md` - record of transient verification regressions resolved before phase completion
 - `.planning/phases/14-establish-alert-trace-context/14-02-SUMMARY.md` - plan execution summary
 
 ## Decisions Made
@@ -92,11 +96,12 @@ Each task was committed atomically through TDD-style steps:
 
 ## Issues Encountered
 
-- Full-package verification exposed two out-of-scope issues: a pre-existing nil Redis client panic in `internal/router` tests and a Windows file-lock conflict while building `internal/database.test.exe`
+- Initial full-package verification exposed a nil Redis client panic in `internal/router` tests after the new Redis seam started dereferencing `redisClient.XAdd` eagerly
+- The constructor was updated to preserve the existing nil-safe behavior, and the focused router regression plus `go test ./... -count=1` both passed afterward
 
 ## Deferred Issues
 
-- See `.planning/phases/14-establish-alert-trace-context/deferred-items.md` for the out-of-scope `go test ./...` failures that were not introduced by this plan
+- None. `.planning/phases/14-establish-alert-trace-context/deferred-items.md` now records the resolved verification issue for audit history.
 
 ## User Setup Required
 
@@ -105,7 +110,7 @@ None - no external setup required.
 ## Next Phase Readiness
 
 - Phase 14 now has an operator-searchable lifecycle contract that Phase 15 retry work and Phase 16 logging normalization can build on
-- The remaining blocker for all-package green is outside this plan and documented for follow-up
+- Backend Go tests are green again, so Phase 15 can extend retry boundaries without inheriting a known router regression
 
 ## Known Stubs
 

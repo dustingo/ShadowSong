@@ -41,16 +41,21 @@ type WebhookHandler struct {
 }
 
 func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
-	return &WebhookHandler{
+	handler := &WebhookHandler{
 		db:            db,
 		redisClient:   redisClient,
 		logger:        log.New(os.Stdout, "notification ", log.LstdFlags),
-		redisXAdd:     redisClient.XAdd,
 		sendToChannel: notifier.SendToChannel,
 		runAsync: func(fn func()) {
 			go fn()
 		},
 	}
+
+	if redisClient != nil {
+		handler.redisXAdd = redisClient.XAdd
+	}
+
+	return handler
 }
 
 func (h *WebhookHandler) HandleWebhook(c *gin.Context) {

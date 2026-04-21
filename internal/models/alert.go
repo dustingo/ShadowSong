@@ -11,6 +11,7 @@ import (
 // Alert represents a unified alert structure
 type Alert struct {
 	AlertID     string         `gorm:"primaryKey;type:varchar(64)" json:"alert_id"`
+	TraceID     string         `gorm:"index;type:varchar(64)" json:"trace_id"`
 	Source      string         `gorm:"index" json:"source"`
 	AlertName   string         `gorm:"index" json:"alert_name"`
 	Severity    string         `gorm:"index" json:"severity"` // P0/P1/P2/P3

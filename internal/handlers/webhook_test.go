@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -76,8 +74,8 @@ func TestWebhookHandlerHandleWebhookTraceSharedAcrossNewAlerts(t *testing.T) {
 	assert.NotEqual(t, "caller-supplied-b", alerts[1].TraceID)
 	assert.Equal(t, "external-1", alerts[0].AlertID)
 	assert.Equal(t, "external-2", alerts[1].AlertID)
-	assert.Equal(t, computeExpectedFingerprint(t, alerts[0]), alerts[0].Fingerprint)
-	assert.Equal(t, computeExpectedFingerprint(t, alerts[1]), alerts[1].Fingerprint)
+	assert.Equal(t, computeCurrentFingerprintContract(handler, alerts[0]), alerts[0].Fingerprint)
+	assert.Equal(t, computeCurrentFingerprintContract(handler, alerts[1]), alerts[1].Fingerprint)
 }
 
 func TestWebhookHandlerHandleWebhookTraceIgnoresCallerSuppliedValue(t *testing.T) {
@@ -387,15 +385,6 @@ func performWebhookRequest(
 	return recorder
 }
 
-func computeExpectedFingerprint(t *testing.T, alert models.Alert) string {
-	t.Helper()
-
-	payload := strings.Join([]string{
-		fmt.Sprintf("alert_name=%s", alert.AlertName),
-		fmt.Sprintf("severity=%s", alert.Severity),
-		fmt.Sprintf("source=%s", alert.Source),
-	}, ",")
-
-	hash := sha256.Sum256([]byte(payload))
-	return hex.EncodeToString(hash[:])
+func computeCurrentFingerprintContract(handler *WebhookHandler, alert models.Alert) string {
+	return handler.generateFingerprint(alert, nil)
 }

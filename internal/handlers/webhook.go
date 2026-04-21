@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -30,9 +31,9 @@ const (
 )
 
 type WebhookHandler struct {
-	db          *gorm.DB
-	redisClient *redis.Client
-	logger      *log.Logger
+	db            *gorm.DB
+	redisClient   *redis.Client
+	logger        *log.Logger
 	sendToChannel func(channel *models.Channel, title, content string) error
 }
 
@@ -91,6 +92,8 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 	}
 
 	// 3. 读取原始数据
+	traceID := newTraceID()
+
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read request body"})
@@ -172,6 +175,7 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 			dedupUntil := now.Add(dedupWindow)
 			alert.DeduplicateUntil = &dedupUntil
 		}
+		alert.TraceID = traceID
 
 		if err := h.db.Create(&alert).Error; err != nil {
 			errors = append(errors, fmt.Sprintf("failed to save alert: %v", err))
@@ -227,6 +231,14 @@ func (h *WebhookHandler) normalizeData(data interface{}) []map[string]interface{
 	}
 
 	return alerts
+}
+
+func newTraceID() string {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(fmt.Sprintf("failed to generate trace id: %v", err))
+	}
+	return hex.EncodeToString(bytes)
 }
 
 // renderAlert 使用 input_template 渲染告警数据

@@ -29,6 +29,8 @@ import (
 const (
 	InputTemplate  = "input_template"
 	OutputTemplate = "output_template"
+
+	notificationMaxAttempts = 3
 )
 
 type WebhookHandler struct {
@@ -38,6 +40,7 @@ type WebhookHandler struct {
 	redisXAdd     func(ctx context.Context, args *redis.XAddArgs) *redis.StringCmd
 	sendToChannel func(channel *models.Channel, title, content string) error
 	runAsync      func(fn func())
+	sleep         func(time.Duration)
 }
 
 func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
@@ -49,6 +52,7 @@ func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
 		runAsync: func(fn func()) {
 			go fn()
 		},
+		sleep: time.Sleep,
 	}
 
 	if redisClient != nil {
@@ -751,6 +755,13 @@ func (h *WebhookHandler) asyncRunner() func(fn func()) {
 	}
 }
 
+func (h *WebhookHandler) sleepFunc() func(time.Duration) {
+	if h.sleep != nil {
+		return h.sleep
+	}
+	return time.Sleep
+}
+
 func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, channel *models.Channel, format string, args ...interface{}) {
 	fields := []string{fmt.Sprintf("stage=%s", stage)}
 	if alert != nil {
@@ -819,6 +830,18 @@ func (h *WebhookHandler) traceFieldsForNotification(alert *models.Alert, channel
 	if channel != nil {
 		fields["channel_id"] = fmt.Sprintf("%d", channel.ID)
 		fields["channel_name"] = channel.Name
+	}
+	return fields
+}
+
+func (h *WebhookHandler) traceFieldsForAttempt(alert *models.Alert, channel *models.Channel, attempt, maxAttempts int, err error) map[string]string {
+	fields := h.traceFieldsForNotification(alert, channel)
+	fields["attempt"] = fmt.Sprintf("%d", attempt)
+	fields["max_attempts"] = fmt.Sprintf("%d", maxAttempts)
+	if err != nil {
+		fields["error"] = err.Error()
+	} else {
+		fields["error"] = "none"
 	}
 	return fields
 }
@@ -1020,19 +1043,45 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 	}
 
 	// 发送通知
-	if err := h.notificationSender()(channel, title, content); err != nil {
-		h.logNotification("send_notification", alert, channel, "failed to send rendered notification err=%v", err)
-	} else {
-		h.logNotification("send_notification", alert, channel, "notification sent")
-	}
+	h.sendChannelNotification(alert, channel, title, content, "rendered")
 }
 
 // sendDefaultNotification 发送默认格式的通知
 func (h *WebhookHandler) sendDefaultNotification(alert *models.Alert, channel *models.Channel) {
 	title := fmt.Sprintf("[%s] %s", alert.Severity, alert.AlertName)
 	content := alert.Message
-	if err := h.notificationSender()(channel, title, content); err != nil {
-		h.logNotification("send_default_notification", alert, channel, "failed to send default notification err=%v", err)
+	h.sendChannelNotification(alert, channel, title, content, "default")
+}
+
+func (h *WebhookHandler) sendChannelNotification(
+	alert *models.Alert,
+	channel *models.Channel,
+	title string,
+	content string,
+	mode string,
+) {
+	sender := h.notificationSender()
+
+	for attempt := 1; attempt <= notificationMaxAttempts; attempt++ {
+		err := sender(channel, title, content)
+		h.logTraceStage("send_attempt", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), "mode=%s", mode)
+
+		if err == nil {
+			h.logTraceStage("send_notification", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, nil), "notification sent")
+			return
+		}
+
+		if !notifier.IsRetryableSendError(err) {
+			h.logTraceStage("send_notification", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), "failed to send %s notification err=%v", mode, err)
+			return
+		}
+
+		if attempt == notificationMaxAttempts {
+			h.logTraceStage("terminal_failure", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), "retry budget exhausted for %s notification err=%v", mode, err)
+			return
+		}
+
+		h.sleepFunc()(50 * time.Millisecond)
 	}
 }
 

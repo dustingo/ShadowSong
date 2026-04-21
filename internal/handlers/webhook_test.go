@@ -825,6 +825,7 @@ func newWebhookTestHandler(db *gorm.DB) (*WebhookHandler, *bytes.Buffer) {
 		runAsync: func(fn func()) {
 			fn()
 		},
+		sleep: func(time.Duration) {},
 	}, buffer
 }
 

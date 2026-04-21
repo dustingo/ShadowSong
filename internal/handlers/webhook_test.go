@@ -652,7 +652,56 @@ func TestWebhookHandlerSendNotification_LogsAlertAndChannelContext(t *testing.T)
 	assert.Contains(t, logOutput, "failed to send rendered notification")
 }
 
-func TestWebhookHandlerSendNotification_RetriesTransientSendFailure(t *testing.T) {
+func TestWebhookHandlerSendNotification_ImmediateSuccessSingleAttempt(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	attempts := 0
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		attempts++
+		return nil
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+
+	alert := &models.Alert{
+		AlertID:     "alert-immediate-success",
+		TraceID:     "trace-immediate-success",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-immediate-success",
+		Status:      "firing",
+	}
+	channel := &models.Channel{
+		ID:      41,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}
+
+	handler.sendNotification(alert, channel)
+
+	logOutput := logBuffer.String()
+	assert.Equal(t, 1, attempts)
+	assert.Equal(t, 1, strings.Count(logOutput, "stage=send_attempt"))
+	assert.Equal(t, 1, strings.Count(logOutput, "stage=send_notification"))
+	assert.Contains(t, logOutput, "trace_id=trace-immediate-success")
+	assert.Contains(t, logOutput, "alert_id=alert-immediate-success")
+	assert.Contains(t, logOutput, "channel_id=41")
+	assert.Contains(t, logOutput, "attempt=1")
+	assert.Contains(t, logOutput, "max_attempts=")
+	assert.NotContains(t, logOutput, "stage=terminal_failure")
+}
+
+func TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
 	attempts := 0
@@ -754,7 +803,7 @@ func TestWebhookHandlerSendNotification_NonRetryableFailureStopsAfterFirstAttemp
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
 }
 
-func TestWebhookHandlerSendNotification_LogsTerminalFailureAfterRetryExhaustion(t *testing.T) {
+func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPersistenceSideEffects(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
 	attempts := 0
@@ -789,7 +838,9 @@ func TestWebhookHandlerSendNotification_LogsTerminalFailureAfterRetryExhaustion(
 		Enabled: true,
 	}
 
+	beforeCounts := countWebhookNotificationState(t, db)
 	handler.sendNotification(alert, channel)
+	afterCounts := countWebhookNotificationState(t, db)
 
 	logOutput := logBuffer.String()
 	assert.GreaterOrEqual(t, attempts, 2)
@@ -800,6 +851,7 @@ func TestWebhookHandlerSendNotification_LogsTerminalFailureAfterRetryExhaustion(
 	assert.Contains(t, logOutput, "attempt=")
 	assert.Contains(t, logOutput, "max_attempts=")
 	assert.Contains(t, logOutput, "error=")
+	assert.Equal(t, beforeCounts, afterCounts)
 }
 
 func newWebhookTestDB(t *testing.T) *gorm.DB {
@@ -855,4 +907,22 @@ func performWebhookRequest(
 
 func computeCurrentFingerprintContract(handler *WebhookHandler, alert models.Alert) string {
 	return handler.generateFingerprint(alert, nil)
+}
+
+func countWebhookNotificationState(t *testing.T, db *gorm.DB) map[string]int64 {
+	t.Helper()
+
+	counts := map[string]int64{}
+	for name, model := range map[string]interface{}{
+		"alerts":      &models.Alert{},
+		"dataSources": &models.DataSource{},
+		"channels":    &models.Channel{},
+		"routeRules":  &models.RouteRule{},
+	} {
+		var count int64
+		require.NoError(t, db.Model(model).Count(&count).Error)
+		counts[name] = count
+	}
+
+	return counts
 }

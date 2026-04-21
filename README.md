@@ -1,11 +1,11 @@
 # 游戏运维告警系统
 
-面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多个数据源的告警信息。当前版本已经完成 AI 能力移除，并支持通知模板原始事件透传与数据源模板预览。
+面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多个数据源的告警信息。当前版本基于非 AI 告警系统基线持续演进，并支持通知模板原始事件透传与数据源模板预览。
 
 ## 技术栈
 
 ### 后端
-- Go 1.21+
+- Go 1.25.0
 - Gin Web Framework
 - PostgreSQL 14+
 - Redis 7+
@@ -23,7 +23,7 @@
 
 ### 前置要求
 
-- Go 1.21+
+- Go 1.25.0
 - Node.js 18+
 - pnpm
 - Docker & Docker Compose
@@ -49,7 +49,7 @@ make docker-up
 
 正常启动后端只需要数据库、Redis、服务端口和 JWT 相关配置。仓库根目录已提供本地开发用的 `.env` 基线，可按实际环境调整以下配置：
 
-项目常规启动不需要 `OPENAI_*` 或 `AI_*` 变量。
+项目常规启动不依赖任何 AI 相关环境变量。
 
 - `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`
 - `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` / `REDIS_DB`
@@ -151,6 +151,12 @@ make frontend-dev
 - 后端真实通知透传验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_template_passthrough.ps1`
 - 后端无 AI 闭环验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_backend_no_ai.ps1`
 - 前端无 AI 构建/残留扫描脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_frontend_no_ai.ps1`
+
+## 工程质量门禁
+
+- GitHub Actions 工作流位于 `.github/workflows/quality-gates.yml`
+- 自动门禁覆盖后端 `go test ./...`
+- 自动门禁覆盖前端 `pnpm lint`、`pnpm test -- --run`、`pnpm build`
 
 ## 开发命令
 

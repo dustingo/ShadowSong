@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ type WebhookHandler struct {
 	db            *gorm.DB
 	redisClient   *redis.Client
 	logger        *log.Logger
+	redisXAdd     func(ctx context.Context, args *redis.XAddArgs) *redis.StringCmd
 	sendToChannel func(channel *models.Channel, title, content string) error
 }
 
@@ -42,6 +44,7 @@ func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
 		db:            db,
 		redisClient:   redisClient,
 		logger:        log.New(os.Stdout, "notification ", log.LstdFlags),
+		redisXAdd:     redisClient.XAdd,
 		sendToChannel: notifier.SendToChannel,
 	}
 }
@@ -161,6 +164,12 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 				}
 
 				h.db.Save(&existing)
+				h.logTraceStage("dedup", map[string]string{
+					"trace_id":          traceID,
+					"existing_alert_id": existing.AlertID,
+					"fingerprint":       existing.Fingerprint,
+					"source":            existing.Source,
+				}, "matched existing alert")
 				results = append(results, existing)
 				// 去重告警不发送通知（可选：可以配置是否发送）
 				continue
@@ -234,11 +243,11 @@ func (h *WebhookHandler) normalizeData(data interface{}) []map[string]interface{
 }
 
 func newTraceID() string {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
+	traceBytes := make([]byte, 16)
+	if _, err := rand.Read(traceBytes); err != nil {
 		panic(fmt.Sprintf("failed to generate trace id: %v", err))
 	}
-	return hex.EncodeToString(bytes)
+	return hex.EncodeToString(traceBytes)
 }
 
 // renderAlert 使用 input_template 渲染告警数据
@@ -534,27 +543,48 @@ func (h *WebhookHandler) generateFingerprint(alert models.Alert, groupByLabels [
 
 // publishToRedis 写入 Redis Stream
 func (h *WebhookHandler) publishToRedis(alerts []models.Alert) {
-	if h.redisClient == nil {
+	if h.redisXAdd == nil {
 		return
 	}
 
 	ctx := context.Background()
 	for _, alert := range alerts {
-		data := map[string]interface{}{
-			"alert_id":     alert.AlertID,
-			"source":       alert.Source,
-			"alert_name":   alert.AlertName,
-			"severity":     alert.Severity,
-			"message":      alert.Message,
-			"fingerprint":  alert.Fingerprint,
-			"status":       alert.Status,
-			"trigger_time": alert.TriggerTime.Unix(),
+		result := h.redisXAdd(ctx, &redis.XAddArgs{
+			Stream: "alerts:pending",
+			Values: h.buildRedisPayload(alert),
+		})
+
+		if result == nil {
+			continue
 		}
 
-		h.redisClient.XAdd(ctx, &redis.XAddArgs{
-			Stream: "alerts:pending",
-			Values: data,
-		})
+		fields := map[string]string{
+			"trace_id":    alert.TraceID,
+			"alert_id":    alert.AlertID,
+			"fingerprint": alert.Fingerprint,
+			"source":      alert.Source,
+			"stream":      "alerts:pending",
+		}
+		if err := result.Err(); err != nil {
+			h.logTraceStage("redis_publish", fields, "failed err=%v", err)
+			continue
+		}
+
+		h.logTraceStage("redis_publish", fields, "published")
+	}
+}
+
+func (h *WebhookHandler) buildRedisPayload(alert models.Alert) map[string]interface{} {
+	return map[string]interface{}{
+		"alert_id":     alert.AlertID,
+		"trace_id":     alert.TraceID,
+		"source":       alert.Source,
+		"alert_name":   alert.AlertName,
+		"severity":     alert.Severity,
+		"message":      alert.Message,
+		"fingerprint":  alert.Fingerprint,
+		"status":       alert.Status,
+		"trigger_time": alert.TriggerTime.Unix(),
 	}
 }
 
@@ -695,7 +725,9 @@ func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, chan
 	fields := []string{fmt.Sprintf("stage=%s", stage)}
 	if alert != nil {
 		fields = append(fields,
+			fmt.Sprintf("trace_id=%s", alert.TraceID),
 			fmt.Sprintf("alert_id=%s", alert.AlertID),
+			fmt.Sprintf("fingerprint=%s", alert.Fingerprint),
 			fmt.Sprintf("source=%s", alert.Source),
 		)
 	}
@@ -713,6 +745,29 @@ func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, chan
 	}
 
 	h.notificationLogger().Printf("%s %s", strings.Join(fields, " "), message)
+}
+
+func (h *WebhookHandler) logTraceStage(stage string, fields map[string]string, format string, args ...interface{}) {
+	parts := []string{fmt.Sprintf("stage=%s", stage)}
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		if fields[key] == "" {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s=%s", key, fields[key]))
+	}
+
+	message := format
+	if len(args) > 0 {
+		message = fmt.Sprintf(format, args...)
+	}
+
+	h.notificationLogger().Printf("%s %s", strings.Join(parts, " "), message)
 }
 
 func (h *WebhookHandler) processAlertNotificationsAsync(alerts []models.Alert) {

@@ -171,7 +171,7 @@ func TestWebhookHandlerPublishToRedisTracePayload(t *testing.T) {
 	handler, _ := newWebhookTestHandler(nil)
 	var captured map[string]interface{}
 	handler.redisXAdd = func(_ context.Context, args *redis.XAddArgs) *redis.StringCmd {
-		captured = args.Values
+		captured = args.Values.(map[string]interface{})
 		return redis.NewStringResult("1-0", nil)
 	}
 
@@ -474,8 +474,11 @@ func newWebhookTestDB(t *testing.T) *gorm.DB {
 func newWebhookTestHandler(db *gorm.DB) (*WebhookHandler, *bytes.Buffer) {
 	buffer := &bytes.Buffer{}
 	return &WebhookHandler{
-		db:            db,
-		logger:        log.New(buffer, "", 0),
+		db:     db,
+		logger: log.New(buffer, "", 0),
+		redisXAdd: func(_ context.Context, _ *redis.XAddArgs) *redis.StringCmd {
+			return redis.NewStringResult("1-0", nil)
+		},
 		sendToChannel: notifier.SendToChannel,
 	}, buffer
 }

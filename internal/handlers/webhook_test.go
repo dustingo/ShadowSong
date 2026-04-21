@@ -652,6 +652,156 @@ func TestWebhookHandlerSendNotification_LogsAlertAndChannelContext(t *testing.T)
 	assert.Contains(t, logOutput, "failed to send rendered notification")
 }
 
+func TestWebhookHandlerSendNotification_RetriesTransientSendFailure(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	attempts := 0
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		attempts++
+		if attempts < 3 {
+			return fmt.Errorf("channel %d (%s) send failed: webhook notification failed with status: 503", channel.ID, channel.Name)
+		}
+		return nil
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+
+	alert := &models.Alert{
+		AlertID:     "alert-retry-success",
+		TraceID:     "trace-retry-success",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-retry-success",
+		Status:      "firing",
+	}
+	channel := &models.Channel{
+		ID:      42,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}
+
+	handler.sendNotification(alert, channel)
+
+	logOutput := logBuffer.String()
+	assert.Equal(t, 3, attempts)
+	assert.GreaterOrEqual(t, strings.Count(logOutput, "stage=send_attempt"), 3)
+	assert.Contains(t, logOutput, "trace_id=trace-retry-success")
+	assert.Contains(t, logOutput, "alert_id=alert-retry-success")
+	assert.Contains(t, logOutput, "channel_id=42")
+	assert.Contains(t, logOutput, "attempt=1")
+	assert.Contains(t, logOutput, "attempt=2")
+	assert.Contains(t, logOutput, "attempt=3")
+	assert.Contains(t, logOutput, "max_attempts=")
+	assert.Contains(t, logOutput, "error=")
+	assert.Contains(t, logOutput, "stage=send_notification")
+	assert.NotContains(t, logOutput, "stage=terminal_failure")
+}
+
+func TestWebhookHandlerSendNotification_NonRetryableFailureStopsAfterFirstAttempt(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	attempts := 0
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		attempts++
+		return fmt.Errorf("channel %d (%s) sender init failed: webhook url is required", channel.ID, channel.Name)
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+
+	alert := &models.Alert{
+		AlertID:     "alert-non-retryable",
+		TraceID:     "trace-non-retryable",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-non-retryable",
+		Status:      "firing",
+	}
+	channel := &models.Channel{
+		ID:      43,
+		Name:    "ops-feishu",
+		Type:    "feishu",
+		Config:  datatypes.JSON(`{"webhook_url":"https://example.com"}`),
+		Enabled: true,
+	}
+
+	handler.sendNotification(alert, channel)
+
+	logOutput := logBuffer.String()
+	assert.Equal(t, 1, attempts)
+	assert.Equal(t, 1, strings.Count(logOutput, "stage=send_attempt"))
+	assert.Contains(t, logOutput, "attempt=1")
+	assert.Contains(t, logOutput, "max_attempts=")
+	assert.Contains(t, logOutput, "error=")
+	assert.Contains(t, logOutput, "stage=send_notification")
+	assert.NotContains(t, logOutput, "stage=terminal_failure")
+}
+
+func TestWebhookHandlerSendNotification_LogsTerminalFailureAfterRetryExhaustion(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	attempts := 0
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		attempts++
+		return fmt.Errorf("channel %d (%s) send failed: webhook notification failed with status: 503", channel.ID, channel.Name)
+	}
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+
+	alert := &models.Alert{
+		AlertID:     "alert-terminal",
+		TraceID:     "trace-terminal",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-terminal",
+		Status:      "firing",
+	}
+	channel := &models.Channel{
+		ID:      44,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}
+
+	handler.sendNotification(alert, channel)
+
+	logOutput := logBuffer.String()
+	assert.GreaterOrEqual(t, attempts, 2)
+	assert.Equal(t, 1, strings.Count(logOutput, "stage=terminal_failure"))
+	assert.Contains(t, logOutput, "trace_id=trace-terminal")
+	assert.Contains(t, logOutput, "alert_id=alert-terminal")
+	assert.Contains(t, logOutput, "channel_id=44")
+	assert.Contains(t, logOutput, "attempt=")
+	assert.Contains(t, logOutput, "max_attempts=")
+	assert.Contains(t, logOutput, "error=")
+}
+
 func newWebhookTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 

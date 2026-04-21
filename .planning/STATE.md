@@ -1,31 +1,31 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Alert Pipeline Hardening
-status: milestone_complete
-last_updated: "2026-04-21T10:40:00.000Z"
+milestone: v1.3
+milestone_name: Notification Reliability and Observability
+status: defining_requirements
+last_updated: "2026-04-21T11:15:00.000Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 4
-  completed_phases: 4
+  completed_phases: 0
   total_plans: 8
-  completed_plans: 8
-  percent: 100
+  completed_plans: 0
+  percent: 0
 ---
 
 # Current Position
 
-Phase: complete
-Plan: Phase 13 complete
-Status: v1.2 milestone archived; ready for next milestone definition
-Last activity: 2026-04-21 - v1.2 milestone archival prepared
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.3 Notification Reliability and Observability
+Last activity: 2026-04-21 - Milestone v1.3 started
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-04-21)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Start the next milestone definition flow
+**Current focus:** Define v1.3 requirements and roadmap for notification reliability, observability, logging consistency, and truth cleanup
 
 ## Accumulated Context
 
@@ -42,6 +42,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-21)
 - Phase 12 已完成：GitHub Actions 质量门禁已覆盖后端测试与前端 lint/test/build，README 与低风险工程命名已对齐当前非 AI 基线
 - Phase 13 已完成：异步通知 goroutine 已补 panic recover，失败日志具备告警/渠道上下文，通知链路可靠性测试已纳入后端门禁
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移
+- v1.3 已启动，下一轮范围聚焦通知发送进一步可靠性增强、告警链路可观测性深化、日志格式统一以及历史命名/文档真相继续清理
 
 ### Roadmap Evolution
 
@@ -49,8 +50,12 @@ See: `.planning/PROJECT.md` (updated 2026-04-21)
 - Phase 11 added: Restore Frontend Quality Baseline
 - Phase 12 added: Establish Automated Quality Gates
 - Phase 13 added: Harden Notification Delivery Path
+- Phase 14 planned: Establish Alert Trace Context
+- Phase 15 planned: Harden Notification Retry Boundaries
+- Phase 16 planned: Standardize Alert Path Logging
+- Phase 17 planned: Clean Truth And Operational Docs
 
 ## Session Resume
 
 - Resume file: `.planning/PROJECT.md`
-- Stopped at: v1.2 milestone complete; next step is `/gsd-new-milestone`
+- Stopped at: v1.3 initialized; next step is `/gsd-discuss-phase 14` or `/gsd-plan-phase 14`

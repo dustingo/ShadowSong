@@ -44,7 +44,7 @@ See `.planning/milestones/v1.2-ROADMAP.md`
 
 **Goal**: 为 webhook 接入到通知分发的主链路建立统一关联标识和关键生命周期观测点，先打通后续可靠性增强所依赖的排障基线。  
 **Depends on**: Phase 13  
-**Plans**: 2 plans
+**Plans**: 4 plans
 
 Plans:
 
@@ -82,6 +82,8 @@ Plans:
 
 - [ ] 16-01-PLAN.md — Introduce one canonical alert-path event writer and migrate webhook call sites
 - [ ] 16-02-PLAN.md — Lock the logging contract in tests and capture Phase 16 verification truth
+- [ ] 16-03-PLAN.md — Restore async panic correlation fields so failure logs remain traceable
+- [ ] 16-04-PLAN.md — Make canonical fields parse-safe for spaced values and refresh Phase 16 truth artifacts
 
 **Success criteria:**
 - 告警链路关键事件采用统一字段命名和格式

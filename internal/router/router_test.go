@@ -21,7 +21,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestSetup_RoutesWithoutAIRuntime(t *testing.T) {
+func TestSetup_RoutesAlertFlowBaseline(t *testing.T) {
 	tests := []struct {
 		name          string
 		requiredPaths []string

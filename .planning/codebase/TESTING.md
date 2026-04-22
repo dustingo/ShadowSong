@@ -18,8 +18,8 @@
 go test ./...          # Run all backend tests from repository root
 make test              # Wrapper around go test -v ./...
 go test -cover ./...   # Coverage command pattern supported by Go, not wired into Makefile
-pwsh -ExecutionPolicy Bypass -File scripts/verify_backend_no_ai.ps1
-cd frontend && pnpm build
+pwsh -ExecutionPolicy Bypass -File scripts/verify_backend_alert_flow.ps1
+pwsh -ExecutionPolicy Bypass -File scripts/verify_frontend_console_baseline.ps1
 ```
 
 ## Test File Organization
@@ -120,8 +120,8 @@ alert: Alert{
 
 **Current Coverage Shape:**
 - Backend now includes committed regression coverage for config loading, router registration, webhook severity normalization, and alert model validation.
-- Phase 1 verification added `scripts/verify_backend_no_ai.ps1`, which proves the retained backend flow without AI runtime: startup, login, webhook ingestion, notification dispatch, alert listing, stats, ack, quick silence, and `/api/v1/ai/chat=404`.
-- Phase 2 verification used `cd frontend && pnpm build` as the frontend regression gate after removing AI pages, routes, contracts, and UI surfaces.
+- Phase 1 verification added `scripts/verify_backend_alert_flow.ps1`, which proves the retained backend alert flow: startup, login, webhook ingestion, notification dispatch, alert listing, stats, ack, quick silence, and `/api/v1/ai/chat=404`.
+- Phase 2 verification uses `scripts/verify_frontend_console_baseline.ps1` as the frontend regression gate for build health and residual scanning on the current console baseline.
 - The frontend still has no automated test coverage beyond build-time type and bundler checks. `frontend/package.json` contains `dev`, `build`, `preview`, `lint`, and `format` scripts, but no `test` script.
 
 **View Coverage:**
@@ -140,7 +140,8 @@ go tool cover -func=coverage.out
 - Present for webhook severity normalization in `internal/handlers/webhook_test.go`.
 
 **Integration Tests:**
-- Scripted backend verification exists through `scripts/verify_backend_no_ai.ps1`.
+- Scripted backend verification exists through `scripts/verify_backend_alert_flow.ps1`.
+- Scripted frontend baseline verification exists through `scripts/verify_frontend_console_baseline.ps1`.
 - No database-backed Go integration suite is committed beyond that script-driven path.
 
 **E2E Tests:**

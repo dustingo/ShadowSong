@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLoad_WithoutAIEnv(t *testing.T) {
+func TestLoad_CurrentBaselineEnv(t *testing.T) {
 	tests := []struct {
 		name string
 		env  map[string]string

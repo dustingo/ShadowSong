@@ -3,8 +3,8 @@ $ErrorActionPreference = 'Stop'
 
 $script:RepoRoot = Split-Path -Parent $PSScriptRoot
 $script:FrontendDir = Join-Path $script:RepoRoot 'frontend'
-$script:BuildLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_frontend_no_ai_build.log'
-$script:BuildErrLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_frontend_no_ai_build.err.log'
+$script:BuildLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_frontend_console_baseline_build.log'
+$script:BuildErrLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_frontend_console_baseline_build.err.log'
 
 function Write-Step {
   param([string]$Message)

@@ -118,10 +118,11 @@ shadowsongAI/
 
 **Testing:**
 - `internal/models/alert_test.go`: Existing backend model tests.
-- `internal/config/config_test.go`: Config loading regression tests after AI runtime removal.
-- `internal/router/router_test.go`: Route presence/absence regression tests.
+- `internal/config/config_test.go`: Config loading regression tests for the current backend baseline.
+- `internal/router/router_test.go`: Route presence/absence regression tests for the current backend baseline.
 - `internal/handlers/webhook_test.go`: Webhook severity normalization regression tests.
-- `scripts/verify_backend_no_ai.ps1`: Backend non-AI verification script.
+- `scripts/verify_backend_alert_flow.ps1`: Backend alert-flow verification script.
+- `scripts/verify_frontend_console_baseline.ps1`: Frontend console baseline verification script.
 
 ## Ownership Boundaries
 
@@ -138,7 +139,7 @@ shadowsongAI/
 **Backend integration boundary:**
 - `internal/notifier/notifier.go` owns outbound notification-channel protocols.
 - `internal/handlers/webhook.go` is the only place where inbound webhook payloads are translated into internal alerts.
-- `scripts/verify_backend_no_ai.ps1` owns the scripted end-to-end verification path for the retained backend flow.
+- `scripts/verify_backend_alert_flow.ps1` owns the scripted end-to-end verification path for the retained backend flow.
 
 **Frontend routing boundary:**
 - `frontend/src/App.tsx` owns route registration and navigation shell.
@@ -148,6 +149,7 @@ shadowsongAI/
 - `frontend/src/api/*.ts` own HTTP request details.
 - `frontend/src/stores/*.ts` own shared async state transitions.
 - `frontend/src/types/index.ts` owns the frontend-facing data contracts.
+- `scripts/verify_frontend_console_baseline.ps1` owns the frontend build and residual-scan baseline check.
 
 ## Naming Conventions
 

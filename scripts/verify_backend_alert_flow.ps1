@@ -9,17 +9,17 @@ $script:ComposePostgresService = 'postgres'
 $script:ComposeFile = Join-Path $script:RepoRoot 'docker-compose.yml'
 $script:ServerProcess = $null
 $script:ListenerProcess = $null
-$script:ServerLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_no_ai_server.log'
-$script:ServerErrLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_no_ai_server.err.log'
-$script:ListenerLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_no_ai_listener.log'
-$script:ListenerErrLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_no_ai_listener.err.log'
-$script:RunLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_no_ai_run.log'
+$script:ServerLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_alert_flow_server.log'
+$script:ServerErrLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_alert_flow_server.err.log'
+$script:ListenerLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_alert_flow_listener.log'
+$script:ListenerErrLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_alert_flow_listener.err.log'
+$script:RunLog = Join-Path ([System.IO.Path]::GetTempPath()) 'verify_backend_alert_flow_run.log'
 $script:TempHashFile = $null
 $script:TempListenerFile = $null
 
-$runId = 'verify_no_ai_{0}' -f ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())
+$runId = 'verify_alert_flow_{0}' -f ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())
 $userName = "${runId}_admin"
-$password = 'VerifyNoAI!123'
+$password = 'VerifyAlertFlow!123'
 $sourceName = "${runId}_source"
 $channelName = "${runId}_channel"
 $routeName = "${runId}_route"
@@ -127,7 +127,7 @@ DELETE FROM users WHERE username = '$userName';
 }
 
 function New-PasswordHash {
-  $script:TempHashFile = Join-Path ([System.IO.Path]::GetTempPath()) ("verify_backend_no_ai_hash_{0}.go" -f $PID)
+  $script:TempHashFile = Join-Path ([System.IO.Path]::GetTempPath()) ("verify_backend_alert_flow_hash_{0}.go" -f $PID)
   $goCode = @"
 package main
 
@@ -161,13 +161,13 @@ function Start-NotificationListener {
     Remove-Item -LiteralPath $script:ListenerErrLog -Force
   }
 
-  $script:TempListenerFile = Join-Path ([System.IO.Path]::GetTempPath()) ("verify_backend_no_ai_listener_{0}.ps1" -f $PID)
+  $script:TempListenerFile = Join-Path ([System.IO.Path]::GetTempPath()) ("verify_backend_alert_flow_listener_{0}.ps1" -f $PID)
   $listenerCode = @'
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$port = [int]$env:VERIFY_NO_AI_LISTENER_PORT
-$output = $env:VERIFY_NO_AI_LISTENER_LOG
+$port = [int]$env:VERIFY_ALERT_FLOW_LISTENER_PORT
+$output = $env:VERIFY_ALERT_FLOW_LISTENER_LOG
 
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://127.0.0.1:$port/")
@@ -221,8 +221,8 @@ try {
   $startInfo.UseShellExecute = $false
   $startInfo.RedirectStandardOutput = $false
   $startInfo.RedirectStandardError = $false
-  $startInfo.EnvironmentVariables['VERIFY_NO_AI_LISTENER_PORT'] = [string]$script:ListenerPort
-  $startInfo.EnvironmentVariables['VERIFY_NO_AI_LISTENER_LOG'] = $script:ListenerLog
+  $startInfo.EnvironmentVariables['VERIFY_ALERT_FLOW_LISTENER_PORT'] = [string]$script:ListenerPort
+  $startInfo.EnvironmentVariables['VERIFY_ALERT_FLOW_LISTENER_LOG'] = $script:ListenerLog
 
   $process = [System.Diagnostics.Process]::new()
   $process.StartInfo = $startInfo

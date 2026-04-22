@@ -961,6 +961,61 @@ func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPe
 	assert.Equal(t, beforeCounts, afterCounts)
 }
 
+func TestWebhookHandlerBaseAlertLogFields_IncludeAlertAndChannelContext(t *testing.T) {
+	handler := &WebhookHandler{}
+	alert := &models.Alert{
+		TraceID:     "trace-1",
+		AlertID:     "alert-1",
+		Fingerprint: "fp-1",
+		Source:      "prometheus",
+	}
+	channel := &models.Channel{
+		ID:   7,
+		Name: "ops-webhook",
+		Type: "webhook",
+	}
+
+	fields := handler.baseAlertLogFields(alert, channel)
+
+	assert.Equal(t, "trace-1", fields["trace_id"])
+	assert.Equal(t, "alert-1", fields["alert_id"])
+	assert.Equal(t, "fp-1", fields["fingerprint"])
+	assert.Equal(t, "prometheus", fields["source"])
+	assert.Equal(t, "7", fields["channel_id"])
+	assert.Equal(t, "ops-webhook", fields["channel_name"])
+	assert.Equal(t, "webhook", fields["channel_type"])
+}
+
+func TestWebhookHandlerLogAlertEvent_SkipsEmptyOptionalFieldsAndSortsStableKeys(t *testing.T) {
+	buffer := &bytes.Buffer{}
+	handler := &WebhookHandler{
+		logger: log.New(buffer, "", 0),
+	}
+
+	handler.logAlertEvent("route_match", map[string]string{
+		"trace_id":         "trace-1",
+		"alert_id":         "alert-1",
+		"fingerprint":      "fp-1",
+		"source":           "prometheus",
+		"matched_channels": "2",
+		"channel_name":     "",
+	}, "matched route rules")
+
+	logLine := strings.TrimSpace(buffer.String())
+	assert.Contains(t, logLine, "stage=route_match")
+	assert.Contains(t, logLine, "trace_id=trace-1")
+	assert.Contains(t, logLine, "alert_id=alert-1")
+	assert.Contains(t, logLine, "fingerprint=fp-1")
+	assert.Contains(t, logLine, "matched_channels=2")
+	assert.NotContains(t, logLine, "channel_name=")
+
+	assert.Less(t, strings.Index(logLine, "stage=route_match"), strings.Index(logLine, "alert_id=alert-1"))
+	assert.Less(t, strings.Index(logLine, "alert_id=alert-1"), strings.Index(logLine, "fingerprint=fp-1"))
+	assert.Less(t, strings.Index(logLine, "fingerprint=fp-1"), strings.Index(logLine, "matched_channels=2"))
+	assert.Less(t, strings.Index(logLine, "matched_channels=2"), strings.Index(logLine, "source=prometheus"))
+	assert.Less(t, strings.Index(logLine, "source=prometheus"), strings.Index(logLine, "trace_id=trace-1"))
+}
+
 func newWebhookTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 

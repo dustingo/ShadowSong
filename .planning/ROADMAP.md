@@ -9,7 +9,7 @@
 
 ## Overview
 
-当前已启动 v1.3 `Notification Reliability and Observability`。本轮将在保持现有告警主流程和技术栈稳定的前提下，继续提升通知发送可靠性、告警链路可观测性、日志一致性以及历史命名/文档真相。
+当前已启动 v1.3 `Notification Reliability and Observability`。本轮将在保持现有告警主流程和技术栈稳定的前提下，继续提升通知发送可靠性、告警链路可观测性、日志一致性，以及维护者当前真源文档与历史归档分层。
 
 ## Phases
 
@@ -92,20 +92,20 @@ Plans:
 
 ### Phase 17: Clean Truth And Operational Docs
 
-**Goal**: 继续清理历史命名和文档真相，并把 v1.3 的可靠性/可观测性行为沉淀到面向维护者的说明和验证产物。  
+**Goal**: 继续清理真相文档表面和低风险入口命名，并把 v1.3 的可靠性/可观测性行为沉淀到面向维护者的说明和验证产物；运行时深层历史命名继续保持 deferred。  
 **Depends on**: Phase 16  
 **Plans**: 3 plans
 
 Plans:
 
-- [ ] 17-01-PLAN.md — Rename low-risk verification entrypoints, tests, and repo-owned reference maps
+- [x] 17-01-PLAN.md — Rename low-risk verification entrypoints, tests, and repo-owned reference maps
 - [ ] 17-02-PLAN.md — Refresh README/planning truth surfaces and clearly frame historical docs
 - [ ] 17-03-PLAN.md — Create the maintainer alert-path runbook and Phase 17 truth artifacts
 
 **Success criteria:**
-- 仓库入口和阶段文档不再出现会误导当前系统定位的过期命名
+- 仓库入口和阶段文档优先呈现当前告警系统叙事，不再出现会误导系统定位的过期命名
 - 可靠性与排障文档可直接指导维护者定位通知失败问题
-- v1.3 的回滚关注点和 deferred items 被明确记录
+- v1.3 的回滚关注点和 deferred runtime naming items 被明确记录
 
 ## Next Step
 

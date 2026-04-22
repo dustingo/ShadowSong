@@ -1,6 +1,6 @@
 # 游戏运维告警系统
 
-面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多个数据源的告警信息。当前版本基于非 AI 告警系统基线持续演进，并支持通知模板原始事件透传与数据源模板预览。
+面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多个数据源的告警信息。当前版本沿 v1.3 可靠性与可观测性里程碑持续演进，已经具备通知模板原始事件透传、数据源模板预览、统一告警链路日志和脚本化验证入口。
 
 ## 技术栈
 
@@ -149,14 +149,15 @@ make frontend-dev
 
 - 前端数据源页面支持模板预览，会调用 `POST /api/v1/datasources/preview`
 - 后端真实通知透传验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_template_passthrough.ps1`
-- 后端无 AI 闭环验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_backend_no_ai.ps1`
-- 前端无 AI 构建/残留扫描脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_frontend_no_ai.ps1`
+- 后端告警主链路验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_backend_alert_flow.ps1`
+- 前端控制台基线验证脚本：`pwsh -ExecutionPolicy Bypass -File scripts/verify_frontend_console_baseline.ps1`
 
 ## 工程质量门禁
 
 - GitHub Actions 工作流位于 `.github/workflows/quality-gates.yml`
 - 自动门禁覆盖后端 `go test ./...`
 - 自动门禁覆盖前端 `pnpm lint`、`pnpm test -- --run`、`pnpm build`
+- 深层运行时历史命名仍保留为暂缓迁移项：`go.mod` 模块路径 `github.com/game-ops/ai-alert-system` 与 JWT issuer `ai-alert-system` 仍是当前运行契约，本轮文档清理不改动它们
 
 ## 开发命令
 

@@ -2,7 +2,7 @@
 
 ## What This Is
 
-这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设；v1.2 已完成告警链路安全与工程化加固。当前代码库已经具备安全收口后的实时告警访问、前端质量基线、自动化质量门禁和基础通知可靠性，下一轮将聚焦通知链路可靠性、告警链路可观测性和工程真相继续收口。
+这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设；v1.2 已完成告警链路安全与工程化加固。当前代码库已经具备安全收口后的实时告警访问、前端质量基线、自动化质量门禁、通知重试与统一日志契约；v1.3 当前聚焦通知链路可靠性、告警链路可观测性、维护者文档和真相分层继续收口。
 
 ## Core Value
 
@@ -29,7 +29,7 @@
 
 ### Active
 
-- [ ] 历史命名和文档真相需要继续清理，确保仓库入口、运行说明和阶段文档反映当前非 AI 告警系统现状
+- [ ] 历史命名和文档真相需要继续清理，确保仓库入口、运行说明、维护者入口和阶段文档反映当前告警系统现状，并把历史叙事限制在归档语境
 
 ### Out of Scope
 
@@ -41,19 +41,20 @@
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）、`v1.2 Alert Pipeline Hardening`（2026-04-21）
 - 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文字段、有界三次重试、最终失败落点、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志、统一 webhook 告警主链路日志输出入口、parse-safe 字段序列化与 `async_panic` 关联字段保真
-- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、Phase 14 trace/context handlers 与 phase verification、Phase 15 notification retry boundaries verification、Phase 16 standardized alert-path logging verification
-- 最新阶段：Phase 16 complete — v1.3 下一步进入 Phase 17 `Clean Truth And Operational Docs`
+- 已验证路径：后端告警主链路验证脚本、前端控制台基线验证脚本、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、Phase 14 trace/context handlers 与 phase verification、Phase 15 notification retry boundaries verification、Phase 16 standardized alert-path logging verification
+- 最新阶段：Phase 17 in progress — 当前正在清理真相文档表面并补齐维护者操作入口，运行时深层历史命名仍按 deferred boundary 保持不变
 - 历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将沿现有 phase 编号继续推进
+- 暂缓迁移边界：`go.mod` module path 与 JWT issuer 仍是历史遗留运行时契约；Phase 17 只清理 README、planning 真源和低风险入口命名，不在本轮推动运行时重命名
 
 ## Current Milestone: v1.3 Notification Reliability and Observability
 
-**Goal:** 在不引入新技术栈和不破坏现有告警主流程的前提下，把通知发送链路提升到更可恢复、更易排障的工程基线，并继续补齐告警链路观测与文档真相。
+**Goal:** 在不引入新技术栈和不破坏现有告警主流程的前提下，把通知发送链路提升到更可恢复、更易排障的工程基线，并继续补齐告警链路观测、维护者操作文档与真相分层。
 
 **Target features:**
 - 为通知发送补上有界重试、最终失败落点和更稳定的失败诊断信息
 - 为 webhook 接入、告警落库、路由命中和通知发送建立统一关联标识与生命周期观测点
 - 统一告警链路日志格式与字段约定，逐步替换高风险路径中的临时打印
-- 继续清理历史命名和文档真相，确保“非 AI 告警系统”的工程表述保持一致
+- 继续清理历史命名和文档真相，让 README、planning 真源和维护者 runbook 先给出当前告警系统叙事，并把归档/历史说明单独分层
 
 ## Context
 
@@ -65,6 +66,8 @@
 - v1.2 继续在 brownfield 代码库上演进，不做技术迁移，优先补齐安全边界、工程门禁和通知可靠性短板
 - 当前仓库前后端测试可运行，WebSocket 访问面、前端质量基线、自动化门禁和通知链路基础可靠性均已收口；后续工作应转入新里程碑定义或遗留增强项筛选
 - v1.3 继续坚持 brownfield 小步增强，不引入消息队列、集中观测平台或技术栈迁移，而是在现有 Go 应用内先补齐可靠性与可观测性基线
+- 当前真源文档应把历史 AI 移除放在已发布里程碑背景中，而不是继续作为运行入口的主叙事
+- `go.mod` 中的 module path 与 `internal/auth/jwt.go` 中的 JWT issuer 仍属历史遗留运行时命名，当前只做文档标注和维护者说明，不做契约迁移
 
 ## Constraints
 

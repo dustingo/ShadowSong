@@ -756,8 +756,18 @@ func TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures(t *te
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
 
 	sendAttemptLine := findWebhookLogLine(logOutput, "stage=send_attempt")
-	assert.Contains(t, sendAttemptLine, "mode=rendered")
-	assert.Less(t, strings.Index(sendAttemptLine, "mode=rendered"), strings.Index(sendAttemptLine, "source=prometheus"))
+	sendAttemptFields := parseWebhookLogFields(sendAttemptLine)
+	assert.Equal(t, "send_attempt", sendAttemptFields["stage"])
+	assert.Equal(t, "trace-retry-success", sendAttemptFields["trace_id"])
+	assert.Equal(t, "alert-retry-success", sendAttemptFields["alert_id"])
+	assert.Equal(t, "42", sendAttemptFields["channel_id"])
+	assert.Equal(t, "ops-webhook", sendAttemptFields["channel_name"])
+	assert.Equal(t, "webhook", sendAttemptFields["channel_type"])
+	assert.Equal(t, "rendered", sendAttemptFields["mode"])
+	assert.Equal(t, "1", sendAttemptFields["attempt"])
+	assert.Equal(t, fmt.Sprintf("%d", notificationMaxAttempts), sendAttemptFields["max_attempts"])
+	assert.NotEmpty(t, sendAttemptFields["error"])
+	assert.Contains(t, sendAttemptLine, "error=")
 }
 
 func TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetryBoundary(t *testing.T) {
@@ -809,14 +819,28 @@ func TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetr
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
 
 	datasourceLookupLine := findWebhookLogLine(logOutput, "stage=datasource_lookup")
-	assert.Contains(t, datasourceLookupLine, "channel_type=webhook")
-	assert.Contains(t, datasourceLookupLine, "mode=default")
-	assert.Less(t, strings.Index(datasourceLookupLine, "mode=default"), strings.Index(datasourceLookupLine, "source=missing-source"))
+	datasourceLookupFields := parseWebhookLogFields(datasourceLookupLine)
+	assert.Equal(t, "datasource_lookup", datasourceLookupFields["stage"])
+	assert.Equal(t, "trace-datasource-fallback", datasourceLookupFields["trace_id"])
+	assert.Equal(t, "alert-datasource-fallback", datasourceLookupFields["alert_id"])
+	assert.Equal(t, "45", datasourceLookupFields["channel_id"])
+	assert.Equal(t, "ops-webhook", datasourceLookupFields["channel_name"])
+	assert.Equal(t, "webhook", datasourceLookupFields["channel_type"])
+	assert.Equal(t, "default", datasourceLookupFields["mode"])
 
 	sendAttemptLine := findWebhookLogLine(logOutput, "stage=send_attempt")
-	assert.Contains(t, sendAttemptLine, "channel_type=webhook")
-	assert.Contains(t, sendAttemptLine, "mode=default")
-	assert.Less(t, strings.Index(sendAttemptLine, "mode=default"), strings.Index(sendAttemptLine, "source=missing-source"))
+	sendAttemptFields := parseWebhookLogFields(sendAttemptLine)
+	assert.Equal(t, "send_attempt", sendAttemptFields["stage"])
+	assert.Equal(t, "trace-datasource-fallback", sendAttemptFields["trace_id"])
+	assert.Equal(t, "alert-datasource-fallback", sendAttemptFields["alert_id"])
+	assert.Equal(t, "45", sendAttemptFields["channel_id"])
+	assert.Equal(t, "ops-webhook", sendAttemptFields["channel_name"])
+	assert.Equal(t, "webhook", sendAttemptFields["channel_type"])
+	assert.Equal(t, "default", sendAttemptFields["mode"])
+	assert.Equal(t, "1", sendAttemptFields["attempt"])
+	assert.Equal(t, fmt.Sprintf("%d", notificationMaxAttempts), sendAttemptFields["max_attempts"])
+	assert.NotEmpty(t, sendAttemptFields["error"])
+	assert.Contains(t, sendAttemptLine, "error=")
 }
 
 func TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary(t *testing.T) {
@@ -876,9 +900,14 @@ func TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary(
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
 
 	renderLine := findWebhookLogLine(logOutput, "stage=render_notification")
-	assert.Contains(t, renderLine, "channel_type=webhook")
-	assert.Contains(t, renderLine, "mode=default")
-	assert.Less(t, strings.Index(renderLine, "mode=default"), strings.Index(renderLine, "source=prometheus"))
+	renderFields := parseWebhookLogFields(renderLine)
+	assert.Equal(t, "render_notification", renderFields["stage"])
+	assert.Equal(t, "trace-render-fallback", renderFields["trace_id"])
+	assert.Equal(t, "alert-render-fallback", renderFields["alert_id"])
+	assert.Equal(t, "46", renderFields["channel_id"])
+	assert.Equal(t, "ops-webhook", renderFields["channel_name"])
+	assert.Equal(t, "webhook", renderFields["channel_type"])
+	assert.Equal(t, "default", renderFields["mode"])
 }
 
 func TestWebhookHandlerSendNotification_NonRetryableFailureStopsAfterFirstAttempt(t *testing.T) {
@@ -980,9 +1009,18 @@ func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPe
 	assert.Equal(t, beforeCounts, afterCounts)
 
 	terminalFailureLine := findWebhookLogLine(logOutput, "stage=terminal_failure")
-	assert.Contains(t, terminalFailureLine, "channel_type=webhook")
-	assert.Contains(t, terminalFailureLine, "mode=rendered")
-	assert.Less(t, strings.Index(terminalFailureLine, "mode=rendered"), strings.Index(terminalFailureLine, "source=prometheus"))
+	terminalFailureFields := parseWebhookLogFields(terminalFailureLine)
+	assert.Equal(t, "terminal_failure", terminalFailureFields["stage"])
+	assert.Equal(t, "trace-terminal", terminalFailureFields["trace_id"])
+	assert.Equal(t, "alert-terminal", terminalFailureFields["alert_id"])
+	assert.Equal(t, "44", terminalFailureFields["channel_id"])
+	assert.Equal(t, "ops-webhook", terminalFailureFields["channel_name"])
+	assert.Equal(t, "webhook", terminalFailureFields["channel_type"])
+	assert.Equal(t, "rendered", terminalFailureFields["mode"])
+	assert.Equal(t, fmt.Sprintf("%d", notificationMaxAttempts), terminalFailureFields["attempt"])
+	assert.Equal(t, fmt.Sprintf("%d", notificationMaxAttempts), terminalFailureFields["max_attempts"])
+	assert.NotEmpty(t, terminalFailureFields["error"])
+	assert.Contains(t, terminalFailureLine, "error=")
 }
 
 func TestWebhookHandlerProcessAlertNotifications_LogsMatchedChannelsAsStructuredField(t *testing.T) {
@@ -1025,8 +1063,13 @@ func TestWebhookHandlerProcessAlertNotifications_LogsMatchedChannelsAsStructured
 	}})
 
 	routeMatchLine := findWebhookLogLine(logBuffer.String(), "stage=route_match")
-	assert.Contains(t, routeMatchLine, "matched_channels=1")
-	assert.Less(t, strings.Index(routeMatchLine, "matched_channels=1"), strings.Index(routeMatchLine, "source=prometheus"))
+	routeMatchFields := parseWebhookLogFields(routeMatchLine)
+	assert.Equal(t, "route_match", routeMatchFields["stage"])
+	assert.Equal(t, "trace-route-structured", routeMatchFields["trace_id"])
+	assert.Equal(t, "alert-route-structured", routeMatchFields["alert_id"])
+	assert.Equal(t, "fp-route-structured", routeMatchFields["fingerprint"])
+	assert.Equal(t, "prometheus", routeMatchFields["source"])
+	assert.Equal(t, "1", routeMatchFields["matched_channels"])
 }
 
 func TestWebhookHandlerBaseAlertLogFields_IncludeAlertAndChannelContext(t *testing.T) {
@@ -1164,4 +1207,16 @@ func findWebhookLogLine(logOutput string, needle string) string {
 		}
 	}
 	return ""
+}
+
+func parseWebhookLogFields(logLine string) map[string]string {
+	fields := map[string]string{}
+	for _, token := range strings.Fields(logLine) {
+		key, value, ok := strings.Cut(token, "=")
+		if !ok || key == "" {
+			continue
+		}
+		fields[key] = value
+	}
+	return fields
 }

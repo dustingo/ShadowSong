@@ -1,5 +1,16 @@
 # Go 代码审查报告
 
+> 历史审查快照（Historical Snapshot）
+>
+> 时间范围：本报告反映的是 2026-03-16 的一次静态审查结果，不代表 2026-04-22 之后的当前运行指导。
+> 当前维护者真源请优先查看：
+> - `.planning/phases/14-establish-alert-trace-context/14-VERIFICATION.md`
+> - `.planning/phases/15-harden-notification-retry-boundaries/15-VERIFICATION.md`
+> - `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md`
+> - Phase 17 maintainer runbook / alert-path operations 文档（后续计划产出）
+>
+> 尤其是本报告中关于全仓日志迁移、旧高风险问题清单的内容，只能作为历史背景，不应替代当前 phase verification 与运行说明。
+
 **项目**: 游戏运维告警系统 (shadowsongAI)
 **审查日期**: 2026-03-16
 **审查范围**: 全部Go源文件
@@ -158,9 +169,11 @@ go func() {
 
 ---
 
-### 5. MEDIUM - 日志不统一
+### 5. MEDIUM - 日志不统一（历史建议）
 
 多个文件使用 `fmt.Println` 和 `log.Printf`，建议统一使用 Go 1.21+ 的 `slog` 包。
+
+说明：这是 2026-03-16 的历史建议。当前仓库在 Phase 16 已明确采用告警主链路 canonical `key=value` logging contract，而不是把本阶段扩展为 repo-wide `slog` 迁移；请以 `16-VERIFICATION.md` 为当前真源。
 
 **示例**:
 ```go
@@ -237,6 +250,8 @@ go func() {
 ---
 
 ## 总结
+
+> 历史定位说明：本总结反映审查当时的风险排序。当前是否仍然适用，必须结合 Phase 14-16 verification 证据与 Phase 17 维护者文档一起判断，不能单独当作运行变更清单。
 
 | 级别 | 数量 |
 |------|------|

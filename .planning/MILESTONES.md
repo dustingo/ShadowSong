@@ -1,5 +1,7 @@
 # Milestones
 
+当前维护者入口请以 `README.md`、`.planning/PROJECT.md`、`.planning/ROADMAP.md` 和 Phase 14-17 真相工件为准。本文件保留已发布里程碑事实，尤其是 `v1.0 AI Removal Complete` 的历史上下文，但这些标题不代表当前运行叙事或推荐命名。
+
 ## v1.0 AI Removal Complete (Shipped: 2026-04-10)
 
 **Phases completed:** 4 phases, 12 plans, 18 tasks
@@ -45,3 +47,9 @@
 - 通知链路可靠性路径已纳入直接 Go 测试和后端自动门禁
 
 ---
+
+## Current Narrative
+
+- 当前主叙事属于 `v1.3 Notification Reliability and Observability`，重点是通知可靠性、告警链路可观测性、维护者 runbook 和真相分层
+- `AI Removal Complete` 只保留为 v1.0 已发版历史事实；后续维护与运行入口不应再把该标题当作当前系统定位
+- 深层运行时历史命名例如 `go.mod` module path 与 JWT issuer 仍是 deferred runtime contracts，应在当前真源中标注为暂缓迁移，而不是在里程碑摘要里误读为推荐现状

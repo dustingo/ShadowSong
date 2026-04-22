@@ -1,5 +1,7 @@
 # Retrospective
 
+本文件记录已发版里程碑的历史复盘，不是当前运行手册。当前维护者应先看 `README.md`、`.planning/PROJECT.md` 与 Phase 14-17 的 verification/runbook 真源；这里保留 `v1.0 AI Removal Complete` 作为 archive history。
+
 ## Milestone: v1.0 — AI Removal Complete
 
 **Shipped:** 2026-04-10  
@@ -44,3 +46,4 @@
 ## Cross-Milestone Trends
 
 - v1.0：以“先收主链路、再补证据”的顺序最稳
+- 当前维护叙事已转入 v1.3 可靠性、可观测性和文档真相分层；历史 AI 移除表述只作为复盘背景，不应覆盖当下的维护者入口

@@ -80,10 +80,10 @@ Plans:
 
 Plans:
 
-- [ ] 16-01-PLAN.md — Introduce one canonical alert-path event writer and migrate webhook call sites
-- [ ] 16-02-PLAN.md — Lock the logging contract in tests and capture Phase 16 verification truth
-- [ ] 16-03-PLAN.md — Restore async panic correlation fields so failure logs remain traceable
-- [ ] 16-04-PLAN.md — Make canonical fields parse-safe for spaced values and refresh Phase 16 truth artifacts
+- [x] 16-01-PLAN.md — Introduce one canonical alert-path event writer and migrate webhook call sites
+- [x] 16-02-PLAN.md — Lock the logging contract in tests and capture Phase 16 verification truth (completed 2026-04-22)
+- [x] 16-03-PLAN.md — Restore async panic correlation fields so failure logs remain traceable
+- [x] 16-04-PLAN.md — Make canonical fields parse-safe for spaced values and refresh Phase 16 truth artifacts
 
 **Success criteria:**
 - 告警链路关键事件采用统一字段命名和格式
@@ -108,7 +108,7 @@ Plans:
 
 ## Next Step
 
-- Use `/gsd-discuss-phase 16` to clarify Phase 16 implementation details, or `/gsd-plan-phase 16` to plan directly
+- Use `/gsd-discuss-phase 17` to clarify Phase 17 implementation details, or `/gsd-plan-phase 17` to plan directly
 
 ## Progress
 
@@ -120,5 +120,5 @@ Plans:
 | 13. Harden Notification Delivery Path | v1.2 | 2/2 | Complete | 2026-04-21 |
 | 14. Establish Alert Trace Context | v1.3 | 2/2 | Complete    | 2026-04-21 |
 | 15. Harden Notification Retry Boundaries | v1.3 | 2/2 | Complete    | 2026-04-21 |
-| 16. Standardize Alert Path Logging | v1.3 | 0/2 | Planned | — |
+| 16. Standardize Alert Path Logging | v1.3 | 4/4 | Complete    | 2026-04-22 |
 | 17. Clean Truth And Operational Docs | v1.3 | 0/2 | Planned | — |

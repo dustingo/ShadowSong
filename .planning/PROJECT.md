@@ -25,10 +25,10 @@
 - [x] 系统已加固 webhook 异步通知链路，通知 goroutine panic 不再裸奔，失败日志具备基础可追踪性（Validated in Phase 13）
 - [x] 系统已为 webhook 接入到通知分发主链路建立服务端 trace_id 真源，并补齐 ingest / persist / dedup / Redis / route_match / notification_entry 生命周期观测点（Validated in Phase 14）
 - [x] 系统已为通知发送链路补齐有界三次重试、最终失败日志落点和尝试级上下文字段，瞬时失败不再在首次发送后直接静默结束（Validated in Phase 15）
+- [x] 系统已统一 webhook 告警主链路日志输出入口、字段命名与可解析格式，并补齐 `async_panic` 失败路径的关联字段保真（Validated in Phase 16）
 
 ### Active
 
-- [ ] 后端告警链路日志需要统一格式和字段约定，减少 `fmt` 风格散乱日志带来的检索困难
 - [ ] 历史命名和文档真相需要继续清理，确保仓库入口、运行说明和阶段文档反映当前非 AI 告警系统现状
 
 ### Out of Scope
@@ -40,9 +40,9 @@
 ## Current State
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）、`v1.2 Alert Pipeline Hardening`（2026-04-21）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文日志、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志
-- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、Phase 14 trace/context handlers 与 phase verification、Phase 15 notification retry boundaries verification
-- 最新阶段：Phase 15 complete — v1.3 下一步进入 Phase 16 `Standardize Alert Path Logging`
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文字段、有界三次重试、最终失败落点、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志、统一 webhook 告警主链路日志输出入口、parse-safe 字段序列化与 `async_panic` 关联字段保真
+- 已验证路径：后端无 AI 闭环脚本、前端无 AI 构建/残留扫描、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、Phase 14 trace/context handlers 与 phase verification、Phase 15 notification retry boundaries verification、Phase 16 standardized alert-path logging verification
+- 最新阶段：Phase 16 complete — v1.3 下一步进入 Phase 17 `Clean Truth And Operational Docs`
 - 历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将沿现有 phase 编号继续推进
 
 ## Current Milestone: v1.3 Notification Reliability and Observability
@@ -87,6 +87,7 @@
 | 将审计日志、账号禁用和强制改密纳入本里程碑 | 这些能力直接关系到账户控制安全性，不能只做静态角色收口 | ✓ Good |
 | v1.3 先在现有应用内补齐通知重试、关联标识和日志统一，不引入新队列或外部观测平台 | 先以最小迁移成本提升主链路可靠性和排障效率，避免在 brownfield 阶段把问题扩大成基础设施改造 | ✓ Good |
 | Phase 14 先把 trace 真源和生命周期观测点锁在 webhook 主链路，再继续 Phase 15/16 的重试与日志统一 | 先建立稳定关联字段和阶段证据，后续可靠性与日志格式化才有一致排障真源 | ✓ Good |
+| Phase 16 继续沿用 text-based `key=value` 日志契约，并通过稳定字段名、parse-safe quoting 与回归测试收口 webhook 告警主链路 | 在不扩大成 JSON logging 或全仓库迁移的前提下提升检索性和可解析性，保持 brownfield 改动面可控 | ✓ Good |
 
 ## Evolution
 
@@ -124,4 +125,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-21 after Phase 15 completion*
+*Last updated: 2026-04-22 after Phase 16 completion*

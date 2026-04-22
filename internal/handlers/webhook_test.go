@@ -614,15 +614,17 @@ func TestWebhookHandlerProcessAlertNotificationsAsync_RecoversFromPanic(t *testi
 	assert.Contains(t, logOutput, "recovered panic=boom")
 
 	asyncPanicLine := findWebhookLogLine(logOutput, "stage=async_panic")
-	asyncPanicFields := parseWebhookLogFields(asyncPanicLine)
-	assert.Equal(t, "async_panic", asyncPanicFields["stage"])
-	assert.Equal(t, "trace-panic", asyncPanicFields["trace_id"])
-	assert.Equal(t, "alert-panic", asyncPanicFields["alert_id"])
-	assert.Equal(t, "fp-panic", asyncPanicFields["fingerprint"])
-	assert.Equal(t, "prometheus", asyncPanicFields["source"])
-	assert.Equal(t, "11", asyncPanicFields["channel_id"])
-	assert.Equal(t, "ops-webhook", asyncPanicFields["channel_name"])
-	assert.Equal(t, "webhook", asyncPanicFields["channel_type"])
+	require.NotEmpty(t, asyncPanicLine)
+	assertWebhookLogFields(t, asyncPanicLine, map[string]string{
+		"stage":        "async_panic",
+		"trace_id":     "trace-panic",
+		"alert_id":     "alert-panic",
+		"fingerprint":  "fp-panic",
+		"source":       "prometheus",
+		"channel_id":   "11",
+		"channel_name": "ops-webhook",
+		"channel_type": "webhook",
+	})
 }
 
 func TestWebhookHandlerSendNotification_LogsAlertAndChannelContext(t *testing.T) {
@@ -1234,4 +1236,13 @@ func parseWebhookLogFields(logLine string) map[string]string {
 		fields[key] = value
 	}
 	return fields
+}
+
+func assertWebhookLogFields(t *testing.T, logLine string, expected map[string]string) {
+	t.Helper()
+
+	fields := parseWebhookLogFields(logLine)
+	for key, value := range expected {
+		assert.Equal(t, value, fields[key], "field %s", key)
+	}
 }

@@ -582,20 +582,18 @@ func (h *WebhookHandler) publishToRedis(alerts []models.Alert) {
 			continue
 		}
 
-		fields := map[string]string{
-			"trace_id":     alert.TraceID,
-			"alert_id":     alert.AlertID,
-			"fingerprint":  alert.Fingerprint,
-			"source":       alert.Source,
+		fields := h.eventFields(h.traceFieldsForAlert(alert), map[string]string{
 			"redis_stream": "alerts:pending",
-		}
+		})
 		if err := result.Err(); err != nil {
-			h.logTraceStage("redis_publish", fields, "failed err=%v", err)
+			h.logAlertEvent("redis_publish", h.eventFields(fields, map[string]string{
+				"error": err.Error(),
+			}), "failed err=%v", err)
 			continue
 		}
 
 		fields["redis_message_id"] = result.Val()
-		h.logTraceStage("redis_publish", fields, "published")
+		h.logAlertEvent("redis_publish", fields, "published")
 	}
 }
 
@@ -778,6 +776,17 @@ func (h *WebhookHandler) baseAlertLogFields(alert *models.Alert, channel *models
 	return fields
 }
 
+func (h *WebhookHandler) eventFields(base map[string]string, extras map[string]string) map[string]string {
+	fields := make(map[string]string, len(base)+len(extras))
+	for key, value := range base {
+		fields[key] = value
+	}
+	for key, value := range extras {
+		fields[key] = value
+	}
+	return fields
+}
+
 // logAlertEvent is the canonical alert-path writer. Legacy helpers delegate here
 // so webhook lifecycle and notification logs share one deterministic field contract.
 func (h *WebhookHandler) logAlertEvent(stage string, fields map[string]string, format string, args ...interface{}) {
@@ -861,11 +870,13 @@ func (h *WebhookHandler) processAlertNotifications(alerts []models.Alert) {
 			h.logNotification("route_match", &alert, nil, "no matched route rules")
 			continue
 		}
-		h.logTraceStage("route_match", h.traceFieldsForAlert(alert), "matched_channels=%d", len(matchedChannels))
+		h.logAlertEvent("route_match", h.eventFields(h.traceFieldsForAlert(alert), map[string]string{
+			"matched_channels": fmt.Sprintf("%d", len(matchedChannels)),
+		}), "matched route rules")
 
 		// 4. 使用 output_template 生成通知内容
 		for _, channel := range matchedChannels {
-			h.logTraceStage("notification_entry", h.traceFieldsForNotification(&alert, &channel), "starting notification send")
+			h.logAlertEvent("notification_entry", h.traceFieldsForNotification(&alert, &channel), "starting notification send")
 			h.sendNotification(&alert, &channel)
 		}
 	}
@@ -1013,7 +1024,10 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 	// 获取 output_template
 	var ds models.DataSource
 	if err := h.db.First(&ds, "name = ?", alert.Source).Error; err != nil {
-		h.logNotification("datasource_lookup", alert, channel, "data source not found for source=%s err=%v", alert.Source, err)
+		h.logAlertEvent("datasource_lookup", h.eventFields(h.traceFieldsForNotification(alert, channel), map[string]string{
+			"error": err.Error(),
+			"mode":  "default",
+		}), "data source not found for source=%s", alert.Source)
 		// 使用默认模板
 		h.sendDefaultNotification(alert, channel)
 		return
@@ -1022,7 +1036,10 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 	// 使用 output_template 渲染通知内容
 	title, content, err := h.renderNotification(alert, string(ds.OutputTemplate))
 	if err != nil {
-		h.logNotification("render_notification", alert, channel, "failed to render notification err=%v", err)
+		h.logAlertEvent("render_notification", h.eventFields(h.traceFieldsForNotification(alert, channel), map[string]string{
+			"error": err.Error(),
+			"mode":  "default",
+		}), "failed to render notification")
 		h.sendDefaultNotification(alert, channel)
 		return
 	}
@@ -1049,20 +1066,23 @@ func (h *WebhookHandler) sendChannelNotification(
 
 	for attempt := 1; attempt <= notificationMaxAttempts; attempt++ {
 		err := sender(channel, title, content)
-		h.logTraceStage("send_attempt", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), "mode=%s", mode)
+		attemptFields := h.eventFields(h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), map[string]string{
+			"mode": mode,
+		})
+		h.logAlertEvent("send_attempt", attemptFields, "notification attempt recorded")
 
 		if err == nil {
-			h.logTraceStage("send_notification", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, nil), "notification sent")
+			h.logAlertEvent("send_notification", attemptFields, "notification sent")
 			return
 		}
 
 		if !notifier.IsRetryableSendError(err) {
-			h.logTraceStage("send_notification", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), "failed to send %s notification err=%v", mode, err)
+			h.logAlertEvent("send_notification", attemptFields, "failed to send %s notification", mode)
 			return
 		}
 
 		if attempt == notificationMaxAttempts {
-			h.logTraceStage("terminal_failure", h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), "retry budget exhausted for %s notification err=%v", mode, err)
+			h.logAlertEvent("terminal_failure", attemptFields, "retry budget exhausted for %s notification", mode)
 			return
 		}
 

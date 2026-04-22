@@ -98,8 +98,8 @@ Plans:
 
 Plans:
 
-- [ ] 17-01: Align docs, naming, and operational guidance with the non-AI alert system truth
-- [ ] 17-02: Record v1.3 verification, rollback concerns, and remaining deferred work
+- [ ] 17-01-PLAN.md — Rename low-risk verification entrypoints and refresh current truth surfaces
+- [ ] 17-02-PLAN.md — Create the maintainer alert-path runbook and Phase 17 truth artifacts
 
 **Success criteria:**
 - 仓库入口和阶段文档不再出现会误导当前系统定位的过期命名

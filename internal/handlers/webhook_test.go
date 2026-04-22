@@ -1144,6 +1144,30 @@ func TestWebhookHandlerLogAlertEvent_SkipsEmptyOptionalFieldsAndSortsStableKeys(
 	assert.Less(t, strings.Index(logLine, "source=prometheus"), strings.Index(logLine, "trace_id=trace-1"))
 }
 
+func TestWebhookHandlerLogAlertEvent_PreservesSpaceContainingFieldValues(t *testing.T) {
+	buffer := &bytes.Buffer{}
+	handler := &WebhookHandler{
+		logger: log.New(buffer, "", 0),
+	}
+
+	handler.logAlertEvent("send_attempt", map[string]string{
+		"trace_id":     "trace-1",
+		"alert_id":     "alert-1",
+		"fingerprint":  "fp-1",
+		"source":       "prometheus",
+		"channel_id":   "7",
+		"channel_name": "ops webhook primary",
+		"error":        "dial tcp timeout exceeded",
+	}, "notification attempt recorded")
+
+	logLine := strings.TrimSpace(buffer.String())
+	fields := parseWebhookLogFields(logLine)
+
+	assert.Equal(t, "send_attempt", fields["stage"])
+	assert.Equal(t, "ops webhook primary", fields["channel_name"])
+	assert.Equal(t, "dial tcp timeout exceeded", fields["error"])
+}
+
 func newWebhookTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 

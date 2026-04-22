@@ -841,17 +841,30 @@ func (h *WebhookHandler) traceFieldsForAttempt(alert *models.Alert, channel *mod
 }
 
 func (h *WebhookHandler) processAlertNotificationsAsync(alerts []models.Alert) {
+	var currentAlert *models.Alert
+	var currentChannel *models.Channel
+
 	defer func() {
 		if r := recover(); r != nil {
-			h.logNotification("async_panic", nil, nil, "recovered panic=%v stack=%s", r, string(debug.Stack()))
+			h.logNotification("async_panic", currentAlert, currentChannel, "recovered panic=%v stack=%s", r, string(debug.Stack()))
 		}
 	}()
 
-	h.processAlertNotifications(alerts)
+	h.processAlertNotificationsWithHook(alerts, func(alert *models.Alert, channel *models.Channel) {
+		currentAlert = alert
+		currentChannel = channel
+	})
 }
 
 // processAlertNotifications 处理告警的路由和推送
 func (h *WebhookHandler) processAlertNotifications(alerts []models.Alert) {
+	h.processAlertNotificationsWithHook(alerts, nil)
+}
+
+func (h *WebhookHandler) processAlertNotificationsWithHook(
+	alerts []models.Alert,
+	beforeSend func(alert *models.Alert, channel *models.Channel),
+) {
 	// 1. 获取所有启用的路由规则（按优先级排序）
 	var rules []models.RouteRule
 	h.db.Where("enabled = ?", true).Order("priority ASC").Find(&rules)
@@ -876,6 +889,9 @@ func (h *WebhookHandler) processAlertNotifications(alerts []models.Alert) {
 
 		// 4. 使用 output_template 生成通知内容
 		for _, channel := range matchedChannels {
+			if beforeSend != nil {
+				beforeSend(&alert, &channel)
+			}
 			h.logAlertEvent("notification_entry", h.traceFieldsForNotification(&alert, &channel), "starting notification send")
 			h.sendNotification(&alert, &channel)
 		}

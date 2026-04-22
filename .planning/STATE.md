@@ -58,5 +58,5 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 
 ## Session Resume
 
-- Resume file: `.planning/PROJECT.md`
-- Stopped at: Phase 16 complete; next step is `/gsd-discuss-phase 17`
+- Resume file: `.planning/phases/17-clean-truth-and-operational-docs/17-CONTEXT.md`
+- Stopped at: Phase 17 context gathered; next step is `/gsd-plan-phase 17`

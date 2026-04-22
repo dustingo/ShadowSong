@@ -5,11 +5,11 @@
 - ✅ **v1.0 AI Removal Complete** — Phases 1-4 (shipped 2026-04-10). Archive: `.planning/milestones/v1.0-ROADMAP.md`
 - ✅ **v1.1 Enterprise Access Control** — Phases 5-9 (shipped 2026-04-15). Archive: `.planning/milestones/v1.1-ROADMAP.md`
 - ✅ **v1.2 Alert Pipeline Hardening** — Phases 10-13 (shipped 2026-04-21). Archive: `.planning/milestones/v1.2-ROADMAP.md`
-- 🚧 **v1.3 Notification Reliability and Observability** — Phases 14-17 (in progress)
+- ✅ **v1.3 Notification Reliability and Observability** — Phases 14-17 (phase execution complete 2026-04-22; pending milestone closeout)
 
 ## Overview
 
-当前已启动 v1.3 `Notification Reliability and Observability`。本轮将在保持现有告警主流程和技术栈稳定的前提下，继续提升通知发送可靠性、告警链路可观测性、日志一致性，以及维护者当前真源文档与历史归档分层。
+v1.3 `Notification Reliability and Observability` 的 phase 执行已全部完成。本轮在保持现有告警主流程和技术栈稳定的前提下，补齐了通知发送可靠性、告警链路可观测性、日志一致性，以及维护者当前真源文档与历史归档分层。
 
 ## Phases
 
@@ -99,8 +99,8 @@ Plans:
 Plans:
 
 - [x] 17-01-PLAN.md — Rename low-risk verification entrypoints, tests, and repo-owned reference maps
-- [ ] 17-02-PLAN.md — Refresh README/planning truth surfaces and clearly frame historical docs
-- [ ] 17-03-PLAN.md — Create the maintainer alert-path runbook and Phase 17 truth artifacts
+- [x] 17-02-PLAN.md — Refresh README/planning truth surfaces and clearly frame historical docs
+- [x] 17-03-PLAN.md — Create the maintainer alert-path runbook and Phase 17 truth artifacts (completed 2026-04-22)
 
 **Success criteria:**
 - 仓库入口和阶段文档优先呈现当前告警系统叙事，不再出现会误导系统定位的过期命名
@@ -109,7 +109,7 @@ Plans:
 
 ## Next Step
 
-- Use `/gsd-discuss-phase 17` to clarify Phase 17 implementation details, or `/gsd-plan-phase 17` to plan directly
+- Use `/gsd-complete-milestone` to archive v1.3 and prepare the next milestone
 
 ## Progress
 
@@ -122,4 +122,4 @@ Plans:
 | 14. Establish Alert Trace Context | v1.3 | 2/2 | Complete    | 2026-04-21 |
 | 15. Harden Notification Retry Boundaries | v1.3 | 2/2 | Complete    | 2026-04-21 |
 | 16. Standardize Alert Path Logging | v1.3 | 4/4 | Complete    | 2026-04-22 |
-| 17. Clean Truth And Operational Docs | v1.3 | 0/3 | Planned | — |
+| 17. Clean Truth And Operational Docs | v1.3 | 3/3 | Complete    | 2026-04-22 |

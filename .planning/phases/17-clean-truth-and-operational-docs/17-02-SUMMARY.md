@@ -60,7 +60,7 @@ Each task was committed atomically:
 1. **Task 1: Refresh README and planning truth surfaces to the current operational narrative** - `573edb9` (docs)
 2. **Task 2: Reframe history-bearing docs and demote stale supplemental guidance** - `a023deb` (docs)
 
-**Plan metadata:** `[pending current commit]` (docs: summary capture)
+**Plan metadata:** `8c48a98` (docs: summary capture)
 
 ## Files Created/Modified
 - `.planning/phases/17-clean-truth-and-operational-docs/17-02-SUMMARY.md` - execution summary for Plan 17-02

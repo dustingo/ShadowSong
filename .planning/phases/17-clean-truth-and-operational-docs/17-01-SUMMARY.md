@@ -58,7 +58,7 @@ Each task was committed atomically:
 
 1. **Task 1: Rename low-risk verification entrypoints and eliminate repo-visible old script names** - `a7fab38` (fix)
 
-**Plan metadata:** `[pending current commit]` (docs: summary and final wording cleanup)
+**Plan metadata:** `61a2e90` (docs: summary and final wording cleanup)
 
 ## Files Created/Modified
 - `.planning/phases/17-clean-truth-and-operational-docs/17-01-SUMMARY.md` - execution summary for Plan 17-01

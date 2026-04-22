@@ -215,7 +215,7 @@ func TestWebhookHandlerProcessAlertNotificationsTraceLogging(t *testing.T) {
 	require.NoError(t, db.Create(&models.RouteRule{
 		Name:       "all",
 		Priority:   1,
-		ChannelIDs: datatypes.JSON(`[1]`),
+		ChannelIDs: datatypes.JSON(`[11]`),
 		Enabled:    true,
 	}).Error)
 
@@ -585,6 +585,7 @@ func TestWebhookHandlerProcessAlertNotificationsAsync_RecoversFromPanic(t *testi
 		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
 	}).Error)
 	require.NoError(t, db.Create(&models.Channel{
+		ID:      11,
 		Name:    "ops-webhook",
 		Type:    "webhook",
 		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
@@ -593,21 +594,35 @@ func TestWebhookHandlerProcessAlertNotificationsAsync_RecoversFromPanic(t *testi
 	require.NoError(t, db.Create(&models.RouteRule{
 		Name:       "all",
 		Priority:   1,
-		ChannelIDs: datatypes.JSON(`[1]`),
+		ChannelIDs: datatypes.JSON(`[11]`),
 		Enabled:    true,
 	}).Error)
 
 	handler.processAlertNotificationsAsync([]models.Alert{{
-		AlertID:   "alert-panic",
-		Source:    "prometheus",
-		AlertName: "CPUHigh",
-		Severity:  "P1",
-		Message:   "cpu high",
-		Status:    "firing",
+		AlertID:     "alert-panic",
+		TraceID:     "trace-panic",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-panic",
+		Status:      "firing",
 	}})
 
-	assert.Contains(t, logBuffer.String(), "stage=async_panic")
-	assert.Contains(t, logBuffer.String(), "recovered panic=boom")
+	logOutput := logBuffer.String()
+	assert.Contains(t, logOutput, "stage=async_panic")
+	assert.Contains(t, logOutput, "recovered panic=boom")
+
+	asyncPanicLine := findWebhookLogLine(logOutput, "stage=async_panic")
+	asyncPanicFields := parseWebhookLogFields(asyncPanicLine)
+	assert.Equal(t, "async_panic", asyncPanicFields["stage"])
+	assert.Equal(t, "trace-panic", asyncPanicFields["trace_id"])
+	assert.Equal(t, "alert-panic", asyncPanicFields["alert_id"])
+	assert.Equal(t, "fp-panic", asyncPanicFields["fingerprint"])
+	assert.Equal(t, "prometheus", asyncPanicFields["source"])
+	assert.Equal(t, "11", asyncPanicFields["channel_id"])
+	assert.Equal(t, "ops-webhook", asyncPanicFields["channel_name"])
+	assert.Equal(t, "webhook", asyncPanicFields["channel_type"])
 }
 
 func TestWebhookHandlerSendNotification_LogsAlertAndChannelContext(t *testing.T) {

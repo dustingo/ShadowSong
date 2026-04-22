@@ -1,8 +1,8 @@
 ---
 phase: 16
 slug: standardize-alert-path-logging
-status: blocked
-threats_open: 2
+status: verified
+threats_open: 0
 asvs_level: 1
 created: 2026-04-22
 updated: 2026-04-22
@@ -16,36 +16,30 @@ This audit re-verifies only the declared Phase 16 threats against the current ar
 
 - `.planning/phases/16-standardize-alert-path-logging/16-01-PLAN.md`
 - `.planning/phases/16-standardize-alert-path-logging/16-02-PLAN.md`
-- `.planning/phases/16-standardize-alert-path-logging/16-01-SUMMARY.md`
-- `.planning/phases/16-standardize-alert-path-logging/16-02-SUMMARY.md`
+- `.planning/phases/16-standardize-alert-path-logging/16-03-SUMMARY.md`
 - `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md`
 - `.planning/phases/16-standardize-alert-path-logging/16-UAT.md`
 - `internal/handlers/webhook.go`
 - `internal/handlers/webhook_test.go`
 
-Implementation files were treated as read-only during this audit.
-
 ## Threat Verification
 
 | Threat ID | Category | Disposition | Status | Evidence |
 |-----------|----------|-------------|--------|----------|
-| T-16-01 | R | mitigate | open | `internal/handlers/webhook.go:843-848` still logs `async_panic` through `logNotification("async_panic", nil, nil, ...)`, which drops `trace_id`, `alert_id`, and other alert correlation fields. The same gap is recorded in `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md:20-28,57,83,98,109,117`. |
-| T-16-02 | T | mitigate | closed | `internal/handlers/webhook.go:790-820` shows `logAlertEvent` as the canonical writer, while `logNotification` and `logTraceStage` now delegate into it instead of assembling fields independently. |
-| T-16-03 | I | mitigate | closed | `internal/handlers/webhook.go:763-788,831-840,1027-1042,1067-1085` limits the canonical envelope to IDs, routing metadata, retry metadata, mode, and bounded error strings. No raw webhook payload or secret material was added to alert-path logs. `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md:100` records `LOG-02` satisfied without payload expansion. |
-| T-16-04 | D | mitigate | closed | Implementation changes remain in `internal/handlers/webhook.go` and `internal/handlers/webhook_test.go`. `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md:59,100` explicitly keeps scope on webhook-to-notification logging rather than repo-wide standardization. |
-| T-16-05 | S | mitigate | closed | Existing stage names remain in use at `internal/handlers/webhook.go:136,188,214,589,873,879,846,1027,1039,1072,1075,1080,1085`, and tests continue asserting searchable stages in `internal/handlers/webhook_test.go:289-295,609-610,694-701,746-756,1001-1020,1065-1072`. |
-| T-16-06 | R | mitigate | closed | Field-level assertions exist in `internal/handlers/webhook_test.go:758-769,821-841,902-910,1011-1021,1065-1072` for `matched_channels`, `mode`, `channel_type`, `trace_id`, and `terminal_failure`. `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md:77,101` also records this contract coverage. |
-| T-16-07 | T | mitigate | closed | `.planning/phases/16-standardize-alert-path-logging/16-02-SUMMARY.md:68-72` states the verification artifact was written only after focused and broad `go test ./internal/handlers` runs passed. `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md:88-93` records those automated commands and results, and `:56-57,76,98-100` ties the doc to Phase 14/15 trace and retry truth. |
-| T-16-08 | I | mitigate | closed | `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md` documents field names, bounded values, and troubleshooting flow without including raw payloads, secrets, or full alert bodies; see `:58-59,67-69,75-85`. |
-| T-16-09 | D | mitigate | closed | `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md:59,67-69` explicitly states the phase stays within `internal/handlers/webhook.go` webhook-to-notification logging and does not claim repo-wide logging standardization. |
-| T-16-10 | S | mitigate | open | `internal/handlers/webhook.go:792-810` still emits raw space-delimited `key=value` tokens, and `internal/handlers/webhook_test.go:1212-1221` still parses logs with `strings.Fields`, so the contract is not safely extensible when values contain spaces. This remains documented in `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md:31-38,55,67-68,84-85,99,111`. |
+| T-16-01 | R | mitigate | closed | `internal/handlers/webhook.go` now keeps `currentAlert` and `currentChannel` through `processAlertNotificationsAsync`, and `async_panic` logs through `logNotification("async_panic", currentAlert, currentChannel, ...)`. The focused rerun `go test ./internal/handlers -run "TestWebhookHandler(.*Logging.*|.*SendNotification.*|.*Terminal.*|.*Panic.*)" -count=1` passed, confirming the failure path remains correlated. |
+| T-16-02 | T | mitigate | closed | `logAlertEvent` remains the single canonical writer, while `logNotification` and `logTraceStage` continue delegating into it instead of assembling alternate formats. |
+| T-16-03 | I | mitigate | closed | The canonical envelope still limits itself to IDs, routing metadata, retry metadata, mode, and bounded error strings. The serialization fix only quotes existing field values; it does not widen scope to raw payloads or secrets. |
+| T-16-04 | D | mitigate | closed | Implementation changes remain scoped to `internal/handlers/webhook.go`, `internal/handlers/webhook_test.go`, and the Phase 16 truth artifacts. |
+| T-16-05 | S | mitigate | closed | Existing searchable stage names remain intact, including `ingest`, `persist`, `route_match`, `notification_entry`, `send_attempt`, `send_notification`, `terminal_failure`, `redis_publish`, and `async_panic`. |
+| T-16-06 | R | mitigate | closed | Field-level assertions continue to cover canonical alert-path fields, and the parser now validates quoted values rather than silently truncating them. |
+| T-16-07 | T | mitigate | closed | This audit only marks closure after rerunning the focused handler suite and the full `go test ./internal/handlers -count=1` command, both of which passed on 2026-04-22. |
+| T-16-08 | I | mitigate | closed | Verification and UAT truth artifacts describe the contract and command evidence without adding sensitive payload content. |
+| T-16-09 | D | mitigate | closed | The parseability fix stayed within the Phase 16 webhook alert-path scope instead of expanding into repo-wide logging cleanup or JSON migration. |
+| T-16-10 | S | mitigate | closed | `internal/handlers/webhook.go` now encodes whitespace-bearing field values deterministically with quoting, and `internal/handlers/webhook_test.go` decodes the same contract via `parseWebhookLogFields` / `parseWebhookLogValue`. The regression `TestWebhookHandlerLogAlertEvent_PreservesSpaceContainingFieldValues` proves `channel_name` and `error` round-trip intact. |
 
 ## Open Threats
 
-| Threat ID | Category | Mitigation Expected | Files Searched |
-|-----------|----------|---------------------|----------------|
-| T-16-01 | R | Preserve failure-path reconstruction by keeping `async_panic` logs correlated with `trace_id`, `alert_id`, fingerprint, source, and channel context through the canonical writer. | `internal/handlers/webhook.go`, `internal/handlers/webhook_test.go`, `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md`, `.planning/phases/16-standardize-alert-path-logging/16-SECURITY.md` |
-| T-16-10 | S | Make the canonical vocabulary safely extensible by encoding or quoting field values and proving parser-safe handling for values containing spaces. | `internal/handlers/webhook.go`, `internal/handlers/webhook_test.go`, `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md`, `.planning/phases/16-standardize-alert-path-logging/16-SECURITY.md` |
+None.
 
 ## Accepted Risks Log
 
@@ -57,12 +51,11 @@ None.
 
 ## Unregistered Flags
 
-None. Neither `16-01-SUMMARY.md` nor `16-02-SUMMARY.md` contains a `## Threat Flags` section, so there were no summary flags to map or record as unregistered.
+None.
 
 ## Audit Trail
 
 | Audit Date | Threats Total | Closed | Open | Result |
 |------------|---------------|--------|------|--------|
 | 2026-04-22 | 10 | 8 | 2 | blocked |
-| 2026-04-22 | 10 | 8 | 2 | blocked (re-audit) |
-| 2026-04-22 | 10 | 8 | 2 | blocked (verify-open-threats) |
+| 2026-04-22 | 10 | 10 | 0 | verified |

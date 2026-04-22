@@ -762,33 +762,25 @@ func (h *WebhookHandler) sleepFunc() func(time.Duration) {
 	return time.Sleep
 }
 
-func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, channel *models.Channel, format string, args ...interface{}) {
-	fields := []string{fmt.Sprintf("stage=%s", stage)}
+func (h *WebhookHandler) baseAlertLogFields(alert *models.Alert, channel *models.Channel) map[string]string {
+	fields := map[string]string{}
 	if alert != nil {
-		fields = append(fields,
-			fmt.Sprintf("trace_id=%s", alert.TraceID),
-			fmt.Sprintf("alert_id=%s", alert.AlertID),
-			fmt.Sprintf("fingerprint=%s", alert.Fingerprint),
-			fmt.Sprintf("source=%s", alert.Source),
-		)
+		fields["trace_id"] = alert.TraceID
+		fields["alert_id"] = alert.AlertID
+		fields["fingerprint"] = alert.Fingerprint
+		fields["source"] = alert.Source
 	}
 	if channel != nil {
-		fields = append(fields,
-			fmt.Sprintf("channel_id=%d", channel.ID),
-			fmt.Sprintf("channel_name=%s", channel.Name),
-			fmt.Sprintf("channel_type=%s", channel.Type),
-		)
+		fields["channel_id"] = fmt.Sprintf("%d", channel.ID)
+		fields["channel_name"] = channel.Name
+		fields["channel_type"] = channel.Type
 	}
-
-	message := format
-	if len(args) > 0 {
-		message = fmt.Sprintf(format, args...)
-	}
-
-	h.notificationLogger().Printf("%s %s", strings.Join(fields, " "), message)
+	return fields
 }
 
-func (h *WebhookHandler) logTraceStage(stage string, fields map[string]string, format string, args ...interface{}) {
+// logAlertEvent is the canonical alert-path writer. Legacy helpers delegate here
+// so webhook lifecycle and notification logs share one deterministic field contract.
+func (h *WebhookHandler) logAlertEvent(stage string, fields map[string]string, format string, args ...interface{}) {
 	parts := []string{fmt.Sprintf("stage=%s", stage)}
 	keys := make([]string, 0, len(fields))
 	for key := range fields {
@@ -811,27 +803,20 @@ func (h *WebhookHandler) logTraceStage(stage string, fields map[string]string, f
 	h.notificationLogger().Printf("%s %s", strings.Join(parts, " "), message)
 }
 
+func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, channel *models.Channel, format string, args ...interface{}) {
+	h.logAlertEvent(stage, h.baseAlertLogFields(alert, channel), format, args...)
+}
+
+func (h *WebhookHandler) logTraceStage(stage string, fields map[string]string, format string, args ...interface{}) {
+	h.logAlertEvent(stage, fields, format, args...)
+}
+
 func (h *WebhookHandler) traceFieldsForAlert(alert models.Alert) map[string]string {
-	return map[string]string{
-		"trace_id":    alert.TraceID,
-		"alert_id":    alert.AlertID,
-		"fingerprint": alert.Fingerprint,
-		"source":      alert.Source,
-	}
+	return h.baseAlertLogFields(&alert, nil)
 }
 
 func (h *WebhookHandler) traceFieldsForNotification(alert *models.Alert, channel *models.Channel) map[string]string {
-	fields := map[string]string{}
-	if alert != nil {
-		for key, value := range h.traceFieldsForAlert(*alert) {
-			fields[key] = value
-		}
-	}
-	if channel != nil {
-		fields["channel_id"] = fmt.Sprintf("%d", channel.ID)
-		fields["channel_name"] = channel.Name
-	}
-	return fields
+	return h.baseAlertLogFields(alert, channel)
 }
 
 func (h *WebhookHandler) traceFieldsForAttempt(alert *models.Alert, channel *models.Channel, attempt, maxAttempts int, err error) map[string]string {

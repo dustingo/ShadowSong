@@ -60,7 +60,7 @@ Each task was committed atomically:
 1. **Task 1: Create the evergreen maintainer alert-path operations runbook** - `18165ba` (docs)
 2. **Task 2: Create Phase 17 verification, UAT, and security truth artifacts for docs and rollback boundaries** - `87fbdcd` (docs)
 
-**Plan metadata:** `[pending current commit]` (docs: summary capture)
+**Plan metadata:** `5c7dbf7` (docs: summary capture)
 
 ## Files Created/Modified
 - `docs/alert-path-operations-runbook.md` - evergreen maintainer troubleshooting and rollback guide

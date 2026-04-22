@@ -754,6 +754,10 @@ func TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures(t *te
 	assert.Contains(t, logOutput, "error=")
 	assert.Contains(t, logOutput, "stage=send_notification")
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
+
+	sendAttemptLine := findWebhookLogLine(logOutput, "stage=send_attempt")
+	assert.Contains(t, sendAttemptLine, "mode=rendered")
+	assert.Less(t, strings.Index(sendAttemptLine, "mode=rendered"), strings.Index(sendAttemptLine, "source=prometheus"))
 }
 
 func TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetryBoundary(t *testing.T) {
@@ -803,6 +807,16 @@ func TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetr
 	assert.Contains(t, titles, "[P1] CPUHigh")
 	assert.Contains(t, contents, "cpu high")
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
+
+	datasourceLookupLine := findWebhookLogLine(logOutput, "stage=datasource_lookup")
+	assert.Contains(t, datasourceLookupLine, "channel_type=webhook")
+	assert.Contains(t, datasourceLookupLine, "mode=default")
+	assert.Less(t, strings.Index(datasourceLookupLine, "mode=default"), strings.Index(datasourceLookupLine, "source=missing-source"))
+
+	sendAttemptLine := findWebhookLogLine(logOutput, "stage=send_attempt")
+	assert.Contains(t, sendAttemptLine, "channel_type=webhook")
+	assert.Contains(t, sendAttemptLine, "mode=default")
+	assert.Less(t, strings.Index(sendAttemptLine, "mode=default"), strings.Index(sendAttemptLine, "source=missing-source"))
 }
 
 func TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary(t *testing.T) {
@@ -860,6 +874,11 @@ func TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary(
 	assert.Contains(t, titles, "[P1] CPUHigh")
 	assert.Contains(t, contents, "cpu high")
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
+
+	renderLine := findWebhookLogLine(logOutput, "stage=render_notification")
+	assert.Contains(t, renderLine, "channel_type=webhook")
+	assert.Contains(t, renderLine, "mode=default")
+	assert.Less(t, strings.Index(renderLine, "mode=default"), strings.Index(renderLine, "source=prometheus"))
 }
 
 func TestWebhookHandlerSendNotification_NonRetryableFailureStopsAfterFirstAttempt(t *testing.T) {
@@ -959,6 +978,55 @@ func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPe
 	assert.Contains(t, logOutput, "max_attempts=")
 	assert.Contains(t, logOutput, "error=")
 	assert.Equal(t, beforeCounts, afterCounts)
+
+	terminalFailureLine := findWebhookLogLine(logOutput, "stage=terminal_failure")
+	assert.Contains(t, terminalFailureLine, "channel_type=webhook")
+	assert.Contains(t, terminalFailureLine, "mode=rendered")
+	assert.Less(t, strings.Index(terminalFailureLine, "mode=rendered"), strings.Index(terminalFailureLine, "source=prometheus"))
+}
+
+func TestWebhookHandlerProcessAlertNotifications_LogsMatchedChannelsAsStructuredField(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, logBuffer := newWebhookTestHandler(db)
+	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+		return nil
+	}
+
+	require.NoError(t, db.Create(&models.Channel{
+		ID:      51,
+		Name:    "ops-webhook",
+		Type:    "webhook",
+		Config:  datatypes.JSON(`{"url":"https://example.com"}`),
+		Enabled: true,
+	}).Error)
+	require.NoError(t, db.Create(&models.RouteRule{
+		Name:       "all",
+		Priority:   1,
+		ChannelIDs: datatypes.JSON(`[51]`),
+		Enabled:    true,
+	}).Error)
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:           "prometheus",
+		DisplayName:    "Prometheus",
+		APIKey:         "key",
+		InputTemplate:  "{}",
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+	}).Error)
+
+	handler.processAlertNotifications([]models.Alert{{
+		AlertID:     "alert-route-structured",
+		TraceID:     "trace-route-structured",
+		Source:      "prometheus",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "fp-route-structured",
+		Status:      "firing",
+	}})
+
+	routeMatchLine := findWebhookLogLine(logBuffer.String(), "stage=route_match")
+	assert.Contains(t, routeMatchLine, "matched_channels=1")
+	assert.Less(t, strings.Index(routeMatchLine, "matched_channels=1"), strings.Index(routeMatchLine, "source=prometheus"))
 }
 
 func TestWebhookHandlerBaseAlertLogFields_IncludeAlertAndChannelContext(t *testing.T) {
@@ -1087,4 +1155,13 @@ func countWebhookNotificationState(t *testing.T, db *gorm.DB) map[string]int64 {
 	}
 
 	return counts
+}
+
+func findWebhookLogLine(logOutput string, needle string) string {
+	for _, line := range strings.Split(logOutput, "\n") {
+		if strings.Contains(line, needle) {
+			return line
+		}
+	}
+	return ""
 }

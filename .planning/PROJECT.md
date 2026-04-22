@@ -29,7 +29,7 @@
 
 ### Active
 
-- [ ] 历史命名和文档真相需要继续清理，确保仓库入口、运行说明、维护者入口和阶段文档反映当前告警系统现状，并把历史叙事限制在归档语境
+- [ ] 暂无未关闭的 v1.3 phase requirement；下一步进入 milestone closeout，并决定后续新增范围
 
 ### Out of Scope
 
@@ -40,9 +40,9 @@
 ## Current State
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）、`v1.2 Alert Pipeline Hardening`（2026-04-21）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文字段、有界三次重试、最终失败落点、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志、统一 webhook 告警主链路日志输出入口、parse-safe 字段序列化与 `async_panic` 关联字段保真
-- 已验证路径：后端告警主链路验证脚本、前端控制台基线验证脚本、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、Phase 14 trace/context handlers 与 phase verification、Phase 15 notification retry boundaries verification、Phase 16 standardized alert-path logging verification
-- 最新阶段：Phase 17 in progress — 当前正在清理真相文档表面并补齐维护者操作入口，运行时深层历史命名仍按 deferred boundary 保持不变
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文字段、有界三次重试、最终失败落点、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志、统一 webhook 告警主链路日志输出入口、parse-safe 字段序列化与 `async_panic` 关联字段保真，以及维护者 alert-path runbook 与 Phase 17 真相工件
+- 已验证路径：后端告警主链路验证脚本、前端控制台基线验证脚本、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、Phase 14 trace/context handlers 与 phase verification、Phase 15 notification retry boundaries verification、Phase 16 standardized alert-path logging verification、Phase 17 docs/runbook/security truth verification
+- 最新阶段：Phase 17 complete — 当前真相文档表面、维护者 runbook 和 deferred runtime naming 边界已收口；v1.3 已完成全部 phase，待 milestone closeout
 - 历史路线图与 requirement 基线保存在 `.planning/milestones/`，新一轮执行将沿现有 phase 编号继续推进
 - 暂缓迁移边界：`go.mod` module path 与 JWT issuer 仍是历史遗留运行时契约；Phase 17 只清理 README、planning 真源和低风险入口命名，不在本轮推动运行时重命名
 
@@ -128,4 +128,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-22 after Phase 16 completion*
+*Last updated: 2026-04-22 after Phase 17 completion*

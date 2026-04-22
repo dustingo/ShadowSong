@@ -94,12 +94,13 @@ Plans:
 
 **Goal**: 继续清理历史命名和文档真相，并把 v1.3 的可靠性/可观测性行为沉淀到面向维护者的说明和验证产物。  
 **Depends on**: Phase 16  
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 
-- [ ] 17-01-PLAN.md — Rename low-risk verification entrypoints and refresh current truth surfaces
-- [ ] 17-02-PLAN.md — Create the maintainer alert-path runbook and Phase 17 truth artifacts
+- [ ] 17-01-PLAN.md — Rename low-risk verification entrypoints, tests, and repo-owned reference maps
+- [ ] 17-02-PLAN.md — Refresh README/planning truth surfaces and clearly frame historical docs
+- [ ] 17-03-PLAN.md — Create the maintainer alert-path runbook and Phase 17 truth artifacts
 
 **Success criteria:**
 - 仓库入口和阶段文档不再出现会误导当前系统定位的过期命名
@@ -121,4 +122,4 @@ Plans:
 | 14. Establish Alert Trace Context | v1.3 | 2/2 | Complete    | 2026-04-21 |
 | 15. Harden Notification Retry Boundaries | v1.3 | 2/2 | Complete    | 2026-04-21 |
 | 16. Standardize Alert Path Logging | v1.3 | 4/4 | Complete    | 2026-04-22 |
-| 17. Clean Truth And Operational Docs | v1.3 | 0/2 | Planned | — |
+| 17. Clean Truth And Operational Docs | v1.3 | 0/3 | Planned | — |

@@ -288,17 +288,19 @@ Source: locked phase boundary. [VERIFIED: `.planning/phases/17-clean-truth-and-o
 | A2 | Some maintainers may have out-of-repo automation or habits tied to the current `verify_*_no_ai.ps1` paths, so file renames should be treated as low-risk but still reference-audited. [ASSUMED] | Runtime State Inventory / Common Pitfalls | If wrong, planner may over-engineer compatibility or, conversely, break an undocumented local workflow. |
 | A3 | Supplemental docs like `docs/CODE_REVIEW.md` are maintainer-visible enough that they should be refreshed or demoted during this phase. [ASSUMED] | Common Pitfalls / Safe Cleanup Inventory | If wrong, planner might spend effort on a file that is not actually part of the maintainer truth surface. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should Phase 17 rename the verification script files themselves, or only their displayed descriptions?** [VERIFIED: `scripts/verify_backend_no_ai.ps1`] [VERIFIED: `scripts/verify_frontend_no_ai.ps1`]
 What we know: The file names are explicitly listed as low-risk rename candidates in context, and all current repo-visible references are doc/map references rather than runtime wiring. [VERIFIED: `.planning/phases/17-clean-truth-and-operational-docs/17-CONTEXT.md`] [VERIFIED: `rg scan on README/.planning/scripts`]
 What's unclear: Whether external human habits or private automation depend on the existing paths. [ASSUMED]
 Recommendation: Planner should either rename files and update all in-repo references in the same wave, or keep file paths for now but rewrite visible descriptions and add a deferred note. [ASSUMED]
+Resolved for Phase 17 planning: rename the script files themselves and update all in-repo references in the same phase; treat any unknown private automation dependency as an external follow-up risk, not a blocker for repo truth cleanup. [VERIFIED: `.planning/phases/17-clean-truth-and-operational-docs/17-CONTEXT.md`] [VERIFIED: planner decision in `17-01-PLAN.md`]
 
 2. **Should `docs/CODE_REVIEW.md` be updated, archived, or left alone?** [VERIFIED: `docs/CODE_REVIEW.md`]
 What we know: It is the only file currently under `docs/`, and it contains advice that conflicts with current Phase 16 truth, especially around repo-wide `slog` migration. [VERIFIED: `Get-ChildItem docs`] [VERIFIED: `docs/CODE_REVIEW.md`] [VERIFIED: `.planning/phases/16-standardize-alert-path-logging/16-VERIFICATION.md`]
 What's unclear: Whether the team considers it active guidance or historical reference. [ASSUMED]
 Recommendation: Planner should decide explicitly instead of ignoring it; either refresh it, add a historical banner, or exclude it from current maintainer truth with a clear note. [ASSUMED]
+Resolved for Phase 17 planning: keep `docs/CODE_REVIEW.md`, but explicitly mark it as a historical review snapshot and point maintainers to current Phase 14-16 verification truth plus the new runbook instead of treating it as active guidance. [VERIFIED: planner decision in `17-01-PLAN.md`] [VERIFIED: `.planning/phases/17-clean-truth-and-operational-docs/17-CONTEXT.md`]
 
 ## Security Domain
 

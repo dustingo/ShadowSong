@@ -406,7 +406,7 @@ INSERT INTO data_sources (
   input_template, output_template, group_by_labels, enabled, created_at, updated_at
 )
 VALUES (
-  '$sourceName', 'Verify No AI Source', '$runId-api-key', true, 3600, false, 300,
+  '$sourceName', 'Verify Alert Flow Source', '$runId-api-key', true, 3600, false, 300,
   '$inputTemplate', '$outputTemplate', '[]'::jsonb, true, NOW(), NOW()
 );
 
@@ -450,7 +450,7 @@ VALUES (
     event_id    = "${runId}-evt-1"
     alert_name  = "${runId} Alert"
     severity    = 'P1'
-    message     = 'backend no ai verification'
+    message     = 'backend alert flow verification'
     source_name = $sourceName
     status      = 'firing'
     timestamp   = (Get-Date).ToUniversalTime().ToString('o')

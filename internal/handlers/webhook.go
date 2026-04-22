@@ -15,6 +15,7 @@ import (
 	"os"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -790,7 +791,7 @@ func (h *WebhookHandler) eventFields(base map[string]string, extras map[string]s
 // logAlertEvent is the canonical alert-path writer. Legacy helpers delegate here
 // so webhook lifecycle and notification logs share one deterministic field contract.
 func (h *WebhookHandler) logAlertEvent(stage string, fields map[string]string, format string, args ...interface{}) {
-	parts := []string{fmt.Sprintf("stage=%s", stage)}
+	parts := []string{formatAlertLogField("stage", stage)}
 	keys := make([]string, 0, len(fields))
 	for key := range fields {
 		keys = append(keys, key)
@@ -801,7 +802,7 @@ func (h *WebhookHandler) logAlertEvent(stage string, fields map[string]string, f
 		if fields[key] == "" {
 			continue
 		}
-		parts = append(parts, fmt.Sprintf("%s=%s", key, fields[key]))
+		parts = append(parts, formatAlertLogField(key, fields[key]))
 	}
 
 	message := format
@@ -810,6 +811,20 @@ func (h *WebhookHandler) logAlertEvent(stage string, fields map[string]string, f
 	}
 
 	h.notificationLogger().Printf("%s %s", strings.Join(parts, " "), message)
+}
+
+func formatAlertLogField(key, value string) string {
+	return fmt.Sprintf("%s=%s", key, encodeAlertLogValue(value))
+}
+
+func encodeAlertLogValue(value string) string {
+	if value == "" {
+		return `""`
+	}
+	if strings.ContainsAny(value, " \t\r\n\"\\") {
+		return strconv.Quote(value)
+	}
+	return value
 }
 
 func (h *WebhookHandler) logNotification(stage string, alert *models.Alert, channel *models.Channel, format string, args ...interface{}) {

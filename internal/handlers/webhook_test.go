@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1252,14 +1253,82 @@ func findWebhookLogLine(logOutput string, needle string) string {
 
 func parseWebhookLogFields(logLine string) map[string]string {
 	fields := map[string]string{}
-	for _, token := range strings.Fields(logLine) {
-		key, value, ok := strings.Cut(token, "=")
-		if !ok || key == "" {
-			continue
+	index := 0
+
+	for index < len(logLine) {
+		for index < len(logLine) && logLine[index] == ' ' {
+			index++
 		}
+		if index >= len(logLine) {
+			break
+		}
+
+		keyStart := index
+		for index < len(logLine) && isWebhookLogFieldKeyChar(logLine[index]) {
+			index++
+		}
+		if keyStart == index || index >= len(logLine) || logLine[index] != '=' {
+			break
+		}
+
+		key := logLine[keyStart:index]
+		index++
+		if index >= len(logLine) {
+			break
+		}
+
+		value, nextIndex, ok := parseWebhookLogValue(logLine, index)
+		if !ok {
+			break
+		}
+
 		fields[key] = value
+		index = nextIndex
 	}
 	return fields
+}
+
+func isWebhookLogFieldKeyChar(ch byte) bool {
+	return ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
+}
+
+func parseWebhookLogValue(logLine string, start int) (string, int, bool) {
+	if logLine[start] == '"' {
+		end := start + 1
+		escaped := false
+		for end < len(logLine) {
+			ch := logLine[end]
+			if escaped {
+				escaped = false
+				end++
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				end++
+				continue
+			}
+			if ch == '"' {
+				end++
+				value, err := strconv.Unquote(logLine[start:end])
+				if err != nil {
+					return "", start, false
+				}
+				return value, end, true
+			}
+			end++
+		}
+		return "", start, false
+	}
+
+	end := start
+	for end < len(logLine) && logLine[end] != ' ' {
+		end++
+	}
+	if end == start {
+		return "", start, false
+	}
+	return logLine[start:end], end, true
 }
 
 func assertWebhookLogFields(t *testing.T, logLine string, expected map[string]string) {

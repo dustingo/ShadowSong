@@ -81,6 +81,7 @@ No accepted risks.
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-04-22 | 10 | 8 | 2 | Codex + gsd-security-auditor |
+| 2026-04-22 | 10 | 8 | 2 | Codex + gsd-security-auditor (re-audit) |
 
 ---
 

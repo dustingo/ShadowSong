@@ -80,8 +80,8 @@ Plans:
 
 Plans:
 
-- [ ] 16-01: Introduce shared logging conventions for alert-path operational events
-- [ ] 16-02: Replace high-risk ad hoc prints and verify logging consistency in tests/docs
+- [ ] 16-01-PLAN.md — Introduce one canonical alert-path event writer and migrate webhook call sites
+- [ ] 16-02-PLAN.md — Lock the logging contract in tests and capture Phase 16 verification truth
 
 **Success criteria:**
 - 告警链路关键事件采用统一字段命名和格式

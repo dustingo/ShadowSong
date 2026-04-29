@@ -43,7 +43,49 @@
 - 主要工作集中在 docs / fix / test 提交，阶段粒度清晰
 - 真实验证脚本虽然耗时较长，但能有效提前暴露契约和路由问题
 
+## Milestone: v1.3 — Notification Reliability and Observability
+
+**Shipped:** 2026-04-29  
+**Phases:** 4 | **Plans:** 11
+
+### What Was Built
+
+- 建立了从 webhook `ingest` 到通知发送失败路径的 `trace_id` 关联真源
+- 为通知发送补齐了 bounded retry、attempt-level diagnostics 和 `terminal_failure` 落点
+- 统一了 webhook alert-path 的 canonical `key=value` 日志契约，并修复空格值的可解析性
+- 交付了维护者 alert-path runbook、Phase 17 truth artifacts，以及 v1.3 里程碑审计归档
+
+### What Worked
+
+- 先补 trace 真源，再补 retry 边界，最后做日志契约统一，这个 phase 顺序是对的
+- 将 failure-path 约束写成 focused Go tests，比只写 verification 文档更稳
+- 保持 brownfield 增量策略，没有引入新基础设施，也把主链路质量明显拉高
+
+### What Was Inefficient
+
+- 里程碑审计仍然是在 phase 全部完成后补做，closeout 时要额外对账 requirements、summaries 和 verification
+- `gsd-tools milestone complete` 只能完成部分 closeout，`ROADMAP.md`、`PROJECT.md` 和 `STATE.md` 仍需要人工收口
+- dirty worktree 下做 closeout 需要额外约束 staging 范围，否则很容易误带无关 planning 删除或本地实验改动
+
+### Patterns Established
+
+- 任何可靠性增强如果要可维护，必须同步交付 runbook，而不是只交付日志
+- 文本型日志契约可以继续用，但必须配套 parse-safe encoding 和 field-level regressions
+- 里程碑 closeout 前先做 milestone audit，可以显著降低归档时的文档修补成本
+
+### Key Lessons
+
+- 没有 durable retry 基础设施时，至少要把失败路径的 final landing zone 和 correlation story 做实
+- 真源文档和历史归档必须分层，否则维护者会把旧 milestone 叙事误读成当前入口
+- 对于历史运行时命名，先明确 deferred boundary，比在文档里模糊带过更安全
+
+### Cost Observations
+
+- 本轮以 docs / test / fix 混合提交为主，phase 颗粒度适合 brownfield 连续增强
+- focused handler/notifier 回归测试成本低、回报高，是后续类似 phase 的默认验证方式
+
 ## Cross-Milestone Trends
 
 - v1.0：以“先收主链路、再补证据”的顺序最稳
-- 当前维护叙事已转入 v1.3 可靠性、可观测性和文档真相分层；历史 AI 移除表述只作为复盘背景，不应覆盖当下的维护者入口
+- v1.3：trace truth → retry boundary → log contract → maintainer runbook 的链式推进，比直接上“大而全 observability 改造”更适合当前仓库
+- 当前维护叙事已转入可靠性、可观测性和文档真相分层；历史 AI 移除表述只作为复盘背景，不应覆盖当下的维护者入口

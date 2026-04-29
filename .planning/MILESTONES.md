@@ -1,5 +1,25 @@
 # Milestones
 
+## v1.3 Notification Reliability and Observability (Shipped: 2026-04-29)
+
+**Phases completed:** 4 phases, 11 plans, 21 tasks
+
+**Key accomplishments:**
+
+- Webhook requests now mint one server-side trace_id that persists on new alerts and survives dedup, Redis handoff, and async notification entry without changing alert_id or fingerprint semantics
+- Webhook lifecycle logs now expose one searchable trace across ingest, persist or dedup, Redis handoff, route matching, and notification entry with explicit Redis outcome metadata, and the constructor remains nil-safe for router tests without Redis
+- Webhook notifications now classify transient send failures centrally, retry them inside one bounded async window, and emit attempt-level plus terminal-failure logs with stable trace fields
+- Phase 15 verification now locks the three retry outcomes and exact three-attempt exhaustion behavior in tests, and documents terminal failure as a log-only landing zone that operators can trace back through the Phase 14 lifecycle
+- Canonical webhook alert-path logging now uses one shared key=value writer with stable trace/channel envelopes and structured `matched_channels` and `mode` fields across route and send failure paths
+- Webhook logging contract is now pinned by field-level handler regressions and a phase verification artifact that shows how to walk a `trace_id` from `terminal_failure` back to `ingest`
+- Webhook async panic recovery now keeps trace_id, alert_id, fingerprint, source, and concrete channel metadata on the emitted async_panic log line
+- Webhook alert-path logs now preserve space-containing field values through quoted key=value serialization, parser-aligned regressions, and refreshed Phase 16 verification truth
+- Low-risk verification entrypoints now use current alert-flow and console-baseline naming across scripts, tests, and repo-owned reference maps.
+- README and planning truth surfaces now describe the live game-ops alert platform, while historical milestone and review docs are explicitly framed as archive context.
+- Maintainers now have one evergreen alert-path runbook plus phase-local verification, UAT, and security artifacts grounded in the verified Phase 14-16 evidence chain.
+
+---
+
 当前维护者入口请以 `README.md`、`.planning/PROJECT.md`、`.planning/ROADMAP.md` 和 Phase 14-17 真相工件为准。本文件保留已发布里程碑事实，尤其是 `v1.0 AI Removal Complete` 的历史上下文，但这些标题不代表当前运行叙事或推荐命名。
 
 ## v1.0 AI Removal Complete (Shipped: 2026-04-10)
@@ -50,6 +70,6 @@
 
 ## Current Narrative
 
-- 当前主叙事属于 `v1.3 Notification Reliability and Observability`，重点是通知可靠性、告警链路可观测性、维护者 runbook 和真相分层
+- 当前系统能力基线由已发版的 `v1.3 Notification Reliability and Observability` 定义，重点是通知可靠性、告警链路可观测性、维护者 runbook 和真相分层
 - `AI Removal Complete` 只保留为 v1.0 已发版历史事实；后续维护与运行入口不应再把该标题当作当前系统定位
 - 深层运行时历史命名例如 `go.mod` module path 与 JWT issuer 仍是 deferred runtime contracts，应在当前真源中标注为暂缓迁移，而不是在里程碑摘要里误读为推荐现状

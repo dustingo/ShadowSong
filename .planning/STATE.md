@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Notification Reliability and Observability
 status: completed
-last_updated: "2026-04-22T07:59:09.008Z"
-last_activity: 2026-04-22
+last_updated: "2026-04-29T14:51:47.401Z"
+last_activity: 2026-04-29
 progress:
   total_phases: 4
   completed_phases: 4
@@ -15,17 +15,17 @@ progress:
 
 # Current Position
 
-Phase: 17
-Plan: 3/3 complete
-Status: Phase 17 complete; v1.3 ready for milestone closeout
-Last activity: 2026-04-22
+Phase: -
+Plan: -
+Status: v1.3 archived; waiting for next milestone definition
+Last activity: 2026-04-29
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-04-22)
+See: `.planning/PROJECT.md` (updated 2026-04-29)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Milestone closeout for v1.3 Notification Reliability and Observability
+**Current focus:** Define the next milestone and create a fresh requirements baseline
 
 ## Accumulated Context
 
@@ -44,6 +44,8 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 - Phase 14 已完成：webhook 主链路已建立服务端 trace_id 真源，并补齐 ingest / persist / dedup / Redis / route_match / notification_entry 生命周期观测点
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移
 - v1.3 已完成全部 phases，通知发送可靠性、告警链路可观测性、日志统一以及维护者当前真源文档均已落地
+- v1.3 里程碑已完成归档，requirements / roadmap / audit 历史基线已写入 `.planning/milestones/`
+- 当前没有进行中的 milestone；下一步应通过 `/gsd-new-milestone` 定义新的 requirements 和 roadmap
 
 ### Roadmap Evolution
 
@@ -55,8 +57,9 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 - Phase 15 completed: Harden Notification Retry Boundaries
 - Phase 16 completed: Standardize Alert Path Logging
 - Phase 17 completed: Clean Truth And Operational Docs
+- v1.3 archived: Notification Reliability and Observability
 
 ## Session Resume
 
 - Resume file: `.planning/ROADMAP.md`
-- Stopped at: Phase 17 execution complete; next step is `/gsd-complete-milestone`
+- Stopped at: v1.3 archived; next step is `/gsd-new-milestone`

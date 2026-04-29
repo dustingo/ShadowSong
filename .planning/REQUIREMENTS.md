@@ -67,30 +67,30 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DELV-01 | Phase TBD | Pending |
-| DELV-02 | Phase TBD | Pending |
-| DELV-03 | Phase TBD | Pending |
-| DELV-04 | Phase TBD | Pending |
-| DELV-05 | Phase TBD | Pending |
-| DELV-06 | Phase TBD | Pending |
-| INGR-01 | Phase TBD | Pending |
-| INGR-02 | Phase TBD | Pending |
-| INGR-03 | Phase TBD | Pending |
-| INGR-04 | Phase TBD | Pending |
-| INGR-05 | Phase TBD | Pending |
-| OPER-01 | Phase TBD | Pending |
-| OPER-02 | Phase TBD | Pending |
-| OPER-03 | Phase TBD | Pending |
-| OPER-04 | Phase TBD | Pending |
-| OPER-05 | Phase TBD | Pending |
-| DEBT-01 | Phase TBD | Pending |
-| DEBT-02 | Phase TBD | Pending |
-| DEBT-03 | Phase TBD | Pending |
+| DELV-01 | Phase 18 | Pending |
+| DELV-02 | Phase 18 | Pending |
+| DELV-03 | Phase 19 | Pending |
+| DELV-04 | Phase 19 | Pending |
+| DELV-05 | Phase 19 | Pending |
+| DELV-06 | Phase 18 | Pending |
+| INGR-01 | Phase 20 | Pending |
+| INGR-02 | Phase 20 | Pending |
+| INGR-03 | Phase 20 | Pending |
+| INGR-04 | Phase 20 | Pending |
+| INGR-05 | Phase 20 | Pending |
+| OPER-01 | Phase 19 | Pending |
+| OPER-02 | Phase 21 | Pending |
+| OPER-03 | Phase 21 | Pending |
+| OPER-04 | Phase 19 | Pending |
+| OPER-05 | Phase 21 | Pending |
+| DEBT-01 | Phase 20 | Pending |
+| DEBT-02 | Phase 21 | Pending |
+| DEBT-03 | Phase 21 | Pending |
 
 **Coverage:**
 - v1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-29*

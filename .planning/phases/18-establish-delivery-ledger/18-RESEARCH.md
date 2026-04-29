@@ -283,17 +283,15 @@ Source: [VERIFIED: internal/database/postgres.go][CITED: https://gorm.io/docs/mi
 | A2 | Phase 18 不需要新增第三方依赖即可完成。 | Standard Stack | 如果实现选择引入 repository helper、UUID 库或结构化错误库，安装与测试任务需要补充。 |
 | A3 | 复用 `CapabilityViewConfig` 保护 delivery 只读 API 足够，不需要新增 capability。 | Don't Hand-Roll | 如果产品希望“可看配置但不可看投递账本”分离权限，router/authz 任务会扩大。 |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **最小只读面到底是单条详情还是详情 + 极简列表？**
    What we know: context 明确“不强制完整前端历史页”，并允许 researcher/planner 在单条详情与有限过滤列表间裁定。[VERIFIED: .planning/phases/18-establish-delivery-ledger/18-CONTEXT.md]
-   What's unclear: success criteria 里的“查看任一通知投递记录”是否要求运维在没有 ID 的情况下自行搜索到该记录。[VERIFIED: .planning/ROADMAP.md][ASSUMED]
-   Recommendation: planner 默认以 `GET /api/v1/deliveries/:id` 为 phase gate，如评审认为缺乏入口，再增补最小分页列表而不做复杂筛选。[ASSUMED]
+   RESOLVED: 采用 `GET /api/v1/deliveries` + `GET /api/v1/deliveries/:id` 的最小后端只读面；列表只提供 `alert_id`、`trace_id`、`channel_id`、`delivery_status`、时间范围和分页这些极简过滤，不扩成完整历史页或复杂搜索。这样既满足“维护者可以查看任一通知投递记录”的 success criteria，也不吞掉 Phase 19 的完整历史面 scope。[VERIFIED: .planning/ROADMAP.md][VERIFIED: .planning/phases/18-establish-delivery-ledger/18-CONTEXT.md]
 
 2. **快照字段是否要拆成多个 JSONB 列，还是合并成一个 payload？**
    What we know: requirement 只锁定快照内容范围，没有锁定列布局。[VERIFIED: .planning/phases/18-establish-delivery-ledger/18-CONTEXT.md]
-   What's unclear: 后续 Phase 21 的聚合查询会不会直接依赖快照内某些字段做筛选。[ASSUMED]
-   Recommendation: 对审计解释最常用的快照分成 `alert_snapshot`、`channel_snapshot`、`route_snapshot`、`rendered_payload_snapshot` 四列，避免单 blob 漫灌，也避免为少量字段过早完全结构化。[ASSUMED]
+   RESOLVED: 快照拆成 `alert_snapshot`、`channel_snapshot`、`route_snapshot`、`rendered_payload_snapshot` 四类 `jsonb` 列；不合并成单个 blob，也不为了少量字段过早完全结构化成大量列。这样更利于后续审计解释、字段演进和最小读 API 输出，同时维持当前 phase 的 additive schema 复杂度可控。[VERIFIED: .planning/phases/18-establish-delivery-ledger/18-CONTEXT.md][ASSUMED]
 
 ## Environment Availability
 

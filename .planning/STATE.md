@@ -45,5 +45,5 @@ See: `.planning/PROJECT.md` (updated 2026-04-29)
 
 ## Session Continuity
 
-- Resume file: `.planning/ROADMAP.md`
-- Stopped at: v1.4 roadmap created; next step is `/gsd-plan-phase 18`
+- Resume file: `.planning/phases/18-establish-delivery-ledger/18-CONTEXT.md`
+- Stopped at: Phase 18 context gathered; next step is `/gsd-plan-phase 18`

@@ -56,6 +56,15 @@
 - 决定下一轮是优先做通知投递可恢复能力，还是做更深一层的可观测性与运维面板建设
 - 明确哪些技术债需要进入正式 phase，哪些仍保留为 deferred background items
 
+## Current Milestone: v1.4 Delivery Recovery and Production Hardening
+
+**Goal:** 在不引入大规模技术迁移的前提下，把告警系统推进到“失败可恢复、入口更安全、运维更可观测”的生产化基线。
+
+**Target features:**
+- 通知投递持久化、失败补发/重放、审计闭环
+- webhook 与服务入口硬化：限流、size limit、readiness、配置收口
+- 指标与历史查询面板，支持快速判断失败位置和通道健康
+
 ## Context
 
 - 当前 `User` 模型已经包含 `role` 字段，角色命名为 `admin`、`operator`、`viewer`，本轮继续沿用该命名
@@ -138,4 +147,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-29 after v1.3 milestone completion*
+*Last updated: 2026-04-29 after v1.4 milestone start*

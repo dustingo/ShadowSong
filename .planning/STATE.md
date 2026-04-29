@@ -15,9 +15,9 @@ progress:
 
 # Current Position
 
-Phase: -
+Phase: Not started (defining requirements)
 Plan: -
-Status: v1.3 archived; waiting for next milestone definition
+Status: Defining requirements
 Last activity: 2026-04-29
 
 ## Project Reference
@@ -25,7 +25,7 @@ Last activity: 2026-04-29
 See: `.planning/PROJECT.md` (updated 2026-04-29)
 
 **Core value:** 运维团队能够稳定地接入、查看、处理并分发告警，而不依赖任何 AI 能力。
-**Current focus:** Define the next milestone and create a fresh requirements baseline
+**Current focus:** Milestone v1.4 Delivery Recovery and Production Hardening
 
 ## Accumulated Context
 
@@ -45,7 +45,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-29)
 - 新里程碑沿用 `admin`、`operator`、`viewer` 角色命名，不做角色重命名迁移
 - v1.3 已完成全部 phases，通知发送可靠性、告警链路可观测性、日志统一以及维护者当前真源文档均已落地
 - v1.3 里程碑已完成归档，requirements / roadmap / audit 历史基线已写入 `.planning/milestones/`
-- 当前没有进行中的 milestone；下一步应通过 `/gsd-new-milestone` 定义新的 requirements 和 roadmap
+- v1.4 已启动定义，当前目标聚焦通知投递恢复、入口生产硬化和运维可观测性
 
 ### Roadmap Evolution
 
@@ -62,4 +62,4 @@ See: `.planning/PROJECT.md` (updated 2026-04-29)
 ## Session Resume
 
 - Resume file: `.planning/ROADMAP.md`
-- Stopped at: v1.3 archived; next step is `/gsd-new-milestone`
+- Stopped at: milestone v1.4 started; next step is requirements and roadmap definition

@@ -65,7 +65,12 @@ See `.planning/milestones/v1.3-ROADMAP.md`
   1. 维护者可以查看任一通知投递的账本记录，包含告警、渠道、发送模式、尝试次数、最终结果和失败原因。
   2. 超过当前即时重试上限的通知会留下持久化终态记录，而不是只存在于日志里。
   3. 单条投递记录保存的快照足以支撑后续审计和单条 replay，不依赖当时之外的实时配置状态。
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 18-01-PLAN.md - 锁定 delivery 双表 schema、不可变快照合同与聚焦 service 真源
+- [ ] 18-02-PLAN.md - 把账本接入 webhook 通知热路径并保留现有 retry/logging 契约
+- [ ] 18-03-PLAN.md - 交付最小 delivery 列表/详情只读 API 与现有鉴权接入
 
 ### Phase 19: Enable Safe Recovery Operations
 **Goal**: 维护者可以基于稳定账本查询通知历史，并对单条失败通知执行受控、可审计的 retry 或 replay。  
@@ -107,7 +112,7 @@ See `.planning/milestones/v1.3-ROADMAP.md`
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 18. Establish Delivery Ledger | v1.4 | 0/TBD | Not started | - |
+| 18. Establish Delivery Ledger | v1.4 | 0/3 | Planned | - |
 | 19. Enable Safe Recovery Operations | v1.4 | 0/TBD | Not started | - |
 | 20. Harden Ingress And Runtime Readiness | v1.4 | 0/TBD | Not started | - |
 | 21. Ship Ops Visibility Surfaces | v1.4 | 0/TBD | Not started | - |

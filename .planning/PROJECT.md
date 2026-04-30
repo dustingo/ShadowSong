@@ -2,7 +2,7 @@
 
 ## What This Is
 
-这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设；v1.2 已完成告警链路安全与工程化加固；v1.3 已完成通知链路可靠性、告警链路可观测性、统一日志契约和维护者运行文档收口。当前代码库已经具备安全收口后的实时告警访问、前端质量基线、自动化质量门禁、bounded notification retry、trace-backed alert-path observability、canonical webhook logging，以及维护者 alert-path runbook。
+这是一个面向游戏运维场景的告警管理平台，用于统一接收、处理、聚合、展示和分发来自多种数据源的告警信息。v1.0 已完成 AI 能力移除，并补齐了通知模板原始事件透传与产品内模板预览能力；v1.1 已完成企业级用户体系、权限收口、审计与验证链路建设；v1.2 已完成告警链路安全与工程化加固；v1.3 已完成通知链路可靠性、告警链路可观测性、统一日志契约和维护者运行文档收口；v1.4 已完成 Phase 18 投递账本真源。当前代码库已经具备安全收口后的实时告警访问、前端质量基线、自动化质量门禁、bounded notification retry、trace-backed alert-path observability、canonical webhook logging、持久化通知投递账本，以及维护者 alert-path runbook。
 
 ## Core Value
 
@@ -27,12 +27,13 @@
 - [x] 系统已为通知发送链路补齐有界三次重试、最终失败日志落点和尝试级上下文字段，瞬时失败不再在首次发送后直接静默结束（Validated in Phase 15）
 - [x] 系统已统一 webhook 告警主链路日志输出入口、字段命名与可解析格式，并补齐 `async_panic` 失败路径的关联字段保真（Validated in Phase 16）
 - [x] 系统已完成维护者 alert-path runbook、当前真相文档收口，以及 v1.3 可靠性/可观测性工件归档准备（Validated in Phase 17）
+- [x] 系统已为每条 `alert x channel` 通知投递建立 PostgreSQL 账本真源，保存不可变快照、最终失败摘要和尝试明细，并开放受保护的只读查询 API（Validated in Phase 18）
 
 ### Active
 
-- [ ] 定义下一里程碑的业务目标、requirements 和 phase 范围
-- [ ] 评估是否将通知投递记录中心、补发入口或更复杂的 retry policy 提升为正式 milestone
-- [ ] 决定运行时历史命名迁移是否值得单独立项，而不是继续停留在文档层 deferred 状态
+- [ ] 交付单条失败通知的受控 `retry/replay` 能力，并保留完整审计链路
+- [ ] 强化 webhook/runtime 入口防护、生产配置收口与 readiness 检查
+- [ ] 发布基于投递账本的运维聚合视图、渠道健康摘要和关键运行指标
 
 ### Out of Scope
 
@@ -44,9 +45,9 @@
 ## Current State
 
 - 已发版版本：`v1.0 AI Removal Complete`（2026-04-10）、`v1.1 Enterprise Access Control`（2026-04-15）、`v1.2 Alert Pipeline Hardening`（2026-04-21）、`v1.3 Notification Reliability and Observability`（2026-04-29）
-- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文字段、有界三次重试、最终失败落点、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志、统一 webhook 告警主链路日志输出入口、parse-safe 字段序列化、`async_panic` 关联字段保真，以及维护者 alert-path runbook 与 v1.3 audit archive
+- 当前能力：后端 API、前端控制台、Webhook 接入、通知路由、静默规则、值班管理、模板预览、原始事件字段透传、统一角色常量、JWT principal、capability matrix 鉴权基线、管理员用户管理页、自助资料页、账号禁用、强制改密与旧会话失效、配置写接口权限收口、告警动作权限收口、持久化审计日志、权限感知 UI、只读配置视图、角色矩阵验证文档、实时 WebSocket 访问控制、前端 green 质量基线、GitHub Actions 质量门禁、通知链路 panic recover 与失败上下文字段、有界三次重试、最终失败落点、webhook trace_id 持久化、Redis/通知入口 trace 传播与生命周期阶段日志、统一 webhook 告警主链路日志输出入口、parse-safe 字段序列化、`async_panic` 关联字段保真、PostgreSQL 通知投递账本双表、不可变快照、最终失败摘要、受保护的 delivery 列表/详情 API，以及维护者 alert-path runbook 与 v1.3 audit archive
 - 已验证路径：后端告警主链路验证脚本、前端控制台基线验证脚本、模板 passthrough 端到端验证脚本、角色矩阵前后端验证、禁用用户/强制改密/审计日志关键安全路径验证、前端 lint/test/build 验证、`go test ./...` 全量回归、v1.1 里程碑审计 `23/23 requirements` 与 `5/5 flows`、v1.3 里程碑审计 `12/12 requirements` 与 `4/4 integration flows`、Phase 14 trace/context verification、Phase 15 notification retry boundaries verification、Phase 16 standardized alert-path logging verification、Phase 17 docs/runbook/security truth verification
-- 当前焦点：v1.3 已完成归档；下一步是定义下一个 milestone，而不是继续复用 v1.3 requirements
+- 当前焦点：v1.4 Phase 18 已完成；下一步推进 Phase 19 的单条 retry/replay 与审计恢复闭环
 - 历史路线图、requirements 与里程碑审计保存在 `.planning/milestones/`，新一轮执行将沿现有 phase 编号继续推进
 - 暂缓迁移边界：`go.mod` module path 与 JWT issuer 仍是历史遗留运行时契约；v1.3 只做文档标注和维护者说明，不在本轮推动运行时重命名
 
@@ -147,4 +148,4 @@ This document evolves at phase transitions and milestone boundaries.
 </details>
 
 ---
-*Last updated: 2026-04-29 after v1.4 milestone start*
+*Last updated: 2026-04-30 after Phase 18 completion*

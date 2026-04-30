@@ -8,12 +8,12 @@
 
 ### Delivery Recovery
 
-- [ ] **DELV-01**: 维护者可以查看每次通知投递的持久化记录，包括告警、渠道、发送模式、尝试次数、最终结果和失败原因
-- [ ] **DELV-02**: 通知在超过当前即时重试上限后，会把最终失败结果持久化保存，而不只停留在日志中
+- [x] **DELV-01**: 维护者可以查看每次通知投递的持久化记录，包括告警、渠道、发送模式、尝试次数、最终结果和失败原因
+- [x] **DELV-02**: 通知在超过当前即时重试上限后，会把最终失败结果持久化保存，而不只停留在日志中
 - [ ] **DELV-03**: 维护者可以针对单条失败通知执行受控的 `retry`
 - [ ] **DELV-04**: 维护者可以针对单条失败通知执行受控的 `replay`
 - [ ] **DELV-05**: 人工 `retry/replay` 会记录操作者、触发原因、触发时间、执行结果和关联原始投递记录，保持审计链路完整
-- [ ] **DELV-06**: 首版投递记录会保存足够支撑审计和单条 replay 的不可变快照，而不是只依赖当前实时配置
+- [x] **DELV-06**: 首版投递记录会保存足够支撑审计和单条 replay 的不可变快照，而不是只依赖当前实时配置
 
 ### Ingress Hardening
 
@@ -67,12 +67,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DELV-01 | Phase 18 | Pending |
-| DELV-02 | Phase 18 | Pending |
+| DELV-01 | Phase 18 | Validated (Phase 18) |
+| DELV-02 | Phase 18 | Validated (Phase 18) |
 | DELV-03 | Phase 19 | Pending |
 | DELV-04 | Phase 19 | Pending |
 | DELV-05 | Phase 19 | Pending |
-| DELV-06 | Phase 18 | Pending |
+| DELV-06 | Phase 18 | Validated (Phase 18) |
 | INGR-01 | Phase 20 | Pending |
 | INGR-02 | Phase 20 | Pending |
 | INGR-03 | Phase 20 | Pending |
@@ -94,4 +94,4 @@
 
 ---
 *Requirements defined: 2026-04-29*
-*Last updated: 2026-04-29 after initial v1.4 definition*
+*Last updated: 2026-04-30 after Phase 18 completion*

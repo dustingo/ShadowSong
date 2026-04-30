@@ -277,9 +277,9 @@ func (s *Service) GetDeliveryByID(ctx context.Context, deliveryID uint) (*models
 	return &delivery, nil
 }
 
-func (s *Service) ListDeliveries(ctx context.Context, input ListDeliveriesInput) ([]models.NotificationDelivery, error) {
+func (s *Service) ListDeliveries(ctx context.Context, input ListDeliveriesInput) ([]models.NotificationDelivery, int64, error) {
 	if s.db == nil {
-		return nil, errors.New("delivery service requires db")
+		return nil, 0, errors.New("delivery service requires db")
 	}
 
 	query := s.db.WithContext(ctx).
@@ -310,13 +310,21 @@ func (s *Service) ListDeliveries(ctx context.Context, input ListDeliveriesInput)
 	if input.Limit <= 0 {
 		input.Limit = 50
 	}
+	if input.Offset < 0 {
+		input.Offset = 0
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count deliveries: %w", err)
+	}
 
 	var deliveries []models.NotificationDelivery
 	if err := query.Limit(input.Limit).Offset(input.Offset).Find(&deliveries).Error; err != nil {
-		return nil, fmt.Errorf("list deliveries: %w", err)
+		return nil, 0, fmt.Errorf("list deliveries: %w", err)
 	}
 
-	return deliveries, nil
+	return deliveries, total, nil
 }
 
 func validateStartDeliveryInput(input StartDeliveryInput) error {

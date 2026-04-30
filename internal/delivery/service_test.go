@@ -227,10 +227,11 @@ func TestServiceListDeliveriesPreloadsAttempts(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	deliveries, err := service.ListDeliveries(context.Background(), ListDeliveriesInput{
+	deliveries, total, err := service.ListDeliveries(context.Background(), ListDeliveriesInput{
 		Limit: 10,
 	})
 	require.NoError(t, err)
+	assert.Equal(t, int64(2), total)
 	require.Len(t, deliveries, 2)
 	assert.NotEmpty(t, deliveries[0].Attempts)
 	assert.NotEmpty(t, deliveries[1].Attempts)

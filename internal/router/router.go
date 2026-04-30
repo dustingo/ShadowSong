@@ -38,7 +38,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(db)
 	configHandler := handlers.NewConfigHandler(db)
-	deliveryHandler := handlers.NewDeliveryHandler(delivery.NewService(db))
+	deliveryHandler := handlers.NewDeliveryHandler(db, delivery.NewService(db))
 	webhookHandler := handlers.NewWebhookHandler(db, redisClient)
 
 	// Initialize auth
@@ -153,10 +153,12 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 		// Delivery routes (protected)
 		deliveries := v1.Group("/deliveries")
-		deliveries.Use(middleware.JWTAuth(jwtAuth, db), middleware.RequireCapability(authz.CapabilityViewConfig))
+		deliveries.Use(middleware.JWTAuth(jwtAuth, db))
 		{
-			deliveries.GET("", deliveryHandler.List)
-			deliveries.GET("/:id", deliveryHandler.Get)
+			deliveries.GET("", middleware.RequireCapability(authz.CapabilityViewConfig), deliveryHandler.List)
+			deliveries.GET("/:id", middleware.RequireCapability(authz.CapabilityViewConfig), deliveryHandler.Get)
+			deliveries.POST("/:id/retry", middleware.RequireCapability(authz.CapabilityProcessAlerts), deliveryHandler.Retry)
+			deliveries.POST("/:id/replay", middleware.RequireCapability(authz.CapabilityProcessAlerts), deliveryHandler.Replay)
 		}
 
 	}

@@ -3,11 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/delivery"
+	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -16,6 +19,7 @@ import (
 const maxDeliveryListLimit = 200
 
 type DeliveryHandler struct {
+	db      *gorm.DB
 	service *delivery.Service
 }
 
@@ -73,8 +77,21 @@ type deliveryAttemptResponse struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
-func NewDeliveryHandler(service *delivery.Service) *DeliveryHandler {
-	return &DeliveryHandler{service: service}
+type deliveryRecoveryRequest struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
+type deliveryRecoveryResponse struct {
+	RecoveryID         uint   `json:"recovery_id"`
+	Action             string `json:"action"`
+	Status             string `json:"status"`
+	OriginalDeliveryID uint   `json:"original_delivery_id"`
+	ResultDeliveryID   *uint  `json:"result_delivery_id,omitempty"`
+	ErrorMessage       string `json:"error_message"`
+}
+
+func NewDeliveryHandler(db *gorm.DB, service *delivery.Service) *DeliveryHandler {
+	return &DeliveryHandler{db: db, service: service}
 }
 
 func (h *DeliveryHandler) List(c *gin.Context) {
@@ -126,6 +143,80 @@ func (h *DeliveryHandler) Get(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func (h *DeliveryHandler) Retry(c *gin.Context) {
+	h.handleRecovery(c, models.TriggerKindRetry)
+}
+
+func (h *DeliveryHandler) Replay(c *gin.Context) {
+	h.handleRecovery(c, models.TriggerKindReplay)
+}
+
+func (h *DeliveryHandler) handleRecovery(c *gin.Context, action string) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid delivery id"})
+		return
+	}
+
+	var req deliveryRecoveryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	req.Reason = strings.TrimSpace(req.Reason)
+	if req.Reason == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "reason is required"})
+		return
+	}
+
+	principal, ok := middleware.GetPrincipal(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "principal not found"})
+		return
+	}
+
+	var result *delivery.RecoveryResult
+	switch action {
+	case models.TriggerKindRetry:
+		result, err = h.service.RetryDelivery(c.Request.Context(), delivery.RetryDeliveryInput{
+			OriginalDeliveryID: uint(id),
+			Reason:             req.Reason,
+			ActorUserID:        principal.UserID,
+			ActorUsername:      principal.Username,
+			ActorRole:          principal.Role,
+		})
+	case models.TriggerKindReplay:
+		result, err = h.service.ReplayDelivery(c.Request.Context(), delivery.ReplayDeliveryInput{
+			OriginalDeliveryID: uint(id),
+			Reason:             req.Reason,
+			ActorUserID:        principal.UserID,
+			ActorUsername:      principal.Username,
+			ActorRole:          principal.Role,
+		})
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid recovery action"})
+		return
+	}
+
+	recoveryResponse := mapRecoveryResponse(action, uint(id), result)
+	auditResult := auditResultAllowed
+	if err != nil {
+		auditResult = auditResultDenied
+	}
+	_ = recordAudit(h.db, c, fmt.Sprintf("delivery.%s", action), "delivery_recovery", strconv.FormatUint(uint64(recoveryResponse.RecoveryID), 10), auditResult, buildRecoveryAuditDetail(recoveryResponse))
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) && (result == nil || result.Recovery == nil) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, recoveryResponse)
 }
 
 func buildListDeliveriesInput(c *gin.Context) (delivery.ListDeliveriesInput, error) {
@@ -296,4 +387,37 @@ func unmarshalOptionalJSON(raw []byte, target interface{}) error {
 
 func isNullJSON(raw []byte) bool {
 	return string(raw) == "null"
+}
+
+func mapRecoveryResponse(action string, originalDeliveryID uint, result *delivery.RecoveryResult) deliveryRecoveryResponse {
+	response := deliveryRecoveryResponse{
+		Action:             action,
+		Status:             models.RecoveryStatusFailed,
+		OriginalDeliveryID: originalDeliveryID,
+	}
+	if result == nil || result.Recovery == nil {
+		return response
+	}
+	response.RecoveryID = result.Recovery.ID
+	response.Action = result.Action
+	response.Status = result.Recovery.Status
+	response.ResultDeliveryID = result.Recovery.ResultDeliveryID
+	response.ErrorMessage = result.Recovery.ErrorMessage
+	return response
+}
+
+func buildRecoveryAuditDetail(response deliveryRecoveryResponse) string {
+	resultDeliveryID := "0"
+	if response.ResultDeliveryID != nil {
+		resultDeliveryID = strconv.FormatUint(uint64(*response.ResultDeliveryID), 10)
+	}
+	return fmt.Sprintf(
+		"original_delivery_id=%d recovery_id=%d action=%s result_delivery_id=%s status=%s error_message=%s",
+		response.OriginalDeliveryID,
+		response.RecoveryID,
+		response.Action,
+		resultDeliveryID,
+		response.Status,
+		response.ErrorMessage,
+	)
 }

@@ -36,6 +36,8 @@ export const getApiErrorMessage = (error: unknown, fallback: string): string => 
   return fallback
 }
 
+const unwrapData = <T>(promise: Promise<unknown>) => promise as Promise<T>
+
 const apiClient = axios.create({
   baseURL: '/api/v1',
   timeout: 30000,
@@ -206,9 +208,9 @@ export const onDutyApi = {
 
 export const deliveryApi = {
   list: (params?: DeliveryFilters) =>
-    apiClient.get<DeliveryListResponse>('/deliveries', { params }),
+    unwrapData<DeliveryListResponse>(apiClient.get<DeliveryListResponse>('/deliveries', { params })),
 
-  get: (id: number) => apiClient.get<Delivery>(`/deliveries/${id}`),
+  get: (id: number) => unwrapData<Delivery>(apiClient.get<Delivery>(`/deliveries/${id}`)),
 }
 
 export default apiClient

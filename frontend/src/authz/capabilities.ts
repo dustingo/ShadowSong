@@ -50,3 +50,7 @@ export function isReadOnlyConfigUser(user: User | null | undefined): boolean {
 export function canProcessAlerts(user: User | null | undefined): boolean {
   return canUser(user, capabilityProcessAlerts)
 }
+
+export function canRecoverDeliveries(user: User | null | undefined): boolean {
+  return canUser(user, capabilityProcessAlerts)
+}

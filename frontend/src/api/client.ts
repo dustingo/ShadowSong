@@ -8,6 +8,8 @@ import type {
   Delivery,
   DeliveryFilters,
   DeliveryListResponse,
+  DeliveryRecoveryRequest,
+  DeliveryRecoveryResult,
   RouteRule,
   SilenceRule,
   OnDuty,
@@ -211,6 +213,16 @@ export const deliveryApi = {
     unwrapData<DeliveryListResponse>(apiClient.get<DeliveryListResponse>('/deliveries', { params })),
 
   get: (id: number) => unwrapData<Delivery>(apiClient.get<Delivery>(`/deliveries/${id}`)),
+
+  retry: (id: number, data: DeliveryRecoveryRequest) =>
+    unwrapData<DeliveryRecoveryResult>(
+      apiClient.post<DeliveryRecoveryResult>(`/deliveries/${id}/retry`, data)
+    ),
+
+  replay: (id: number, data: DeliveryRecoveryRequest) =>
+    unwrapData<DeliveryRecoveryResult>(
+      apiClient.post<DeliveryRecoveryResult>(`/deliveries/${id}/replay`, data)
+    ),
 }
 
 export default apiClient

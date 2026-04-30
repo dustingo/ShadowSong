@@ -231,3 +231,16 @@ export interface DeliveryFilters {
   limit?: number
   offset?: number
 }
+
+export interface DeliveryRecoveryRequest {
+  reason: string
+}
+
+export interface DeliveryRecoveryResult {
+  recovery_id: number
+  action: 'retry' | 'replay'
+  status: 'succeeded' | 'failed' | 'rejected'
+  original_delivery_id: number
+  result_delivery_id?: number
+  error_message?: string
+}

@@ -312,17 +312,17 @@ Source: [VERIFIED: internal/handlers/delivery.go]
 | A3 | `replay` 需要回查 `alerts` 表的原始 `Raw`，否则部分模板上下文不完整。 | Summary / Dependency Risks / Pitfalls | 如果当前所有模板都只依赖 snapshot 字段，则 replay 可以更轻；但一旦判断错误，会在生产恢复时触发模板缺字段。 |
 | A4 | `OPER-04` 的最小实现是 alert 列表 deeplink 到新的 delivery 页面，而不是新增独立 alert detail route。 | Architecture Patterns / API And UI Boundaries | 如果用户坚持先做 alert detail 页，前端任务量会扩大并影响 phase 切片。 |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`retry` 是否应忽略当前 channel 的 disabled/deleted 状态？**  
    What we know: 当前 snapshot 不保存 channel config secret，只保存 channel identity；真实发送仍要依赖 live channel 记录。[VERIFIED: internal/models/notification_delivery.go][VERIFIED: internal/notifier/notifier.go]  
-   What's unclear: 业务是否接受“即便 channel 已禁用，也允许人工 retry 强制发送一次”。[ASSUMED]  
-   Recommendation: 默认不要绕过当前禁用/缺失状态，直接受控失败并审计；这是更安全的运维默认值。[ASSUMED]
+   Resolution: **RESOLVED — 不绕过。** Phase 19 的 `retry` 在 channel 已禁用、已删除或当前 sender 不可用时，必须立即返回受控失败，并且仍然写 recovery 记录与审计条目；不允许“强制发送一次”绕过 live channel 状态。[ASSUMED]  
+   Why decided: 这与研究中“恢复 POST 走 `process_alerts` 但不放宽 live config 安全边界”的建议一致，也避免维护者在 channel 已被显式停用后仍通过历史页触发真实通知。[VERIFIED: internal/authz/capabilities.go][VERIFIED: internal/router/router.go][ASSUMED]
 
 2. **是否需要把恢复动作设计成同步 HTTP 执行？**  
    What we know: 当前 webhook 发送本来就是同步执行三次尝试，单次恢复 scope 也被限制为 single-item。[VERIFIED: internal/handlers/webhook.go][VERIFIED: .planning/STATE.md]  
-   What's unclear: 某些渠道在最坏情况下可能让请求时间接近超时上限。[VERIFIED: frontend/src/api/client.ts][VERIFIED: internal/notifier/notifier.go][ASSUMED]  
-   Recommendation: v1 先同步执行，返回 resulting delivery 或 terminal error；不要为了单条恢复提前引入后台 job 系统。[VERIFIED: .planning/REQUIREMENTS.md][ASSUMED]
+   Resolution: **RESOLVED — Phase 19 采用同步 HTTP 执行。** 单条 `retry/replay` 请求在当前 API 请求内完成 bounded 发送尝试，直接返回 resulting delivery 或受控失败，不引入后台 job、queue 或异步工作流。[VERIFIED: .planning/REQUIREMENTS.md][ASSUMED]  
+   Why decided: 这与“single-item recovery only” 和“不引入 MQ/Temporal/Asynq”约束一致，也能让 Phase 19 先形成最小可审计闭环；若后续需要批量或长耗时恢复，再进入更高里程碑处理。[VERIFIED: .planning/STATE.md][VERIFIED: .planning/REQUIREMENTS.md][ASSUMED]
 
 ## Environment Availability
 

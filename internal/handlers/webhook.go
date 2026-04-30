@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/game-ops/ai-alert-system/internal/delivery"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
 	"github.com/gin-gonic/gin"
@@ -35,21 +36,23 @@ const (
 )
 
 type WebhookHandler struct {
-	db            *gorm.DB
-	redisClient   *redis.Client
-	logger        *log.Logger
-	redisXAdd     func(ctx context.Context, args *redis.XAddArgs) *redis.StringCmd
-	sendToChannel func(channel *models.Channel, title, content string) error
-	runAsync      func(fn func())
-	sleep         func(time.Duration)
+	db              *gorm.DB
+	redisClient     *redis.Client
+	deliveryService *delivery.Service
+	logger          *log.Logger
+	redisXAdd       func(ctx context.Context, args *redis.XAddArgs) *redis.StringCmd
+	sendToChannel   func(channel *models.Channel, title, content string) error
+	runAsync        func(fn func())
+	sleep           func(time.Duration)
 }
 
 func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
 	handler := &WebhookHandler{
-		db:            db,
-		redisClient:   redisClient,
-		logger:        log.New(os.Stdout, "notification ", log.LstdFlags),
-		sendToChannel: notifier.SendToChannel,
+		db:              db,
+		redisClient:     redisClient,
+		deliveryService: delivery.NewService(db),
+		logger:          log.New(os.Stdout, "notification ", log.LstdFlags),
+		sendToChannel:   notifier.SendToChannel,
 		runAsync: func(fn func()) {
 			go fn()
 		},
@@ -61,6 +64,11 @@ func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
 	}
 
 	return handler
+}
+
+type notificationTarget struct {
+	channel   models.Channel
+	routeRule *models.RouteRule
 }
 
 func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
@@ -892,32 +900,33 @@ func (h *WebhookHandler) processAlertNotificationsWithHook(
 	// 2. 遍历每个告警
 	for _, alert := range alerts {
 		// 3. 检查告警是否匹配任何路由规则
-		matchedChannels := h.findMatchedChannels(alert, rules)
+		matchedTargets := h.findMatchedChannels(alert, rules)
 
-		if len(matchedChannels) == 0 {
+		if len(matchedTargets) == 0 {
 			h.logNotification("route_match", &alert, nil, "no matched route rules")
 			continue
 		}
 		h.logAlertEvent("route_match", h.eventFields(h.traceFieldsForAlert(alert), map[string]string{
-			"matched_channels": fmt.Sprintf("%d", len(matchedChannels)),
+			"matched_channels": fmt.Sprintf("%d", len(matchedTargets)),
 		}), "matched route rules")
 
 		// 4. 使用 output_template 生成通知内容
-		for _, channel := range matchedChannels {
+		for _, target := range matchedTargets {
 			if beforeSend != nil {
-				beforeSend(&alert, &channel)
+				beforeSend(&alert, &target.channel)
 			}
-			h.logAlertEvent("notification_entry", h.traceFieldsForNotification(&alert, &channel), "starting notification send")
-			h.sendNotification(&alert, &channel)
+			h.logAlertEvent("notification_entry", h.traceFieldsForNotification(&alert, &target.channel), "starting notification send")
+			h.sendNotification(&alert, &target.channel, target.routeRule)
 		}
 	}
 }
 
 // findMatchedChannels 查找匹配的渠道
-func (h *WebhookHandler) findMatchedChannels(alert models.Alert, rules []models.RouteRule) []models.Channel {
-	var matchedChannels []models.Channel
+func (h *WebhookHandler) findMatchedChannels(alert models.Alert, rules []models.RouteRule) []notificationTarget {
+	var matchedTargets []notificationTarget
 
-	for _, rule := range rules {
+	for idx := range rules {
+		rule := rules[idx]
 		// 检查 source 是否匹配
 		var sources []string
 		json.Unmarshal(rule.Sources, &sources)
@@ -955,17 +964,20 @@ func (h *WebhookHandler) findMatchedChannels(alert models.Alert, rules []models.
 				continue
 			}
 			if channel.Enabled {
-				matchedChannels = append(matchedChannels, channel)
+				matchedTargets = append(matchedTargets, notificationTarget{
+					channel:   channel,
+					routeRule: &rule,
+				})
 			}
 		}
 
 		// 找到第一个匹配的规则就停止（按优先级）
-		if len(matchedChannels) > 0 {
+		if len(matchedTargets) > 0 {
 			break
 		}
 	}
 
-	return matchedChannels
+	return matchedTargets
 }
 
 // matchLabels 检查标签是否匹配
@@ -1051,7 +1063,12 @@ func parseTimeToMinutes(timeStr string) int {
 }
 
 // sendNotification 发送通知
-func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.Channel) {
+func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.Channel, routeRule ...*models.RouteRule) {
+	var matchedRouteRule *models.RouteRule
+	if len(routeRule) > 0 {
+		matchedRouteRule = routeRule[0]
+	}
+
 	// 获取 output_template
 	var ds models.DataSource
 	if err := h.db.First(&ds, "name = ?", alert.Source).Error; err != nil {
@@ -1060,7 +1077,7 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 			"mode":  "default",
 		}), "data source not found for source=%s", alert.Source)
 		// 使用默认模板
-		h.sendDefaultNotification(alert, channel)
+		h.sendDefaultNotification(alert, channel, matchedRouteRule)
 		return
 	}
 
@@ -1071,54 +1088,182 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 			"error": err.Error(),
 			"mode":  "default",
 		}), "failed to render notification")
-		h.sendDefaultNotification(alert, channel)
+		h.sendDefaultNotification(alert, channel, matchedRouteRule)
 		return
 	}
 
 	// 发送通知
-	h.sendChannelNotification(alert, channel, title, content, "rendered")
+	h.sendChannelNotification(alert, channel, matchedRouteRule, title, content, models.DeliveryModeRendered)
 }
 
 // sendDefaultNotification 发送默认格式的通知
-func (h *WebhookHandler) sendDefaultNotification(alert *models.Alert, channel *models.Channel) {
+func (h *WebhookHandler) sendDefaultNotification(alert *models.Alert, channel *models.Channel, routeRule *models.RouteRule) {
 	title := fmt.Sprintf("[%s] %s", alert.Severity, alert.AlertName)
 	content := alert.Message
-	h.sendChannelNotification(alert, channel, title, content, "default")
+	h.sendChannelNotification(alert, channel, routeRule, title, content, models.DeliveryModeDefault)
 }
 
 func (h *WebhookHandler) sendChannelNotification(
 	alert *models.Alert,
 	channel *models.Channel,
+	routeRule *models.RouteRule,
 	title string,
 	content string,
 	mode string,
 ) {
 	sender := h.notificationSender()
+	deliveryRecord, deliveryErr := h.startNotificationDelivery(alert, channel, routeRule, title, content, mode)
+	if deliveryErr != nil {
+		h.logAlertEvent("delivery_start", h.eventFields(h.traceFieldsForNotification(alert, channel), map[string]string{
+			"mode":  mode,
+			"error": deliveryErr.Error(),
+		}), "failed to persist delivery envelope")
+	}
 
 	for attempt := 1; attempt <= notificationMaxAttempts; attempt++ {
+		startedAt := time.Now()
 		err := sender(channel, title, content)
 		attemptFields := h.eventFields(h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), map[string]string{
 			"mode": mode,
 		})
+		h.recordNotificationAttempt(deliveryRecord, attempt, err, time.Since(startedAt), mode)
 		h.logAlertEvent("send_attempt", attemptFields, "notification attempt recorded")
 
 		if err == nil {
+			h.markNotificationDelivered(deliveryRecord, attempt)
 			h.logAlertEvent("send_notification", attemptFields, "notification sent")
 			return
 		}
 
 		if !notifier.IsRetryableSendError(err) {
+			h.markNotificationFailed(deliveryRecord, attempt, err, false, false)
 			h.logAlertEvent("send_notification", attemptFields, "failed to send %s notification", mode)
 			return
 		}
 
 		if attempt == notificationMaxAttempts {
+			h.markNotificationFailed(deliveryRecord, attempt, err, true, true)
 			h.logAlertEvent("terminal_failure", attemptFields, "retry budget exhausted for %s notification", mode)
 			return
 		}
 
 		h.sleepFunc()(50 * time.Millisecond)
 	}
+}
+
+func (h *WebhookHandler) startNotificationDelivery(
+	alert *models.Alert,
+	channel *models.Channel,
+	routeRule *models.RouteRule,
+	title string,
+	content string,
+	mode string,
+) (*models.NotificationDelivery, error) {
+	if h.deliveryService == nil {
+		return nil, nil
+	}
+
+	return h.deliveryService.StartDelivery(context.Background(), delivery.StartDeliveryInput{
+		Alert:         alert,
+		Channel:       channel,
+		RouteRule:     routeRule,
+		DeliveryMode:  mode,
+		TriggerKind:   models.TriggerKindPipeline,
+		RenderedTitle: title,
+		RenderedBody:  content,
+	})
+}
+
+func (h *WebhookHandler) recordNotificationAttempt(
+	deliveryRecord *models.NotificationDelivery,
+	attempt int,
+	err error,
+	duration time.Duration,
+	mode string,
+) {
+	if h.deliveryService == nil || deliveryRecord == nil {
+		return
+	}
+
+	_, recordErr := h.deliveryService.RecordAttempt(context.Background(), deliveryRecord.ID, delivery.RecordAttemptInput{
+		AttemptNumber: attempt,
+		Result:        notificationAttemptResult(err),
+		Retryable:     err != nil && notifier.IsRetryableSendError(err),
+		ErrorMessage:  notificationErrorMessage(err),
+		DurationMS:    duration.Milliseconds(),
+		TriggerKind:   models.TriggerKindPipeline,
+	})
+	if recordErr != nil {
+		h.logAlertEvent("delivery_attempt", map[string]string{
+			"delivery_id": fmt.Sprintf("%d", deliveryRecord.ID),
+			"attempt":     fmt.Sprintf("%d", attempt),
+			"mode":        mode,
+			"error":       recordErr.Error(),
+		}, "failed to persist delivery attempt")
+	}
+}
+
+func (h *WebhookHandler) markNotificationDelivered(deliveryRecord *models.NotificationDelivery, attempt int) {
+	if h.deliveryService == nil || deliveryRecord == nil {
+		return
+	}
+
+	if err := h.deliveryService.MarkDelivered(context.Background(), deliveryRecord.ID, delivery.MarkDeliveredInput{
+		AttemptCount: attempt,
+		DeliveredAt:  time.Now(),
+	}); err != nil {
+		h.logAlertEvent("delivery_terminal", map[string]string{
+			"delivery_id": fmt.Sprintf("%d", deliveryRecord.ID),
+			"attempt":     fmt.Sprintf("%d", attempt),
+			"error":       err.Error(),
+		}, "failed to mark delivery delivered")
+	}
+}
+
+func (h *WebhookHandler) markNotificationFailed(
+	deliveryRecord *models.NotificationDelivery,
+	attempt int,
+	sendErr error,
+	retryable bool,
+	terminal bool,
+) {
+	if h.deliveryService == nil || deliveryRecord == nil {
+		return
+	}
+
+	errorMessage := notificationErrorMessage(sendErr)
+	if terminal {
+		errorMessage = fmt.Sprintf("retry budget exhausted: %s", errorMessage)
+	}
+
+	if err := h.deliveryService.MarkFailed(context.Background(), deliveryRecord.ID, delivery.MarkFailedInput{
+		AttemptCount: attempt,
+		FailedAt:     time.Now(),
+		Result:       models.AttemptResultFailed,
+		Retryable:    retryable,
+		ErrorMessage: errorMessage,
+		TriggerKind:  models.TriggerKindPipeline,
+	}); err != nil {
+		h.logAlertEvent("delivery_terminal", map[string]string{
+			"delivery_id": fmt.Sprintf("%d", deliveryRecord.ID),
+			"attempt":     fmt.Sprintf("%d", attempt),
+			"error":       err.Error(),
+		}, "failed to mark delivery failed")
+	}
+}
+
+func notificationAttemptResult(err error) string {
+	if err == nil {
+		return models.AttemptResultSuccess
+	}
+	return models.AttemptResultFailed
+}
+
+func notificationErrorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 // renderNotification 使用 output_template 渲染通知

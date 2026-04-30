@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+	_ "unsafe"
 
 	"github.com/game-ops/ai-alert-system/internal/auth"
 	"github.com/game-ops/ai-alert-system/internal/authz"
@@ -21,6 +22,12 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+//go:linkname testRoleCapabilities github.com/game-ops/ai-alert-system/internal/authz.roleCapabilities
+var testRoleCapabilities map[string]map[authz.Capability]struct{}
+
+//go:linkname testSupportedRoleSet github.com/game-ops/ai-alert-system/internal/authz.supportedRoleSet
+var testSupportedRoleSet map[string]struct{}
 
 func TestDeliveryHandlerListFiltersAndPagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -172,11 +179,12 @@ func TestRouterDeliveriesAuthorization(t *testing.T) {
 		TokenExpiry: time.Hour,
 	})
 	viewer := seedDeliveryUser(t, db, "viewer-user", authz.RoleViewer)
-	operator := seedDeliveryUser(t, db, "operator-user", authz.RoleOperator)
+	forbiddenRole := registerDeliveryDeniedRole(t)
+	forbiddenUser := seedDeliveryUser(t, db, "forbidden-user", forbiddenRole)
 
 	viewerToken, err := jwtAuth.GenerateToken(viewer.ID, viewer.Username, viewer.Role)
 	require.NoError(t, err)
-	operatorToken, err := jwtAuth.GenerateToken(operator.ID, operator.Username, operator.Role)
+	forbiddenToken, err := jwtAuth.GenerateToken(forbiddenUser.ID, forbiddenUser.Username, forbiddenUser.Role)
 	require.NoError(t, err)
 
 	router := gin.New()
@@ -186,12 +194,6 @@ func TestRouterDeliveriesAuthorization(t *testing.T) {
 	{
 		deliveries.GET("", handler.List)
 		deliveries.GET("/:id", handler.Get)
-	}
-	deniedRouter := gin.New()
-	deniedGroup := deniedRouter.Group("/api/v1/deliveries")
-	deniedGroup.Use(middleware.JWTAuth(jwtAuth, db), middleware.RequireCapability(authz.CapabilityManageUsers))
-	{
-		deniedGroup.GET("", handler.List)
 	}
 
 	t.Run("unauthorized without token", func(t *testing.T) {
@@ -203,12 +205,12 @@ func TestRouterDeliveriesAuthorization(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, recorder.Code)
 	})
 
-	t.Run("forbidden on stricter capability chain", func(t *testing.T) {
+	t.Run("forbidden on real delivery route without view capability", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/deliveries", nil)
-		req.Header.Set("Authorization", "Bearer "+operatorToken)
+		req.Header.Set("Authorization", "Bearer "+forbiddenToken)
 		recorder := httptest.NewRecorder()
 
-		deniedRouter.ServeHTTP(recorder, req)
+		router.ServeHTTP(recorder, req)
 
 		assert.Equal(t, http.StatusForbidden, recorder.Code)
 	})
@@ -364,4 +366,29 @@ func seedDeliveryUser(t *testing.T, db *gorm.DB, username, role string) *models.
 	require.NoError(t, db.Create(user).Error)
 
 	return user
+}
+
+func registerDeliveryDeniedRole(t *testing.T) string {
+	t.Helper()
+
+	const role = "delivery_denied_test"
+	previousCapabilities, hadCapabilities := testRoleCapabilities[role]
+	_, wasSupported := testSupportedRoleSet[role]
+
+	testRoleCapabilities[role] = map[authz.Capability]struct{}{}
+	testSupportedRoleSet[role] = struct{}{}
+
+	t.Cleanup(func() {
+		if hadCapabilities {
+			testRoleCapabilities[role] = previousCapabilities
+		} else {
+			delete(testRoleCapabilities, role)
+		}
+
+		if !wasSupported {
+			delete(testSupportedRoleSet, role)
+		}
+	})
+
+	return role
 }

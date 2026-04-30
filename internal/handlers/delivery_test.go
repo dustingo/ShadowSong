@@ -8,7 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/game-ops/ai-alert-system/internal/auth"
+	"github.com/game-ops/ai-alert-system/internal/authz"
+	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/game-ops/ai-alert-system/internal/delivery"
+	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -158,6 +162,76 @@ func TestDeliveryHandlerGetRejectsMissingRecordAndBadID(t *testing.T) {
 	})
 }
 
+func TestRouterDeliveriesAuthorization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := newDeliveryAuthTestDB(t)
+	seeded := seedDeliveryRecords(t, db)
+	handler := NewDeliveryHandler(delivery.NewService(db))
+	jwtAuth := auth.NewJWT(&config.SecurityConfig{
+		JWTSecret:   "delivery-test-secret",
+		TokenExpiry: time.Hour,
+	})
+	viewer := seedDeliveryUser(t, db, "viewer-user", authz.RoleViewer)
+	operator := seedDeliveryUser(t, db, "operator-user", authz.RoleOperator)
+
+	viewerToken, err := jwtAuth.GenerateToken(viewer.ID, viewer.Username, viewer.Role)
+	require.NoError(t, err)
+	operatorToken, err := jwtAuth.GenerateToken(operator.ID, operator.Username, operator.Role)
+	require.NoError(t, err)
+
+	router := gin.New()
+	v1 := router.Group("/api/v1")
+	deliveries := v1.Group("/deliveries")
+	deliveries.Use(middleware.JWTAuth(jwtAuth, db), middleware.RequireCapability(authz.CapabilityViewConfig))
+	{
+		deliveries.GET("", handler.List)
+		deliveries.GET("/:id", handler.Get)
+	}
+	deniedRouter := gin.New()
+	deniedGroup := deniedRouter.Group("/api/v1/deliveries")
+	deniedGroup.Use(middleware.JWTAuth(jwtAuth, db), middleware.RequireCapability(authz.CapabilityManageUsers))
+	{
+		deniedGroup.GET("", handler.List)
+	}
+
+	t.Run("unauthorized without token", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/deliveries", nil)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		assert.Equal(t, http.StatusUnauthorized, recorder.Code)
+	})
+
+	t.Run("forbidden on stricter capability chain", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/deliveries", nil)
+		req.Header.Set("Authorization", "Bearer "+operatorToken)
+		recorder := httptest.NewRecorder()
+
+		deniedRouter.ServeHTTP(recorder, req)
+
+		assert.Equal(t, http.StatusForbidden, recorder.Code)
+	})
+
+	t.Run("authorized list and detail", func(t *testing.T) {
+		listReq := httptest.NewRequest(http.MethodGet, "/api/v1/deliveries", nil)
+		listReq.Header.Set("Authorization", "Bearer "+viewerToken)
+		listRecorder := httptest.NewRecorder()
+
+		router.ServeHTTP(listRecorder, listReq)
+
+		assert.Equal(t, http.StatusOK, listRecorder.Code)
+
+		detailReq := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/deliveries/%d", seeded.matching.ID), nil)
+		detailReq.Header.Set("Authorization", "Bearer "+viewerToken)
+		detailRecorder := httptest.NewRecorder()
+
+		router.ServeHTTP(detailRecorder, detailReq)
+
+		assert.Equal(t, http.StatusOK, detailRecorder.Code)
+	})
+}
+
 type seededDeliveries struct {
 	matching models.NotificationDelivery
 	other    models.NotificationDelivery
@@ -170,6 +244,21 @@ func newDeliveryTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(
+		&models.NotificationDelivery{},
+		&models.NotificationDeliveryAttempt{},
+	))
+
+	return db
+}
+
+func newDeliveryAuthTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+
+	dsn := fmt.Sprintf("file:%s-auth?mode=memory&cache=shared", t.Name())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(
+		&models.User{},
 		&models.NotificationDelivery{},
 		&models.NotificationDeliveryAttempt{},
 	))
@@ -261,4 +350,18 @@ func mustJSON(t *testing.T, value interface{}) datatypes.JSON {
 	raw, err := json.Marshal(value)
 	require.NoError(t, err)
 	return datatypes.JSON(raw)
+}
+
+func seedDeliveryUser(t *testing.T, db *gorm.DB, username, role string) *models.User {
+	t.Helper()
+
+	user := &models.User{
+		Username: username,
+		Name:     username,
+		Role:     role,
+	}
+	require.NoError(t, user.SetPassword("plain-text-password"))
+	require.NoError(t, db.Create(user).Error)
+
+	return user
 }

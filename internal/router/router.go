@@ -6,6 +6,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/auth"
 	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/config"
+	"github.com/game-ops/ai-alert-system/internal/delivery"
 	"github.com/game-ops/ai-alert-system/internal/handlers"
 	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/gin-gonic/gin"
@@ -37,6 +38,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	// Initialize handlers
 	alertHandler := handlers.NewAlertHandler(db)
 	configHandler := handlers.NewConfigHandler(db)
+	deliveryHandler := handlers.NewDeliveryHandler(delivery.NewService(db))
 	webhookHandler := handlers.NewWebhookHandler(db, redisClient)
 
 	// Initialize auth
@@ -147,6 +149,14 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			onduty.POST("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateOnDuty)
 			onduty.PUT("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateOnDuty)
 			onduty.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteOnDuty)
+		}
+
+		// Delivery routes (protected)
+		deliveries := v1.Group("/deliveries")
+		deliveries.Use(middleware.JWTAuth(jwtAuth, db), middleware.RequireCapability(authz.CapabilityViewConfig))
+		{
+			deliveries.GET("", deliveryHandler.List)
+			deliveries.GET("/:id", deliveryHandler.Get)
 		}
 
 	}

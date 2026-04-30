@@ -14,6 +14,7 @@ import {
   Typography,
 } from 'antd'
 import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import { useAlertStore } from '../stores/alertStore'
 import { SeverityBadge } from '../components/SeverityBadge'
 import { PermissionNotice } from '../components'
@@ -29,6 +30,7 @@ const { TextArea } = Input
 const { Text } = Typography
 
 export const Alerts: React.FC = () => {
+  const navigate = useNavigate()
   const user = useUserStore((state) => state.user)
   const {
     alerts,
@@ -109,6 +111,10 @@ export const Alerts: React.FC = () => {
     }
   }
 
+  const handleOpenDeliveries = (alert: Alert) => {
+    navigate(`/deliveries?alert_id=${encodeURIComponent(alert.alert_id)}`)
+  }
+
   const columns = [
     {
       title: '级别',
@@ -167,6 +173,9 @@ export const Alerts: React.FC = () => {
       width: 200,
       render: (_: unknown, record: Alert) => (
         <Space>
+          <Button type="link" size="small" onClick={() => handleOpenDeliveries(record)}>
+            投递历史
+          </Button>
           {record.status === 'firing' && (
             canProcessAlerts ? (
               <>

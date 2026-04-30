@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { Alerts } from './Alerts'
 import { useUserStore } from '../stores/userStore'
 import type { Alert, User } from '../types'
@@ -49,7 +50,11 @@ const firingAlert: Alert = {
 }
 
 const renderAlerts = async () => {
-  const view = render(<Alerts />)
+  const view = render(
+    <MemoryRouter>
+      <Alerts />
+    </MemoryRouter>
+  )
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
@@ -74,6 +79,7 @@ describe('Alerts page permissions', () => {
 
     expect(await screen.findByText('当前角色可查看告警，但不能确认或静默')).toBeInTheDocument()
     expect(await screen.findByText('只读')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '投递历史' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '确认' })).not.toBeInTheDocument()
   })
 

@@ -5,6 +5,9 @@ import type {
   DataSourcePreviewRequest,
   DataSourcePreviewResponse,
   Channel,
+  Delivery,
+  DeliveryFilters,
+  DeliveryListResponse,
   RouteRule,
   SilenceRule,
   OnDuty,
@@ -197,6 +200,15 @@ export const onDutyApi = {
   delete: (id: number) => apiClient.delete(`/onduty/${id}`),
 
   current: () => apiClient.get<OnDuty[]>('/onduty/current'),
+}
+
+// ============ Delivery API ============
+
+export const deliveryApi = {
+  list: (params?: DeliveryFilters) =>
+    apiClient.get<DeliveryListResponse>('/deliveries', { params }),
+
+  get: (id: number) => apiClient.get<Delivery>(`/deliveries/${id}`),
 }
 
 export default apiClient

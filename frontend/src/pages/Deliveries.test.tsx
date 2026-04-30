@@ -8,6 +8,8 @@ import type { Delivery, User } from '../types'
 const deliveryApiState = vi.hoisted(() => ({
   list: vi.fn(),
   get: vi.fn(),
+  retry: vi.fn(),
+  replay: vi.fn(),
 }))
 
 vi.mock('../api/client', () => ({
@@ -24,6 +26,14 @@ const baseUser: User = {
   created_at: '2026-04-30T00:00:00Z',
   updated_at: '2026-04-30T00:00:00Z',
   force_password_reset: false,
+}
+
+const operatorUser: User = {
+  ...baseUser,
+  id: 2,
+  username: 'operator',
+  name: 'Operator',
+  role: 'operator',
 }
 
 const baseDelivery: Delivery = {
@@ -108,6 +118,8 @@ describe('Deliveries page', () => {
     useUserStore.setState({ user: baseUser, token: 'token' })
     deliveryApiState.list.mockReset()
     deliveryApiState.get.mockReset()
+    deliveryApiState.retry.mockReset()
+    deliveryApiState.replay.mockReset()
     deliveryApiState.list.mockResolvedValue({
       list: [baseDelivery],
       total: 1,
@@ -127,6 +139,21 @@ describe('Deliveries page', () => {
           created_at: '2026-04-30T00:02:00Z',
         },
       ],
+    })
+    deliveryApiState.retry.mockResolvedValue({
+      recovery_id: 91,
+      action: 'retry',
+      status: 'succeeded',
+      original_delivery_id: 11,
+      result_delivery_id: 44,
+      error_message: '',
+    })
+    deliveryApiState.replay.mockResolvedValue({
+      recovery_id: 92,
+      action: 'replay',
+      status: 'failed',
+      original_delivery_id: 11,
+      error_message: 'route changed',
     })
   })
 
@@ -160,4 +187,58 @@ describe('Deliveries page', () => {
     expect(screen.queryByRole('button', { name: '重试' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '重放' })).not.toBeInTheDocument()
   })
+
+  it('allows operator to open recovery modal and requires a reason', async () => {
+    useUserStore.setState({ user: operatorUser, token: 'token' })
+
+    await renderDeliveries()
+
+    fireEvent.click(await screen.findByRole('button', { name: '重试' }))
+
+    expect(await screen.findByText('重试失败投递')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '确认重试' }))
+
+    expect(await screen.findByText('请填写恢复原因')).toBeInTheDocument()
+    expect(deliveryApiState.retry).not.toHaveBeenCalled()
+  })
+
+  it(
+    'refreshes list and detail after successful retry and shows recovery feedback',
+    async () => {
+    useUserStore.setState({ user: operatorUser, token: 'token' })
+
+    await renderDeliveries()
+
+    fireEvent.click(await screen.findByRole('button', { name: '查看证据' }))
+    await waitFor(() => {
+      expect(deliveryApiState.get).toHaveBeenCalledWith(11)
+    })
+
+    const initialListCalls = deliveryApiState.list.mock.calls.length
+    const initialGetCalls = deliveryApiState.get.mock.calls.length
+
+    fireEvent.click(await screen.findByRole('button', { name: '重试' }))
+    fireEvent.change(screen.getByPlaceholderText('说明为什么需要执行这次恢复，原因会进入后端审计记录'), {
+      target: { value: 'upstream fixed, retry now' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '确认重试' }))
+
+    await waitFor(() => {
+      expect(deliveryApiState.retry).toHaveBeenCalledWith(11, {
+        reason: 'upstream fixed, retry now',
+      })
+    })
+
+    await waitFor(() => {
+      expect(deliveryApiState.list.mock.calls.length).toBeGreaterThan(initialListCalls)
+      expect(deliveryApiState.get.mock.calls.length).toBeGreaterThan(initialGetCalls)
+    })
+
+    expect(await screen.findByText('恢复结果: retry / succeeded')).toBeInTheDocument()
+    expect(await screen.findByText('recovery_id=91')).toBeInTheDocument()
+    expect(await screen.findByText('resulting_delivery_id=44')).toBeInTheDocument()
+    },
+    10000
+  )
 })

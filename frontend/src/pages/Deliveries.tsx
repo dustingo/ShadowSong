@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  Alert as ResultAlert,
   Button,
   Card,
   DatePicker,
@@ -7,6 +8,7 @@ import {
   Drawer,
   Form,
   Input,
+  Modal,
   Select,
   Space,
   Table,
@@ -18,7 +20,9 @@ import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
 import dayjs, { type Dayjs } from 'dayjs'
 import { deliveryApi, getApiErrorMessage } from '../api/client'
-import type { Delivery, DeliveryFilters } from '../types'
+import { canRecoverDeliveries } from '../authz/capabilities'
+import { useUserStore } from '../stores/userStore'
+import type { Delivery, DeliveryFilters, DeliveryRecoveryResult } from '../types'
 
 const { RangePicker } = DatePicker
 const { Text, Paragraph } = Typography
@@ -29,6 +33,16 @@ type DeliveryFilterForm = {
   channel_id?: string
   delivery_status?: string
   created_range?: [Dayjs | null, Dayjs | null]
+}
+
+type RecoveryAction = 'retry' | 'replay'
+
+type RecoveryFormValues = {
+  reason: string
+}
+
+type RecoveryFeedback = DeliveryRecoveryResult & {
+  original_delivery_status?: string
 }
 
 const defaultLimit = 20
@@ -155,16 +169,24 @@ const statusColorMap: Record<string, string> = {
 }
 
 export const Deliveries: React.FC = () => {
+  const user = useUserStore((state) => state.user)
   const [searchParams, setSearchParams] = useSearchParams()
-  const [form] = Form.useForm<DeliveryFilterForm>()
+  const [filterForm] = Form.useForm<DeliveryFilterForm>()
+  const [recoveryForm] = Form.useForm<RecoveryFormValues>()
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [recoveryModalOpen, setRecoveryModalOpen] = useState(false)
+  const [recoveryTarget, setRecoveryTarget] = useState<Delivery | null>(null)
+  const [recoveryAction, setRecoveryAction] = useState<RecoveryAction>('retry')
+  const [recoveryLoadingById, setRecoveryLoadingById] = useState<Record<number, RecoveryAction>>({})
+  const [recoveryFeedback, setRecoveryFeedback] = useState<RecoveryFeedback | null>(null)
 
   const filters = useMemo(() => parseFilters(searchParams), [searchParams])
+  const canRecover = canRecoverDeliveries(user)
   const pageSize = filters.limit ?? defaultLimit
   const currentPage = Math.floor((filters.offset ?? 0) / pageSize) + 1
 
@@ -182,18 +204,18 @@ export const Deliveries: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    form.setFieldsValue(buildFormValues(filters))
+    filterForm.setFieldsValue(buildFormValues(filters))
     void fetchDeliveries(filters)
-  }, [fetchDeliveries, filters, form])
+  }, [fetchDeliveries, filterForm, filters])
 
   const handleSearch = async () => {
-    const values = await form.validateFields()
+    const values = await filterForm.validateFields()
     const nextFilters = buildFiltersFromForm(values, filters)
     setSearchParams(buildSearchParams(nextFilters))
   }
 
   const handleReset = () => {
-    form.resetFields()
+    filterForm.resetFields()
     setSearchParams(buildSearchParams({ limit: defaultLimit, offset: 0 }))
   }
 
@@ -234,10 +256,99 @@ export const Deliveries: React.FC = () => {
     ]
   }, [selectedDelivery])
 
+  const closeRecoveryModal = () => {
+    setRecoveryModalOpen(false)
+    setRecoveryTarget(null)
+    recoveryForm.resetFields()
+  }
+
+  const openRecoveryModal = (delivery: Delivery, action: RecoveryAction) => {
+    setRecoveryTarget(delivery)
+    setRecoveryAction(action)
+    recoveryForm.resetFields()
+    setRecoveryModalOpen(true)
+  }
+
+  const refreshCurrentView = async (deliveryID: number) => {
+    await fetchDeliveries(filters)
+    if (drawerOpen && selectedDelivery?.id === deliveryID) {
+      const detail = await deliveryApi.get(deliveryID)
+      setSelectedDelivery(detail)
+    }
+  }
+
+  const handleRecoverySubmit = async () => {
+    if (!recoveryTarget) {
+      return
+    }
+
+    let values: RecoveryFormValues
+    try {
+      values = await recoveryForm.validateFields()
+    } catch {
+      return
+    }
+
+    const deliveryID = recoveryTarget.id
+
+    setRecoveryLoadingById((current) => ({ ...current, [deliveryID]: recoveryAction }))
+    try {
+      const response =
+        recoveryAction === 'retry'
+          ? await deliveryApi.retry(deliveryID, { reason: values.reason.trim() })
+          : await deliveryApi.replay(deliveryID, { reason: values.reason.trim() })
+
+      setRecoveryFeedback({
+        ...response,
+        original_delivery_status: recoveryTarget.delivery_status,
+      })
+      await refreshCurrentView(deliveryID)
+
+      if (response.status === 'succeeded') {
+        message.success(`${recoveryAction} 已提交并执行成功`)
+      } else {
+        message.warning(`${recoveryAction} 已记录，结果为 ${response.status}`)
+      }
+
+      closeRecoveryModal()
+    } catch (error) {
+      message.error(getApiErrorMessage(error, `${recoveryAction} 执行失败`))
+    } finally {
+      setRecoveryLoadingById((current) => {
+        const nextState = { ...current }
+        delete nextState[deliveryID]
+        return nextState
+      })
+    }
+  }
+
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      {recoveryFeedback ? (
+        <ResultAlert
+          type={recoveryFeedback.status === 'succeeded' ? 'success' : 'warning'}
+          showIcon
+          message={`恢复结果: ${recoveryFeedback.action} / ${recoveryFeedback.status}`}
+          description={
+            <Space direction="vertical" size={0}>
+              <Text>recovery_id={recoveryFeedback.recovery_id}</Text>
+              <Text>original_delivery_id={recoveryFeedback.original_delivery_id}</Text>
+              <Text>
+                resulting_delivery_id=
+                {recoveryFeedback.result_delivery_id ? recoveryFeedback.result_delivery_id : '无'}
+              </Text>
+              <Text>
+                error_message={recoveryFeedback.error_message || '无'}
+              </Text>
+            </Space>
+          }
+          closable
+          onClose={() => setRecoveryFeedback(null)}
+        />
+      ) : null}
+
       <Card>
-        <Form form={form} layout="vertical">
+        <Form form={filterForm} layout="vertical">
           <Space wrap size="middle" align="start">
             <Form.Item name="alert_id" label="告警 ID" style={{ marginBottom: 0 }}>
               <Input placeholder="例如 alert-123" style={{ width: 220 }} />
@@ -340,9 +451,33 @@ export const Deliveries: React.FC = () => {
               title: '操作',
               key: 'action',
               render: (_: unknown, record: Delivery) => (
-                <Button type="link" size="small" onClick={() => void handleViewDetail(record)}>
-                  查看证据
-                </Button>
+                <Space size="small" wrap>
+                  <Button type="link" size="small" onClick={() => void handleViewDetail(record)}>
+                    查看证据
+                  </Button>
+                  {canRecover && record.delivery_status === 'failed' ? (
+                    <>
+                      <Button
+                        type="link"
+                        size="small"
+                        loading={recoveryLoadingById[record.id] === 'retry'}
+                        disabled={Boolean(recoveryLoadingById[record.id])}
+                        onClick={() => openRecoveryModal(record, 'retry')}
+                      >
+                        重试
+                      </Button>
+                      <Button
+                        type="link"
+                        size="small"
+                        loading={recoveryLoadingById[record.id] === 'replay'}
+                        disabled={Boolean(recoveryLoadingById[record.id])}
+                        onClick={() => openRecoveryModal(record, 'replay')}
+                      >
+                        重放
+                      </Button>
+                    </>
+                  ) : null}
+                </Space>
               ),
             },
           ]}
@@ -451,6 +586,34 @@ export const Deliveries: React.FC = () => {
           </Space>
         )}
       </Drawer>
+
+      <Modal
+        title={recoveryAction === 'retry' ? '重试失败投递' : '重放失败投递'}
+        open={recoveryModalOpen}
+        okText={recoveryAction === 'retry' ? '确认重试' : '确认重放'}
+        cancelText="取消"
+        confirmLoading={Boolean(recoveryTarget && recoveryLoadingById[recoveryTarget.id])}
+        onOk={() => void handleRecoverySubmit()}
+        onCancel={closeRecoveryModal}
+        destroyOnHidden
+      >
+        <Form form={recoveryForm} layout="vertical">
+          <Form.Item
+            label="恢复原因"
+            name="reason"
+            rules={[
+              { required: true, message: '请填写恢复原因' },
+              { whitespace: true, message: '请填写恢复原因' },
+            ]}
+          >
+            <Input.TextArea
+              rows={4}
+              maxLength={200}
+              placeholder="说明为什么需要执行这次恢复，原因会进入后端审计记录"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   )
 }

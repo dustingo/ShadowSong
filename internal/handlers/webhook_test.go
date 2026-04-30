@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/game-ops/ai-alert-system/internal/delivery"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
 	"github.com/gin-gonic/gin"
@@ -717,6 +718,22 @@ func TestWebhookHandlerSendNotification_ImmediateSuccessSingleAttempt(t *testing
 	assert.Contains(t, logOutput, "attempt=1")
 	assert.Contains(t, logOutput, "max_attempts=")
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
+
+	deliveryRecord, attemptRecords := requireSingleDeliveryLedger(t, db, "alert-immediate-success")
+	assert.Equal(t, "trace-immediate-success", deliveryRecord.TraceID)
+	assert.Equal(t, channel.ID, deliveryRecord.ChannelID)
+	assert.Equal(t, models.DeliveryModeRendered, deliveryRecord.DeliveryMode)
+	assert.Equal(t, models.DeliveryStatusDelivered, deliveryRecord.DeliveryStatus)
+	assert.Equal(t, 1, deliveryRecord.AttemptCount)
+	assertDeliveryHasNoFailureSummary(t, deliveryRecord.FinalFailureSummary)
+	renderedPayload := decodeRenderedPayloadSnapshot(t, deliveryRecord.RenderedPayloadSnapshot)
+	assert.Equal(t, "CPUHigh", renderedPayload.Title)
+	assert.Equal(t, "cpu high", renderedPayload.Content)
+	require.Len(t, attemptRecords, 1)
+	assert.Equal(t, 1, attemptRecords[0].AttemptNumber)
+	assert.Equal(t, models.AttemptResultSuccess, attemptRecords[0].Result)
+	assert.False(t, attemptRecords[0].Retryable)
+	assert.Equal(t, models.TriggerKindPipeline, attemptRecords[0].TriggerKind)
 }
 
 func TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures(t *testing.T) {
@@ -859,6 +876,22 @@ func TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetr
 	assert.Equal(t, fmt.Sprintf("%d", notificationMaxAttempts), sendAttemptFields["max_attempts"])
 	assert.NotEmpty(t, sendAttemptFields["error"])
 	assert.Contains(t, sendAttemptLine, "error=")
+
+	deliveryRecord, attemptRecords := requireSingleDeliveryLedger(t, db, "alert-datasource-fallback")
+	assert.Equal(t, "trace-datasource-fallback", deliveryRecord.TraceID)
+	assert.Equal(t, models.DeliveryModeDefault, deliveryRecord.DeliveryMode)
+	assert.Equal(t, models.DeliveryStatusDelivered, deliveryRecord.DeliveryStatus)
+	assert.Equal(t, notificationMaxAttempts, deliveryRecord.AttemptCount)
+	assertDeliveryHasNoFailureSummary(t, deliveryRecord.FinalFailureSummary)
+	renderedPayload := decodeRenderedPayloadSnapshot(t, deliveryRecord.RenderedPayloadSnapshot)
+	assert.Equal(t, "[P1] CPUHigh", renderedPayload.Title)
+	assert.Equal(t, "cpu high", renderedPayload.Content)
+	require.Len(t, attemptRecords, notificationMaxAttempts)
+	assert.Equal(t, 1, attemptRecords[0].AttemptNumber)
+	assert.Equal(t, models.AttemptResultFailed, attemptRecords[0].Result)
+	assert.True(t, attemptRecords[0].Retryable)
+	assert.Equal(t, notificationMaxAttempts, attemptRecords[len(attemptRecords)-1].AttemptNumber)
+	assert.Equal(t, models.AttemptResultSuccess, attemptRecords[len(attemptRecords)-1].Result)
 }
 
 func TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary(t *testing.T) {
@@ -975,7 +1008,7 @@ func TestWebhookHandlerSendNotification_NonRetryableFailureStopsAfterFirstAttemp
 	assert.NotContains(t, logOutput, "stage=terminal_failure")
 }
 
-func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPersistenceSideEffects(t *testing.T) {
+func TestWebhookHandlerSendNotification_RetryExhaustPersistsTerminalFailureLedger(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
 	attempts := 0
@@ -1010,9 +1043,7 @@ func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPe
 		Enabled: true,
 	}
 
-	beforeCounts := countWebhookNotificationState(t, db)
 	handler.sendNotification(alert, channel)
-	afterCounts := countWebhookNotificationState(t, db)
 
 	logOutput := logBuffer.String()
 	assert.Equal(t, notificationMaxAttempts, attempts)
@@ -1024,7 +1055,6 @@ func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPe
 	assert.Contains(t, logOutput, "attempt=")
 	assert.Contains(t, logOutput, "max_attempts=")
 	assert.Contains(t, logOutput, "error=")
-	assert.Equal(t, beforeCounts, afterCounts)
 
 	terminalFailureLine := findWebhookLogLine(logOutput, "stage=terminal_failure")
 	terminalFailureFields := parseWebhookLogFields(terminalFailureLine)
@@ -1039,6 +1069,29 @@ func TestWebhookHandlerSendNotification_RetryExhaustLogsTerminalFailureWithoutPe
 	assert.Equal(t, fmt.Sprintf("%d", notificationMaxAttempts), terminalFailureFields["max_attempts"])
 	assert.NotEmpty(t, terminalFailureFields["error"])
 	assert.Contains(t, terminalFailureLine, "error=")
+
+	deliveryRecord, attemptRecords := requireSingleDeliveryLedger(t, db, "alert-terminal")
+	assert.Equal(t, "trace-terminal", deliveryRecord.TraceID)
+	assert.Equal(t, models.DeliveryModeRendered, deliveryRecord.DeliveryMode)
+	assert.Equal(t, models.DeliveryStatusFailed, deliveryRecord.DeliveryStatus)
+	assert.Equal(t, notificationMaxAttempts, deliveryRecord.AttemptCount)
+	renderedPayload := decodeRenderedPayloadSnapshot(t, deliveryRecord.RenderedPayloadSnapshot)
+	assert.Equal(t, "CPUHigh", renderedPayload.Title)
+	assert.Equal(t, "cpu high", renderedPayload.Content)
+	failureSummary := decodeFinalFailureSummary(t, deliveryRecord.FinalFailureSummary)
+	assert.Equal(t, models.AttemptResultFailed, failureSummary.Result)
+	assert.Equal(t, notificationMaxAttempts, failureSummary.AttemptCount)
+	assert.True(t, failureSummary.Retryable)
+	assert.Equal(t, models.TriggerKindPipeline, failureSummary.TriggerKind)
+	assert.Contains(t, failureSummary.ErrorMessage, "retry budget exhausted")
+	assert.Contains(t, failureSummary.ErrorMessage, "status: 503")
+	require.Len(t, attemptRecords, notificationMaxAttempts)
+	for idx, attemptRecord := range attemptRecords {
+		assert.Equal(t, idx+1, attemptRecord.AttemptNumber)
+		assert.Equal(t, models.AttemptResultFailed, attemptRecord.Result)
+		assert.True(t, attemptRecord.Retryable)
+		assert.Equal(t, models.TriggerKindPipeline, attemptRecord.TriggerKind)
+	}
 }
 
 func TestWebhookHandlerProcessAlertNotifications_LogsMatchedChannelsAsStructuredField(t *testing.T) {
@@ -1175,7 +1228,14 @@ func newWebhookTestDB(t *testing.T) *gorm.DB {
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&models.Alert{}, &models.DataSource{}, &models.Channel{}, &models.RouteRule{}))
+	require.NoError(t, db.AutoMigrate(
+		&models.Alert{},
+		&models.DataSource{},
+		&models.Channel{},
+		&models.RouteRule{},
+		&models.NotificationDelivery{},
+		&models.NotificationDeliveryAttempt{},
+	))
 
 	return db
 }
@@ -1183,8 +1243,9 @@ func newWebhookTestDB(t *testing.T) *gorm.DB {
 func newWebhookTestHandler(db *gorm.DB) (*WebhookHandler, *bytes.Buffer) {
 	buffer := &bytes.Buffer{}
 	return &WebhookHandler{
-		db:     db,
-		logger: log.New(buffer, "", 0),
+		db:              db,
+		deliveryService: delivery.NewService(db),
+		logger:          log.New(buffer, "", 0),
 		redisXAdd: func(_ context.Context, _ *redis.XAddArgs) *redis.StringCmd {
 			return redis.NewStringResult("1-0", nil)
 		},
@@ -1240,6 +1301,43 @@ func countWebhookNotificationState(t *testing.T, db *gorm.DB) map[string]int64 {
 	}
 
 	return counts
+}
+
+func requireSingleDeliveryLedger(
+	t *testing.T,
+	db *gorm.DB,
+	alertID string,
+) (models.NotificationDelivery, []models.NotificationDeliveryAttempt) {
+	t.Helper()
+
+	var deliveryRecord models.NotificationDelivery
+	require.NoError(t, db.Where("alert_id = ?", alertID).First(&deliveryRecord).Error)
+
+	var attemptRecords []models.NotificationDeliveryAttempt
+	require.NoError(t, db.Where("delivery_id = ?", deliveryRecord.ID).Order("attempt_number asc").Find(&attemptRecords).Error)
+
+	return deliveryRecord, attemptRecords
+}
+
+func decodeRenderedPayloadSnapshot(t *testing.T, raw datatypes.JSON) models.RenderedPayloadSnapshot {
+	t.Helper()
+
+	var snapshot models.RenderedPayloadSnapshot
+	require.NoError(t, json.Unmarshal(raw, &snapshot))
+	return snapshot
+}
+
+func decodeFinalFailureSummary(t *testing.T, raw datatypes.JSON) models.FinalFailureSummary {
+	t.Helper()
+
+	var summary models.FinalFailureSummary
+	require.NoError(t, json.Unmarshal(raw, &summary))
+	return summary
+}
+
+func assertDeliveryHasNoFailureSummary(t *testing.T, raw datatypes.JSON) {
+	t.Helper()
+	assert.True(t, len(raw) == 0 || string(raw) == "null")
 }
 
 func findWebhookLogLine(logOutput string, needle string) string {

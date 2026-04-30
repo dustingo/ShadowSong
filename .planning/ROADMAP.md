@@ -81,8 +81,13 @@ Plans:
   2. 维护者可以从告警详情或运维页面直接跳转到关联的通知投递历史和失败证据。
   3. 维护者可以仅针对单条失败通知触发 retry，并看到这次恢复动作的执行结果。
   4. 维护者可以仅针对单条失败通知触发 replay，并且每次人工恢复都会记录操作者、原因、时间、结果和关联原始投递记录。
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 19-01-PLAN.md - 交付可筛选的 delivery 历史页、失败证据展示与 alert deeplink
+- [ ] 19-02-PLAN.md - 交付后端单条 retry/replay、结构化恢复审计与读写权限分离
+- [ ] 19-03-PLAN.md - 把 recovery 动作接入历史页并完成 operator 可操作、viewer 只读闭环
 
 ### Phase 20: Harden Ingress And Runtime Readiness
 **Goal**: webhook 和服务运行入口具备明确的请求防护、生产配置收口和依赖就绪判断，入口异常与 dedup 保存失败不会再静默漂移。  

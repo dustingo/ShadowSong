@@ -75,9 +75,15 @@ This directory contains the migrated GSD planning documents converted to superpo
 | 01 | 01 | `2026-04-10-phase-01-01-backend-ai-removal-design.md` | completed |
 | 01 | 02 | `2026-04-10-phase-01-02-backend-ai-removal-design.md` | completed |
 | 01 | 03 | `2026-04-10-phase-01-03-backend-ai-removal-design.md` | completed |
-| 02 | TBD | - | pending |
-| 03 | TBD | - | pending |
-| 04 | TBD | - | pending |
+| 02 | 01 | `2026-04-10-phase-02-01-remove-frontend-ai-surface.md` | completed |
+| 02 | 02 | `2026-04-10-phase-02-02-remove-ai-rendering.md` | completed |
+| 02 | 03 | `2026-04-10-phase-02-03-remove-ai-contracts.md` | completed |
+| 03 | 01 | `2026-04-10-phase-03-01-align-docs-config.md` | completed |
+| 03 | 02 | `2026-04-10-phase-03-02-refresh-codebase-maps.md` | completed |
+| 03 | 03 | `2026-04-10-phase-03-03-verification-scripts.md` | completed |
+| 04 | 01 | `2026-04-10-phase-04-01-template-render-context.md` | completed |
+| 04 | 02 | `2026-04-10-phase-04-02-template-preview-ui.md` | completed |
+| 04 | 03 | `2026-04-10-phase-04-03-template-verification.md` | completed |
 
 > Archived: `.planning/milestones/`
 
@@ -96,9 +102,12 @@ docs/superpowers/
 ## Migration Progress
 
 - [x] Phase 01 (3 plans) - completed 2026-04-10
+- [x] Phase 02 (3 plans) - completed 2026-04-10
+- [x] Phase 03 (3 plans) - completed 2026-04-10
+- [x] Phase 04 (3 plans) - completed 2026-04-10
 - [x] Phase 05-09 (15 plans) - completed 2026-04-15
+- [x] Phase 10-13 (8 plans) - completed 2026-04-21
 - [x] Phase 14-17 (11 plans) - completed 2026-04-29
 - [x] Phase 18 (3 plans) - completed 2026-05-13
 - [x] Phase 19 (3 plans) - completed 2026-05-13
-- [ ] Phase 2-13 (archived milestones)
-- [ ] Phase 20-21 (pending)
+- [ ] Phase 20-21 (pending — plans TBD)

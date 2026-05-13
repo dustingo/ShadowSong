@@ -163,8 +163,9 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 	}
 
-	// Webhook routes
+	// Webhook routes (INGR-01: size limit middleware)
 	webhook := r.Group("/webhook")
+	webhook.Use(middleware.RequestSizeLimit(1 * 1024 * 1024)) // 1MB default
 	{
 		webhook.POST("/:source_name", webhookHandler.HandleWebhook)
 		webhook.POST("/test-template", webhookHandler.TestInputTemplate)

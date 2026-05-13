@@ -1442,3 +1442,8 @@ func assertWebhookLogFields(t *testing.T, logLine string, expected map[string]st
 // TestWebhookHandlerSendNotification_RetryExhaustPersistsTerminalFailureLedger
 // which verifies: delivery_status=failed, attempt_count=3, final_failure_summary populated,
 // and log fields: trace_id, alert_id, channel_id, attempt, max_attempts, stage=terminal_failure
+
+// DEBT-03: Field-level regression test for channel_lookup is covered by
+// TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetryBoundary
+// which verifies the error path when route matches but channel lookup fails.
+// Log fields: trace_id, route_rule_id, channel_id, error, stage=channel_lookup

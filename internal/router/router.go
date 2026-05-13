@@ -43,6 +43,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	webhookHandler := handlers.NewWebhookHandler(db, redisClient)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
 	metricsHandler := handlers.NewMetricsHandler(db)
+	channelHealthHandler := handlers.NewChannelHealthHandler(db)
 
 	// Initialize auth
 	jwtAuth := auth.NewJWT(&cfg.Security)
@@ -119,6 +120,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			channels.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteChannel)
 			channels.PATCH("/:id/toggle", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.ToggleChannel)
 			channels.POST("/:id/test", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.TestChannel)
+				channels.GET("/:id/health", middleware.RequireCapability(authz.CapabilityViewConfig), channelHealthHandler.GetChannelHealth)
 		}
 
 		// RouteRule routes (protected)

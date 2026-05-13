@@ -123,13 +123,17 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 		return
 	}
 
+	// INGR-03: Read raw body BEFORE any JSON binding to preserve exact bytes for signature validation
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read request body"})
 		return
 	}
 
-	// 3. 解析输入数据（支持数组和单对象）
+	// Store raw body in context for potential signature validation
+	c.Set("raw_body", body)
+
+	// Now parse JSON from the raw body bytes
 	var rawData interface{}
 	if err := json.Unmarshal(body, &rawData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json format"})

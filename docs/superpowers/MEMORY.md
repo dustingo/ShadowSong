@@ -20,6 +20,21 @@ This directory contains the migrated GSD planning documents converted to superpo
 | 21 | TBD | - | pending |
 
 ### v1.3 Notification Reliability and Observability (Phases 14-17)
+
+| Phase | Plan | Spec File | Status |
+|-------|------|-----------|--------|
+| 14 | 01 | `2026-04-29-phase-14-01-alert-trace-context.md` | completed |
+| 14 | 02 | `2026-04-29-phase-14-02-alert-trace-context-lifecycle.md` | completed |
+| 15 | 01 | `2026-04-29-phase-15-01-notification-retry-boundaries.md` | completed |
+| 15 | 02 | `2026-04-29-phase-15-02-notification-retry-verification.md` | completed |
+| 16 | 01 | `2026-04-29-phase-16-01-alert-path-logging-unification.md` | completed |
+| 16 | 02 | `2026-04-29-phase-16-02-alert-path-logging-verification.md` | completed |
+| 16 | 03 | `2026-04-29-phase-16-03-alert-path-async-panic-context.md` | completed |
+| 16 | 04 | `2026-04-29-phase-16-04-alert-path-logging-parse-fix.md` | completed |
+| 17 | 01 | `2026-04-29-phase-17-01-truth-docs-verification-scripts.md` | completed |
+| 17 | 02 | `2026-04-29-phase-17-02-docs-refresh.md` | completed |
+| 17 | 03 | `2026-04-29-phase-17-03-runbook-and-closure.md` | completed |
+
 ### v1.2 Alert Pipeline Hardening (Phases 10-13)
 
 | Phase | Plan | Spec File | Status |
@@ -62,7 +77,8 @@ docs/superpowers/
 ## Migration Progress
 
 - [x] Phase 01 (3 plans) - completed 2026-04-10
+- [x] Phase 14-17 (11 plans) - completed 2026-04-29
 - [x] Phase 18 (3 plans) - completed 2026-05-13
 - [x] Phase 19 (3 plans) - completed 2026-05-13
-- [ ] Phase 2-17 (archived milestones)
+- [ ] Phase 2-13 (archived milestones)
 - [ ] Phase 20-21 (pending)

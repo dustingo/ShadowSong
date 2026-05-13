@@ -225,4 +225,41 @@ export const deliveryApi = {
     ),
 }
 
+// ============ Metrics API (OPER-03) ============
+
+export interface MetricsResponse {
+  period: string
+  webhook_ingest_total: number
+  notification_send_success_total: number
+  notification_send_failure_total: number
+  notification_retry_total: number
+  notification_terminal_failure_total: number
+}
+
+export const metricsApi = {
+  get: (period?: string) => apiClient.get<MetricsResponse>('/metrics', { params: { period } }),
+}
+
+// ============ Channel Health API (OPER-02) ============
+
+export interface ChannelHealthResponse {
+  channel_id: number
+  channel_name: string
+  period: string
+  total_deliveries: number
+  successful: number
+  failed: number
+  success_rate: number
+  last_failure?: {
+    delivery_id: number
+    error_message: string
+    failed_at: string
+  }
+}
+
+export const channelHealthApi = {
+  get: (channelId: number, period?: string) =>
+    apiClient.get<ChannelHealthResponse>(`/channels/${channelId}/health`, { params: { period } }),
+}
+
 export default apiClient

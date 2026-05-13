@@ -25,6 +25,7 @@ import {
   Users,
   Profile,
   Deliveries,
+  OpsHealth,
 } from './pages'
 import {
   canUser,
@@ -52,6 +53,7 @@ const baseMenuItems: MenuItem[] = [
   { key: '/', icon: <DashboardOutlined />, label: '告警大盘' },
   { key: '/alerts', icon: <AlertOutlined />, label: '告警管理' },
   { key: '/deliveries', icon: <SendOutlined />, label: '通知投递' },
+  { key: '/ops-health', icon: <DashboardOutlined />, label: '运维健康' },
   { key: '/datasources', icon: <DatabaseOutlined />, label: '数据源' },
   { key: '/channels', icon: <SendOutlined />, label: '推送渠道' },
   { key: '/routes', icon: <BranchesOutlined />, label: '路由规则' },
@@ -262,6 +264,7 @@ export default function App() {
         <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
         <Route path="/alerts" element={<RequireAuth><Alerts /></RequireAuth>} />
         <Route path="/deliveries" element={<RequireAuth requiredCapability={capabilityViewConfig}><Deliveries /></RequireAuth>} />
+        <Route path="/ops-health" element={<RequireAuth requiredCapability={capabilityViewConfig}><OpsHealth /></RequireAuth>} />
         <Route path="/datasources" element={<RequireAuth requiredCapability={capabilityViewConfig}><DataSources /></RequireAuth>} />
         <Route path="/channels" element={<RequireAuth requiredCapability={capabilityViewConfig}><Channels /></RequireAuth>} />
         <Route path="/routes" element={<RequireAuth requiredCapability={capabilityViewConfig}><RouteRules /></RequireAuth>} />

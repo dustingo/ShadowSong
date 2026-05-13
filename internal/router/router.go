@@ -42,6 +42,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	deliveryHandler := handlers.NewDeliveryHandler(db, delivery.NewService(db))
 	webhookHandler := handlers.NewWebhookHandler(db, redisClient)
 	healthHandler := handlers.NewHealthHandler(db, redisClient)
+	metricsHandler := handlers.NewMetricsHandler(db)
 
 	// Initialize auth
 	jwtAuth := auth.NewJWT(&cfg.Security)
@@ -165,6 +166,9 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			deliveries.POST("/:id/retry", middleware.RequireCapability(authz.CapabilityProcessAlerts), deliveryHandler.Retry)
 			deliveries.POST("/:id/replay", middleware.RequireCapability(authz.CapabilityProcessAlerts), deliveryHandler.Replay)
 		}
+
+		// Metrics routes (protected) - OPER-03
+		v1.GET("/metrics", middleware.JWTAuth(jwtAuth, db), middleware.RequireCapability(authz.CapabilityViewConfig), metricsHandler.GetMetrics)
 
 	}
 

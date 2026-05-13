@@ -2,6 +2,7 @@ package router
 
 import (
 	"strings"
+	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/auth"
 	"github.com/game-ops/ai-alert-system/internal/authz"
@@ -163,9 +164,13 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 
 	}
 
-	// Webhook routes (INGR-01: size limit middleware)
+	// Webhook routes (INGR-01: size limit, INGR-02: rate limit)
 	webhook := r.Group("/webhook")
 	webhook.Use(middleware.RequestSizeLimit(1 * 1024 * 1024)) // 1MB default
+	webhook.Use(middleware.RateLimit(
+		middleware.NewInMemoryRateLimiter(1000, time.Minute), // 1000 req/min per source
+		func(c *gin.Context) string { return c.Param("source_name") },
+	))
 	{
 		webhook.POST("/:source_name", webhookHandler.HandleWebhook)
 		webhook.POST("/test-template", webhookHandler.TestInputTemplate)

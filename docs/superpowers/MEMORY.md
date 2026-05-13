@@ -49,6 +49,25 @@ This directory contains the migrated GSD planning documents converted to superpo
 | 13 | 02 | `2026-04-21-phase-13-02-harden-notification-delivery-path.md` | completed |
 
 ### v1.1 Enterprise Access Control (Phases 5-9)
+
+| Phase | Plan | Spec File | Status |
+|-------|------|-----------|--------|
+| 05 | 01 | `2026-04-15-phase-05-01-normalize-role-model.md` | completed |
+| 05 | 02 | `2026-04-15-phase-05-02-normalize-role-model.md` | completed |
+| 05 | 03 | `2026-04-15-phase-05-03-normalize-role-model.md` | completed |
+| 06 | 01 | `2026-04-15-phase-06-01-secure-user-administration.md` | completed |
+| 06 | 02 | `2026-04-15-phase-06-02-secure-user-administration.md` | completed |
+| 06 | 03 | `2026-04-15-phase-06-03-secure-user-administration.md` | completed |
+| 07 | 01 | `2026-04-15-phase-07-01-lock-down-protected-operations.md` | completed |
+| 07 | 02 | `2026-04-15-phase-07-02-lock-down-protected-operations.md` | completed |
+| 07 | 03 | `2026-04-15-phase-07-03-lock-down-protected-operations.md` | completed |
+| 08 | 01 | `2026-04-15-phase-08-01-ship-permission-aware-ui.md` | completed |
+| 08 | 02 | `2026-04-15-phase-08-02-ship-permission-aware-ui.md` | completed |
+| 08 | 03 | `2026-04-15-phase-08-03-ship-permission-aware-ui.md` | completed |
+| 09 | 01 | `2026-04-15-phase-09-01-close-v1-1-milestone-tech-debt.md` | completed |
+| 09 | 02 | `2026-04-15-phase-09-02-close-v1-1-milestone-tech-debt.md` | completed |
+| 09 | 03 | `2026-04-15-phase-09-03-close-v1-1-milestone-tech-debt.md` | completed |
+
 ### v1.0 AI Removal Complete (Phases 1-4)
 
 | Phase | Plan | Spec File | Status |
@@ -77,6 +96,7 @@ docs/superpowers/
 ## Migration Progress
 
 - [x] Phase 01 (3 plans) - completed 2026-04-10
+- [x] Phase 05-09 (15 plans) - completed 2026-04-15
 - [x] Phase 14-17 (11 plans) - completed 2026-04-29
 - [x] Phase 18 (3 plans) - completed 2026-05-13
 - [x] Phase 19 (3 plans) - completed 2026-05-13

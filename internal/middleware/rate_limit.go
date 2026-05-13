@@ -35,12 +35,24 @@ func NewInMemoryRateLimiter(limit int, window time.Duration) *InMemoryRateLimite
 	}
 }
 
-// Allow checks if a request with the given key is allowed
+// Allow checks if a request with the given key is allowed.
+// Also performs periodic cleanup of expired entries to prevent memory leaks.
 func (l *InMemoryRateLimiter) Allow(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
 	now := time.Now()
+
+	// Periodic cleanup: remove expired entries every 100 requests or so
+	// This prevents unbounded memory growth with many unique keys
+	if len(l.requests) > 100 {
+		for k, c := range l.requests {
+			if now.After(c.expiresAt) {
+				delete(l.requests, k)
+			}
+		}
+	}
+
 	if c, exists := l.requests[key]; exists {
 		if now.After(c.expiresAt) {
 			// Window expired, reset counter

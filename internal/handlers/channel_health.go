@@ -73,10 +73,10 @@ func (h *ChannelHealthHandler) GetChannelHealth(c *gin.Context) {
 		successRate = float64(successful) / float64(total)
 	}
 
-	// Get last failure
+	// Get last failure within the period
 	var lastFailure *LastFailureInfo
 	var lastFailedDelivery models.NotificationDelivery
-	if err := h.db.Where("channel_id = ? AND delivery_status = ?", channel.ID, "failed").
+	if err := h.db.Where("channel_id = ? AND delivery_status = ? AND created_at >= ?", channel.ID, "failed", since).
 		Order("created_at DESC").
 		First(&lastFailedDelivery).Error; err == nil {
 

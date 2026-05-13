@@ -20,6 +20,11 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
+	// INGR-04: Validate production config at startup
+	if err := config.ValidateProductionConfig(cfg); err != nil {
+		log.Fatalf("Invalid production config: %v", err)
+	}
+
 	// Initialize database
 	db, err := database.InitDB(cfg)
 	if err != nil {

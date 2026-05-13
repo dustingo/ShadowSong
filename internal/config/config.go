@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
@@ -121,4 +122,15 @@ func getEnvAsCSV(key string, defaultValue []string) []string {
 	}
 
 	return values
+}
+
+// ValidateProductionConfig validates config for production requirements.
+// In release mode, it enforces stricter security requirements.
+func ValidateProductionConfig(cfg *Config) error {
+	if cfg.Server.Mode == "release" {
+		if len(cfg.Security.JWTSecret) < 32 {
+			return fmt.Errorf("JWT_SECRET must be at least 32 characters in release mode, got %d", len(cfg.Security.JWTSecret))
+		}
+	}
+	return nil
 }

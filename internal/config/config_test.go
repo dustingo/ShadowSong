@@ -88,3 +88,56 @@ func TestLoad_CurrentBaselineEnv(t *testing.T) {
 func getenvUnsafe(key string) string {
 	return getEnv(key, "")
 }
+
+func TestValidateProductionConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		mode        string
+		jwtSecret   string
+		expectError bool
+	}{
+		{
+			name:        "debug mode allows short secret",
+			mode:        "debug",
+			jwtSecret:   "short",
+			expectError: false,
+		},
+		{
+			name:        "release mode requires secret >= 32 chars",
+			mode:        "release",
+			jwtSecret:   "this-is-a-very-long-secret-key-32chars",
+			expectError: false,
+		},
+		{
+			name:        "release mode rejects short secret",
+			mode:        "release",
+			jwtSecret:   "too-short",
+			expectError: true,
+		},
+		{
+			name:        "release mode rejects empty secret",
+			mode:        "release",
+			jwtSecret:   "",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Server: ServerConfig{Mode: tt.mode},
+				Security: SecurityConfig{
+					JWTSecret: tt.jwtSecret,
+				},
+			}
+
+			err := ValidateProductionConfig(cfg)
+			if tt.expectError && err == nil {
+				t.Error("expected error, got nil")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("expected no error, got %v", err)
+			}
+		})
+	}
+}

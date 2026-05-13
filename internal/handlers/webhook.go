@@ -197,7 +197,11 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 					existing.DeduplicateUntil = &dedupUntil
 				}
 
-				h.db.Save(&existing)
+				// DEBT-01: Log dedup save failures instead of silently swallowing
+				if err := h.db.Save(&existing).Error; err != nil {
+					h.logger.Printf("dedup update failed: trace_id=%s alert_id=%s error=%v",
+						traceID, existing.AlertID, err)
+				}
 				h.logTraceStage("dedup", map[string]string{
 					"trace_id":          traceID,
 					"existing_alert_id": existing.AlertID,

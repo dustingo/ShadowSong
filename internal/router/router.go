@@ -41,6 +41,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 	configHandler := handlers.NewConfigHandler(db)
 	deliveryHandler := handlers.NewDeliveryHandler(db, delivery.NewService(db))
 	webhookHandler := handlers.NewWebhookHandler(db, redisClient)
+	healthHandler := handlers.NewHealthHandler(db, redisClient)
 
 	// Initialize auth
 	jwtAuth := auth.NewJWT(&cfg.Security)
@@ -53,6 +54,9 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			"status": "ok",
 		})
 	})
+
+	// Readiness check (OPER-05)
+	r.GET("/ready", healthHandler.Readiness)
 
 	// API v1 routes
 	v1 := r.Group("/api/v1")

@@ -1437,3 +1437,8 @@ func assertWebhookLogFields(t *testing.T, logLine string, expected map[string]st
 		assert.Equal(t, value, fields[key], "field %s", key)
 	}
 }
+
+// DEBT-02: Field-level regression test for terminal_failure is covered by
+// TestWebhookHandlerSendNotification_RetryExhaustPersistsTerminalFailureLedger
+// which verifies: delivery_status=failed, attempt_count=3, final_failure_summary populated,
+// and log fields: trace_id, alert_id, channel_id, attempt, max_attempts, stage=terminal_failure

@@ -21,6 +21,18 @@ This directory contains the migrated GSD planning documents converted to superpo
 
 ### v1.3 Notification Reliability and Observability (Phases 14-17)
 ### v1.2 Alert Pipeline Hardening (Phases 10-13)
+
+| Phase | Plan | Spec File | Status |
+|-------|------|-----------|--------|
+| 10 | 01 | `2026-04-21-phase-10-01-secure-realtime-alert-access.md` | completed |
+| 10 | 02 | `2026-04-21-phase-10-02-secure-realtime-alert-access.md` | completed |
+| 11 | 01 | `2026-04-21-phase-11-01-restore-frontend-quality-baseline.md` | completed |
+| 11 | 02 | `2026-04-21-phase-11-02-restore-frontend-quality-baseline.md` | completed |
+| 12 | 01 | `2026-04-21-phase-12-01-establish-automated-quality-gates.md` | completed |
+| 12 | 02 | `2026-04-21-phase-12-02-establish-automated-quality-gates.md` | completed |
+| 13 | 01 | `2026-04-21-phase-13-01-harden-notification-delivery-path.md` | completed |
+| 13 | 02 | `2026-04-21-phase-13-02-harden-notification-delivery-path.md` | completed |
+
 ### v1.1 Enterprise Access Control (Phases 5-9)
 ### v1.0 AI Removal Complete (Phases 1-4)
 

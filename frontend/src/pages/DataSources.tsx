@@ -605,7 +605,7 @@ export const DataSources: React.FC = () => {
 
           <Message
             severity="info"
-            text="点击"预览模板"会把当前编辑中的 input/output template 和任意样例 JSON 一起发到后端，返回映射后的规范化告警与最终 title/content。"
+            text="点击「预览模板」会把当前编辑中的 input/output template 和任意样例 JSON 一起发到后端，返回映射后的规范化告警与最终 title/content。"
           />
 
           <div className="flex align-items-center justify-content-between">

@@ -1,38 +1,31 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  Alert as ResultAlert,
-  Button,
-  Card,
-  DatePicker,
-  Descriptions,
-  Drawer,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
-} from 'antd'
-import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { Card } from 'primereact/card'
+import { DataTable } from 'primereact/datatable'
+import { Column } from 'primereact/column'
+import { Button } from 'primereact/button'
+import { Dialog } from 'primereact/dialog'
+import { Sidebar } from 'primereact/sidebar'
+import { InputText } from 'primereact/inputtext'
+import { InputTextarea } from 'primereact/inputtextarea'
+import { Dropdown } from 'primereact/dropdown'
+import { Calendar } from 'primereact/calendar'
+import { Tag } from 'primereact/tag'
+import { Message } from 'primereact/message'
+import { Divider } from 'primereact/divider'
 import { useSearchParams } from 'react-router-dom'
-import dayjs, { type Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import { deliveryApi, getApiErrorMessage } from '../api/client'
 import { canRecoverDeliveries } from '../authz/capabilities'
 import { useUserStore } from '../stores/userStore'
+import { useToast } from '../components'
 import type { Delivery, DeliveryFilters, DeliveryRecoveryResult } from '../types'
 
-const { RangePicker } = DatePicker
-const { Text, Paragraph } = Typography
-
 type DeliveryFilterForm = {
-  alert_id?: string
-  trace_id?: string
-  channel_id?: string
-  delivery_status?: string
-  created_range?: [Dayjs | null, Dayjs | null]
+  alert_id: string
+  trace_id: string
+  channel_id: string
+  delivery_status: string
+  created_range: [Date | null, Date | null] | null
 }
 
 type RecoveryAction = 'retry' | 'replay'
@@ -138,17 +131,17 @@ const buildSearchParams = (filters: DeliveryFilters): URLSearchParams => {
 }
 
 const buildFormValues = (filters: DeliveryFilters): DeliveryFilterForm => ({
-  alert_id: filters.alert_id,
-  trace_id: filters.trace_id,
-  channel_id: typeof filters.channel_id === 'number' ? String(filters.channel_id) : undefined,
-  delivery_status: filters.delivery_status,
+  alert_id: filters.alert_id || '',
+  trace_id: filters.trace_id || '',
+  channel_id: typeof filters.channel_id === 'number' ? String(filters.channel_id) : '',
+  delivery_status: filters.delivery_status || '',
   created_range:
     filters.created_from || filters.created_to
       ? [
-          filters.created_from ? dayjs(filters.created_from) : null,
-          filters.created_to ? dayjs(filters.created_to) : null,
+          filters.created_from ? new Date(filters.created_from) : null,
+          filters.created_to ? new Date(filters.created_to) : null,
         ]
-      : undefined,
+      : null,
 })
 
 const buildFiltersFromForm = (values: DeliveryFilterForm, base?: DeliveryFilters): DeliveryFilters => ({
@@ -156,23 +149,24 @@ const buildFiltersFromForm = (values: DeliveryFilterForm, base?: DeliveryFilters
   trace_id: values.trace_id?.trim() || undefined,
   channel_id: values.channel_id ? Number(values.channel_id) : undefined,
   delivery_status: values.delivery_status || undefined,
-  created_from: values.created_range?.[0]?.toISOString(),
-  created_to: values.created_range?.[1]?.toISOString(),
+  created_from: values.created_range?.[0] ? values.created_range[0].toISOString() : undefined,
+  created_to: values.created_range?.[1] ? values.created_range[1].toISOString() : undefined,
   limit: base?.limit ?? defaultLimit,
   offset: 0,
 })
 
-const statusColorMap: Record<string, string> = {
-  delivered: 'green',
-  failed: 'red',
-  pending: 'gold',
+const statusSeverityMap: Record<string, 'success' | 'danger' | 'warning' | undefined> = {
+  delivered: 'success',
+  failed: 'danger',
+  pending: 'warning',
 }
 
 export const Deliveries: React.FC = () => {
   const user = useUserStore((state) => state.user)
+  const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [filterForm] = Form.useForm<DeliveryFilterForm>()
-  const [recoveryForm] = Form.useForm<RecoveryFormValues>()
+  const [formValues, setFormValues] = useState<DeliveryFilterForm>(buildFormValues({}))
+  const [recoveryReason, setRecoveryReason] = useState('')
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -197,34 +191,33 @@ export const Deliveries: React.FC = () => {
       setDeliveries(response.list)
       setTotal(response.total)
     } catch (error) {
-      message.error(getApiErrorMessage(error, '加载投递历史失败'))
+      toast.showError(getApiErrorMessage(error, '加载投递历史失败'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
-    filterForm.setFieldsValue(buildFormValues(filters))
+    setFormValues(buildFormValues(filters))
     void fetchDeliveries(filters)
-  }, [fetchDeliveries, filterForm, filters])
+  }, [fetchDeliveries, filters])
 
-  const handleSearch = async () => {
-    const values = await filterForm.validateFields()
-    const nextFilters = buildFiltersFromForm(values, filters)
+  const handleSearch = () => {
+    const nextFilters = buildFiltersFromForm(formValues, filters)
     setSearchParams(buildSearchParams(nextFilters))
   }
 
   const handleReset = () => {
-    filterForm.resetFields()
+    setFormValues(buildFormValues({}))
     setSearchParams(buildSearchParams({ limit: defaultLimit, offset: 0 }))
   }
 
-  const handleTableChange = (page: number, nextPageSize: number) => {
+  const handlePageChange = (event: { first: number; rows: number }) => {
     setSearchParams(
       buildSearchParams({
         ...filters,
-        limit: nextPageSize,
-        offset: (page - 1) * nextPageSize,
+        limit: event.rows,
+        offset: event.first,
       })
     )
   }
@@ -237,7 +230,7 @@ export const Deliveries: React.FC = () => {
       setSelectedDelivery(detail)
     } catch (error) {
       setDrawerOpen(false)
-      message.error(getApiErrorMessage(error, '加载投递详情失败'))
+      toast.showError(getApiErrorMessage(error, '加载投递详情失败'))
     } finally {
       setDetailLoading(false)
     }
@@ -259,13 +252,13 @@ export const Deliveries: React.FC = () => {
   const closeRecoveryModal = () => {
     setRecoveryModalOpen(false)
     setRecoveryTarget(null)
-    recoveryForm.resetFields()
+    setRecoveryReason('')
   }
 
   const openRecoveryModal = (delivery: Delivery, action: RecoveryAction) => {
     setRecoveryTarget(delivery)
     setRecoveryAction(action)
-    recoveryForm.resetFields()
+    setRecoveryReason('')
     setRecoveryModalOpen(true)
   }
 
@@ -282,10 +275,8 @@ export const Deliveries: React.FC = () => {
       return
     }
 
-    let values: RecoveryFormValues
-    try {
-      values = await recoveryForm.validateFields()
-    } catch {
+    if (!recoveryReason.trim()) {
+      toast.showError('请填写恢复原因')
       return
     }
 
@@ -295,8 +286,8 @@ export const Deliveries: React.FC = () => {
     try {
       const response =
         recoveryAction === 'retry'
-          ? await deliveryApi.retry(deliveryID, { reason: values.reason.trim() })
-          : await deliveryApi.replay(deliveryID, { reason: values.reason.trim() })
+          ? await deliveryApi.retry(deliveryID, { reason: recoveryReason.trim() })
+          : await deliveryApi.replay(deliveryID, { reason: recoveryReason.trim() })
 
       setRecoveryFeedback({
         ...response,
@@ -305,14 +296,14 @@ export const Deliveries: React.FC = () => {
       await refreshCurrentView(deliveryID)
 
       if (response.status === 'succeeded') {
-        message.success(`${recoveryAction} 已提交并执行成功`)
+        toast.showSuccess(`${recoveryAction} 已提交并执行成功`)
       } else {
-        message.warning(`${recoveryAction} 已记录，结果为 ${response.status}`)
+        toast.showWarn(`${recoveryAction} 已记录，结果为 ${response.status}`)
       }
 
       closeRecoveryModal()
     } catch (error) {
-      message.error(getApiErrorMessage(error, `${recoveryAction} 执行失败`))
+      toast.showError(getApiErrorMessage(error, `${recoveryAction} 执行失败`))
     } finally {
       setRecoveryLoadingById((current) => {
         const nextState = { ...current }
@@ -322,298 +313,328 @@ export const Deliveries: React.FC = () => {
     }
   }
 
+  const deliveryStatusOptions = [
+    { label: '成功', value: 'delivered' },
+    { label: '失败', value: 'failed' },
+    { label: '处理中', value: 'pending' },
+  ]
+
+  // Column body templates
+  const alertIdBodyTemplate = (row: Delivery) => (
+    <code className="text-sm">{row.alert_id}</code>
+  )
+
+  const channelBodyTemplate = (row: Delivery) => (
+    <div className="flex flex-column gap-0">
+      <span>{row.channel_snapshot.name}</span>
+      <span className="text-color-secondary text-sm">#{row.channel_id}</span>
+    </div>
+  )
+
+  const statusBodyTemplate = (row: Delivery) => (
+    <Tag
+      value={row.delivery_status}
+      severity={statusSeverityMap[row.delivery_status] ?? undefined}
+    />
+  )
+
+  const failureBodyTemplate = (row: Delivery) =>
+    row.final_failure_summary ? (
+      <span className="text-red-500">{row.final_failure_summary.error_message}</span>
+    ) : (
+      <span className="text-color-secondary">-</span>
+    )
+
+  const timeBodyTemplate = (row: Delivery) =>
+    dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss')
+
+  const actionBodyTemplate = (row: Delivery) => (
+    <div className="flex gap-1 flex-wrap">
+      <Button
+        label="查看证据"
+        link
+        size="small"
+        onClick={() => void handleViewDetail(row)}
+      />
+      {canRecover && row.delivery_status === 'failed' ? (
+        <>
+          <Button
+            label="重试"
+            link
+            size="small"
+            loading={recoveryLoadingById[row.id] === 'retry'}
+            disabled={Boolean(recoveryLoadingById[row.id])}
+            onClick={() => openRecoveryModal(row, 'retry')}
+          />
+          <Button
+            label="重放"
+            link
+            size="small"
+            loading={recoveryLoadingById[row.id] === 'replay'}
+            disabled={Boolean(recoveryLoadingById[row.id])}
+            onClick={() => openRecoveryModal(row, 'replay')}
+          />
+        </>
+      ) : null}
+    </div>
+  )
+
+  const recoveryDialogFooter = (
+    <div>
+      <Button label="取消" outlined onClick={closeRecoveryModal} />
+      <Button
+        label={recoveryAction === 'retry' ? '确认重试' : '确认重放'}
+        loading={Boolean(recoveryTarget && recoveryLoadingById[recoveryTarget.id])}
+        onClick={() => void handleRecoverySubmit()}
+      />
+    </div>
+  )
+
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <div className="flex flex-column gap-3">
       {recoveryFeedback ? (
-        <ResultAlert
-          type={recoveryFeedback.status === 'succeeded' ? 'success' : 'warning'}
-          showIcon
-          message={`恢复结果: ${recoveryFeedback.action} / ${recoveryFeedback.status}`}
-          description={
-            <Space direction="vertical" size={0}>
-              <Text>recovery_id={recoveryFeedback.recovery_id}</Text>
-              <Text>original_delivery_id={recoveryFeedback.original_delivery_id}</Text>
-              <Text>
-                resulting_delivery_id=
-                {recoveryFeedback.result_delivery_id ? recoveryFeedback.result_delivery_id : '无'}
-              </Text>
-              <Text>
-                error_message={recoveryFeedback.error_message || '无'}
-              </Text>
-            </Space>
-          }
-          closable
-          onClose={() => setRecoveryFeedback(null)}
+        <Message
+          severity={recoveryFeedback.status === 'succeeded' ? 'success' : 'warn'}
+          text={`恢复结果: ${recoveryFeedback.action} / ${recoveryFeedback.status}`}
         />
       ) : null}
 
-      <Card>
-        <Form form={filterForm} layout="vertical">
-          <Space wrap size="middle" align="start">
-            <Form.Item name="alert_id" label="告警 ID" style={{ marginBottom: 0 }}>
-              <Input placeholder="例如 alert-123" style={{ width: 220 }} />
-            </Form.Item>
-            <Form.Item name="trace_id" label="Trace ID" style={{ marginBottom: 0 }}>
-              <Input placeholder="例如 trace-123" style={{ width: 220 }} />
-            </Form.Item>
-            <Form.Item name="channel_id" label="渠道 ID" style={{ marginBottom: 0 }}>
-              <Input inputMode="numeric" placeholder="例如 3" style={{ width: 140 }} />
-            </Form.Item>
-            <Form.Item name="delivery_status" label="结果" style={{ marginBottom: 0 }}>
-              <Select
-                allowClear
-                placeholder="全部结果"
-                style={{ width: 160 }}
-                options={[
-                  { label: '成功', value: 'delivered' },
-                  { label: '失败', value: 'failed' },
-                  { label: '处理中', value: 'pending' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item name="created_range" label="创建时间" style={{ marginBottom: 0 }}>
-              <RangePicker showTime />
-            </Form.Item>
-            <Space style={{ paddingTop: 30 }}>
-              <Button type="primary" icon={<SearchOutlined />} onClick={() => void handleSearch()}>
-                搜索
-              </Button>
-              <Button icon={<ReloadOutlined />} onClick={handleReset}>
-                重置
-              </Button>
-            </Space>
-          </Space>
-        </Form>
+      {recoveryFeedback && (
+        <Card className="shadow-sm border-0">
+          <div className="flex flex-column gap-1">
+            <span>recovery_id={recoveryFeedback.recovery_id}</span>
+            <span>original_delivery_id={recoveryFeedback.original_delivery_id}</span>
+            <span>
+              resulting_delivery_id=
+              {recoveryFeedback.result_delivery_id ? recoveryFeedback.result_delivery_id : '无'}
+            </span>
+            <span>error_message={recoveryFeedback.error_message || '无'}</span>
+          </div>
+          <div className="flex justify-content-end mt-2">
+            <Button label="关闭" size="small" text onClick={() => setRecoveryFeedback(null)} />
+          </div>
+        </Card>
+      )}
+
+      <Card className="shadow-sm border-0">
+        <div className="flex flex-wrap gap-3 align-items-end">
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">告警 ID</label>
+            <InputText
+              placeholder="例如 alert-123"
+              style={{ width: '220px' }}
+              value={formValues.alert_id}
+              onChange={(e) => setFormValues({ ...formValues, alert_id: e.target.value })}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">Trace ID</label>
+            <InputText
+              placeholder="例如 trace-123"
+              style={{ width: '220px' }}
+              value={formValues.trace_id}
+              onChange={(e) => setFormValues({ ...formValues, trace_id: e.target.value })}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">渠道 ID</label>
+            <InputText
+              inputMode="numeric"
+              placeholder="例如 3"
+              style={{ width: '140px' }}
+              value={formValues.channel_id}
+              onChange={(e) => setFormValues({ ...formValues, channel_id: e.target.value })}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">结果</label>
+            <Dropdown
+              showClear
+              placeholder="全部结果"
+              style={{ width: '160px' }}
+              value={formValues.delivery_status || null}
+              options={deliveryStatusOptions}
+              onChange={(e) => setFormValues({ ...formValues, delivery_status: e.value || '' })}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">创建时间</label>
+            <Calendar
+              selectionMode="range"
+              showTime
+              style={{ width: '300px' }}
+              value={formValues.created_range}
+              onChange={(e) => {
+                const dates = e.value as [Date, Date] | null
+                setFormValues({ ...formValues, created_range: dates })
+              }}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button label="搜索" icon="pi pi-search" onClick={handleSearch} />
+            <Button label="重置" icon="pi pi-refresh" outlined onClick={handleReset} />
+          </div>
+        </div>
       </Card>
 
-      <Card title="通知投递历史" extra={filters.alert_id ? <Tag color="blue">alert_id={filters.alert_id}</Tag> : null}>
-        <Table
-          rowKey="id"
-          dataSource={deliveries}
+      <Card
+        className="shadow-sm border-0"
+        title="通知投递历史"
+        header={
+          filters.alert_id ? (
+            <div className="flex justify-content-end p-3">
+              <Tag value={`alert_id=${filters.alert_id}`} />
+            </div>
+          ) : undefined
+        }
+      >
+        <DataTable
+          value={deliveries}
+          dataKey="id"
           loading={loading}
-          pagination={{
-            current: currentPage,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (count) => `共 ${count} 条`,
-            onChange: handleTableChange,
-          }}
-          columns={[
-            {
-              title: '告警 ID',
-              dataIndex: 'alert_id',
-              key: 'alert_id',
-              render: (value: string) => <Text code>{value}</Text>,
-            },
-            {
-              title: '渠道',
-              dataIndex: ['channel_snapshot', 'name'],
-              key: 'channel_name',
-              render: (_: unknown, record: Delivery) => (
-                <Space direction="vertical" size={0}>
-                  <Text>{record.channel_snapshot.name}</Text>
-                  <Text type="secondary">#{record.channel_id}</Text>
-                </Space>
-              ),
-            },
-            {
-              title: '结果',
-              dataIndex: 'delivery_status',
-              key: 'delivery_status',
-              render: (status: string) => (
-                <Tag color={statusColorMap[status] ?? 'default'}>{status}</Tag>
-              ),
-            },
-            {
-              title: '尝试次数',
-              dataIndex: 'attempt_count',
-              key: 'attempt_count',
-            },
-            {
-              title: '最后失败摘要',
-              key: 'final_failure_summary',
-              render: (_: unknown, record: Delivery) =>
-                record.final_failure_summary ? (
-                  <Text type="danger">{record.final_failure_summary.error_message}</Text>
-                ) : (
-                  <Text type="secondary">-</Text>
-                ),
-            },
-            {
-              title: '创建时间',
-              dataIndex: 'created_at',
-              key: 'created_at',
-              render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm:ss'),
-            },
-            {
-              title: '操作',
-              key: 'action',
-              render: (_: unknown, record: Delivery) => (
-                <Space size="small" wrap>
-                  <Button type="link" size="small" onClick={() => void handleViewDetail(record)}>
-                    查看证据
-                  </Button>
-                  {canRecover && record.delivery_status === 'failed' ? (
-                    <>
-                      <Button
-                        type="link"
-                        size="small"
-                        loading={recoveryLoadingById[record.id] === 'retry'}
-                        disabled={Boolean(recoveryLoadingById[record.id])}
-                        onClick={() => openRecoveryModal(record, 'retry')}
-                      >
-                        重试
-                      </Button>
-                      <Button
-                        type="link"
-                        size="small"
-                        loading={recoveryLoadingById[record.id] === 'replay'}
-                        disabled={Boolean(recoveryLoadingById[record.id])}
-                        onClick={() => openRecoveryModal(record, 'replay')}
-                      >
-                        重放
-                      </Button>
-                    </>
-                  ) : null}
-                </Space>
-              ),
-            },
-          ]}
-        />
+          lazy
+          paginator
+          first={(currentPage - 1) * pageSize}
+          rows={pageSize}
+          totalRecords={total}
+          onPage={handlePageChange}
+          rowsPerPageOptions={[10, 20, 50]}
+        >
+          <Column field="alert_id" header="告警 ID" body={alertIdBodyTemplate} />
+          <Column field="channel_name" header="渠道" body={channelBodyTemplate} />
+          <Column field="delivery_status" header="结果" body={statusBodyTemplate} style={{ width: '100px' }} />
+          <Column field="attempt_count" header="尝试次数" style={{ width: '100px' }} />
+          <Column header="最后失败摘要" body={failureBodyTemplate} />
+          <Column field="created_at" header="创建时间" body={timeBodyTemplate} style={{ width: '180px' }} />
+          <Column body={actionBodyTemplate} header="操作" style={{ width: '200px' }} />
+        </DataTable>
       </Card>
 
-      <Drawer
-        title="投递证据"
-        width={720}
-        open={drawerOpen}
-        onClose={() => {
+      <Sidebar
+        header="投递证据"
+        visible={drawerOpen}
+        onHide={() => {
           setDrawerOpen(false)
           setSelectedDelivery(null)
         }}
-        destroyOnClose
+        position="right"
+        style={{ width: '720px' }}
       >
         {detailLoading || !selectedDelivery ? (
-          <Text>正在加载详情...</Text>
+          <span>正在加载详情...</span>
         ) : (
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Space wrap>
+          <div className="flex flex-column gap-4">
+            <div className="flex flex-wrap gap-2">
               {evidenceTags.map((item) => (
-                <Tag key={item}>{item}</Tag>
+                <Tag key={item} value={item} />
               ))}
-            </Space>
+            </div>
 
-            <Descriptions title="基础信息" column={2} bordered size="small">
-              <Descriptions.Item label="投递 ID">{selectedDelivery.id}</Descriptions.Item>
-              <Descriptions.Item label="投递模式">{selectedDelivery.delivery_mode}</Descriptions.Item>
-              <Descriptions.Item label="渠道类型">
-                {selectedDelivery.channel_snapshot.type}
-              </Descriptions.Item>
-              <Descriptions.Item label="最后成功时间">
-                {selectedDelivery.last_success_at
-                  ? dayjs(selectedDelivery.last_success_at).format('YYYY-MM-DD HH:mm:ss')
-                  : '-'}
-              </Descriptions.Item>
-            </Descriptions>
+            <div>
+              <h4 className="m-0 mb-2">基础信息</h4>
+              <div className="grid">
+                <div className="col-6 flex flex-column gap-1">
+                  <span className="text-color-secondary text-sm">投递 ID</span>
+                  <span>{selectedDelivery.id}</span>
+                </div>
+                <div className="col-6 flex flex-column gap-1">
+                  <span className="text-color-secondary text-sm">投递模式</span>
+                  <span>{selectedDelivery.delivery_mode}</span>
+                </div>
+                <div className="col-6 flex flex-column gap-1">
+                  <span className="text-color-secondary text-sm">渠道类型</span>
+                  <span>{selectedDelivery.channel_snapshot.type}</span>
+                </div>
+                <div className="col-6 flex flex-column gap-1">
+                  <span className="text-color-secondary text-sm">最后成功时间</span>
+                  <span>
+                    {selectedDelivery.last_success_at
+                      ? dayjs(selectedDelivery.last_success_at).format('YYYY-MM-DD HH:mm:ss')
+                      : '-'}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-            <Descriptions title="最终失败摘要" column={1} bordered size="small">
-              <Descriptions.Item label="摘要">
-                {selectedDelivery.final_failure_summary ? (
-                  <Space direction="vertical" size={0}>
-                    <Text type="danger">{selectedDelivery.final_failure_summary.error_message}</Text>
-                    <Text type="secondary">
-                      result={selectedDelivery.final_failure_summary.result} retryable=
-                      {String(selectedDelivery.final_failure_summary.retryable)} attempts=
-                      {selectedDelivery.final_failure_summary.attempt_count}
-                    </Text>
-                  </Space>
-                ) : (
-                  '无'
-                )}
-              </Descriptions.Item>
-            </Descriptions>
+            <Divider />
 
-            <Descriptions title="冻结快照" column={1} bordered size="small">
-              <Descriptions.Item label="rendered_payload_snapshot">
-                <Paragraph style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
-                  {selectedDelivery.rendered_payload_snapshot.title}
-                  {'\n'}
-                  {selectedDelivery.rendered_payload_snapshot.content}
-                </Paragraph>
-              </Descriptions.Item>
-              <Descriptions.Item label="channel_snapshot">
-                <Text>{selectedDelivery.channel_snapshot.name}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="route_snapshot">
-                {selectedDelivery.route_snapshot ? selectedDelivery.route_snapshot.name : '未命中路由'}
-              </Descriptions.Item>
-            </Descriptions>
+            <div>
+              <h4 className="m-0 mb-2">最终失败摘要</h4>
+              {selectedDelivery.final_failure_summary ? (
+                <div className="flex flex-column gap-1">
+                  <span className="text-red-500">{selectedDelivery.final_failure_summary.error_message}</span>
+                  <span className="text-color-secondary text-sm">
+                    result={selectedDelivery.final_failure_summary.result} retryable=
+                    {String(selectedDelivery.final_failure_summary.retryable)} attempts=
+                    {selectedDelivery.final_failure_summary.attempt_count}
+                  </span>
+                </div>
+              ) : (
+                <span>无</span>
+              )}
+            </div>
 
-            <Card title="attempts" size="small">
-              <Table
-                rowKey="id"
-                pagination={false}
-                dataSource={selectedDelivery.attempts}
-                columns={[
-                  {
-                    title: '第几次',
-                    dataIndex: 'attempt_number',
-                    key: 'attempt_number',
-                    width: 100,
-                  },
-                  {
-                    title: '结果',
-                    dataIndex: 'result',
-                    key: 'result',
-                    width: 120,
-                  },
-                  {
-                    title: '触发来源',
-                    dataIndex: 'trigger_kind',
-                    key: 'trigger_kind',
-                    width: 120,
-                  },
-                  {
-                    title: '错误',
-                    dataIndex: 'error_message',
-                    key: 'error_message',
-                    render: (value: string) => value || '-',
-                  },
-                ]}
-              />
+            <Divider />
+
+            <div>
+              <h4 className="m-0 mb-2">冻结快照</h4>
+              <div className="flex flex-column gap-2">
+                <div className="flex flex-column gap-1">
+                  <span className="text-color-secondary text-sm">rendered_payload_snapshot</span>
+                  <pre className="surface-100 p-2 border-round text-sm overflow-auto m-0" style={{ whiteSpace: 'pre-wrap' }}>
+                    {selectedDelivery.rendered_payload_snapshot.title}
+                    {'\n'}
+                    {selectedDelivery.rendered_payload_snapshot.content}
+                  </pre>
+                </div>
+                <div className="flex flex-column gap-1">
+                  <span className="text-color-secondary text-sm">channel_snapshot</span>
+                  <span>{selectedDelivery.channel_snapshot.name}</span>
+                </div>
+                <div className="flex flex-column gap-1">
+                  <span className="text-color-secondary text-sm">route_snapshot</span>
+                  <span>{selectedDelivery.route_snapshot ? selectedDelivery.route_snapshot.name : '未命中路由'}</span>
+                </div>
+              </div>
+            </div>
+
+            <Divider />
+
+            <Card className="shadow-sm border-0" title="attempts">
+              <DataTable
+                value={selectedDelivery.attempts}
+                dataKey="id"
+              >
+                <Column field="attempt_number" header="第几次" style={{ width: '100px' }} />
+                <Column field="result" header="结果" style={{ width: '120px' }} />
+                <Column field="trigger_kind" header="触发来源" style={{ width: '120px' }} />
+                <Column field="error_message" header="错误" body={(row) => row.error_message || '-'} />
+              </DataTable>
             </Card>
-          </Space>
+          </div>
         )}
-      </Drawer>
+      </Sidebar>
 
-      <Modal
-        title={recoveryAction === 'retry' ? '重试失败投递' : '重放失败投递'}
-        open={recoveryModalOpen}
-        okText={recoveryAction === 'retry' ? '确认重试' : '确认重放'}
-        cancelText="取消"
-        confirmLoading={Boolean(recoveryTarget && recoveryLoadingById[recoveryTarget.id])}
-        onOk={() => void handleRecoverySubmit()}
-        onCancel={closeRecoveryModal}
-        destroyOnHidden
+      <Dialog
+        header={recoveryAction === 'retry' ? '重试失败投递' : '重放失败投递'}
+        visible={recoveryModalOpen}
+        onHide={closeRecoveryModal}
+        footer={recoveryDialogFooter}
+        style={{ width: '500px' }}
       >
-        <Form form={recoveryForm} layout="vertical">
-          <Form.Item
-            label="恢复原因"
-            name="reason"
-            rules={[
-              { required: true, message: '请填写恢复原因' },
-              { whitespace: true, message: '请填写恢复原因' },
-            ]}
-          >
-            <Input.TextArea
+        <div className="flex flex-column gap-3">
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">恢复原因</label>
+            <InputTextarea
               rows={4}
               maxLength={200}
               placeholder="说明为什么需要执行这次恢复，原因会进入后端审计记录"
+              value={recoveryReason}
+              onChange={(e) => setRecoveryReason(e.target.value)}
             />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </Space>
+          </div>
+        </div>
+      </Dialog>
+    </div>
   )
 }

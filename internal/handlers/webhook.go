@@ -22,6 +22,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/delivery"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/game-ops/ai-alert-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
@@ -938,14 +939,14 @@ func (h *WebhookHandler) findMatchedChannels(alert models.Alert, rules []models.
 		// 检查 source 是否匹配
 		var sources []string
 		json.Unmarshal(rule.Sources, &sources)
-		if len(sources) > 0 && !contains(sources, alert.Source) {
+		if len(sources) > 0 && !utils.ContainsString(sources, alert.Source) {
 			continue
 		}
 
 		// 检查 severity 是否匹配
 		var severities []string
 		json.Unmarshal(rule.Severities, &severities)
-		if len(severities) > 0 && !contains(severities, alert.Severity) {
+		if len(severities) > 0 && !utils.ContainsString(severities, alert.Severity) {
 			continue
 		}
 
@@ -1038,8 +1039,8 @@ func (h *WebhookHandler) isInTimeRange(timeRangesJSON []byte) bool {
 	currentTime := now.Hour()*60 + now.Minute()
 
 	for _, tr := range timeRanges {
-		startMinutes := parseTimeToMinutes(tr.StartTime)
-		endMinutes := parseTimeToMinutes(tr.EndTime)
+		startMinutes := utils.ParseTimeToMinutes(tr.StartTime)
+		endMinutes := utils.ParseTimeToMinutes(tr.EndTime)
 
 		// 处理跨天的情况
 		if endMinutes < startMinutes {
@@ -1056,18 +1057,6 @@ func (h *WebhookHandler) isInTimeRange(timeRangesJSON []byte) bool {
 	}
 
 	return false
-}
-
-func parseTimeToMinutes(timeStr string) int {
-	parts := strings.Split(timeStr, ":")
-	if len(parts) != 2 {
-		return 0
-	}
-	hour := 0
-	minute := 0
-	fmt.Sscanf(parts[0], "%d", &hour)
-	fmt.Sscanf(parts[1], "%d", &minute)
-	return hour*60 + minute
 }
 
 // sendNotification 发送通知
@@ -1316,7 +1305,7 @@ func (h *WebhookHandler) renderNotificationPreview(alert *models.Alert, tmplStr 
 }
 
 func (h *WebhookHandler) buildNotificationRenderContext(alert *models.Alert) map[string]interface{} {
-	event := decodeJSONMap(alert.Raw)
+	event := utils.DecodeJSONMap(alert.Raw)
 	severityRaw := ""
 	if raw := lookupString(event, "severity", "level", "priority"); raw != "" {
 		severityRaw = raw
@@ -1337,7 +1326,7 @@ func (h *WebhookHandler) buildNotificationRenderContext(alert *models.Alert) map
 		"source":        alert.Source,
 		"status":        alert.Status,
 		"trigger_time":  alert.TriggerTime.Format(time.RFC3339),
-		"labels":        decodeJSONMap(alert.Labels),
+		"labels":        utils.DecodeJSONMap(alert.Labels),
 	}
 
 	data["event"] = event
@@ -1405,18 +1394,6 @@ func (h *WebhookHandler) templateFuncMap() template.FuncMap {
 	}
 }
 
-func decodeJSONMap(raw []byte) map[string]interface{} {
-	if len(raw) == 0 {
-		return map[string]interface{}{}
-	}
-
-	var decoded map[string]interface{}
-	if err := json.Unmarshal(raw, &decoded); err != nil || decoded == nil {
-		return map[string]interface{}{}
-	}
-
-	return decoded
-}
 
 func marshalRawAlertData(data map[string]interface{}, fallback []byte) []byte {
 	if len(data) == 0 {
@@ -1443,25 +1420,6 @@ func lookupString(m map[string]interface{}, keys ...string) string {
 		}
 	}
 	return ""
-}
-
-// contains 检查切片是否包含元素
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}
-
-func containsInt(slice []int, item int) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
 
 // ============ 预定义模板 ============

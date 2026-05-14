@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/game-ops/ai-alert-system/internal/utils"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -127,7 +127,7 @@ func (s *Service) StartDelivery(ctx context.Context, input StartDeliveryInput) (
 		Status:      input.Alert.Status,
 		Fingerprint: input.Alert.Fingerprint,
 		TriggerTime: input.Alert.TriggerTime.Format(time.RFC3339),
-		Labels:      decodeJSONMap(input.Alert.Labels),
+		Labels:      utils.DecodeJSONMap(input.Alert.Labels),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal alert snapshot: %w", err)
@@ -833,7 +833,7 @@ func (s *Service) startDeliveryTx(ctx context.Context, tx *gorm.DB, input StartD
 		Status:      input.Alert.Status,
 		Fingerprint: input.Alert.Fingerprint,
 		TriggerTime: input.Alert.TriggerTime.Format(time.RFC3339),
-		Labels:      decodeJSONMap(input.Alert.Labels),
+		Labels:      utils.DecodeJSONMap(input.Alert.Labels),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal alert snapshot: %w", err)
@@ -992,12 +992,12 @@ func findMatchedTargets(tx *gorm.DB, alert *models.Alert, rules []models.RouteRu
 		rule := rules[idx]
 		var sources []string
 		_ = json.Unmarshal(rule.Sources, &sources)
-		if len(sources) > 0 && !contains(sources, alert.Source) {
+		if len(sources) > 0 && !utils.ContainsString(sources, alert.Source) {
 			continue
 		}
 		var severities []string
 		_ = json.Unmarshal(rule.Severities, &severities)
-		if len(severities) > 0 && !contains(severities, alert.Severity) {
+		if len(severities) > 0 && !utils.ContainsString(severities, alert.Severity) {
 			continue
 		}
 		var labelMatchers []models.LabelMatcher
@@ -1056,7 +1056,7 @@ func renderNotification(alert *models.Alert, routeRule *models.RouteRule, tmplSt
 }
 
 func buildNotificationRenderContext(alert *models.Alert, routeRule *models.RouteRule) map[string]interface{} {
-	event := decodeJSONMap(alert.Raw)
+	event := utils.DecodeJSONMap(alert.Raw)
 	severityRaw := ""
 	if raw := lookupString(event, "severity", "level", "priority"); raw != "" {
 		severityRaw = raw
@@ -1076,7 +1076,7 @@ func buildNotificationRenderContext(alert *models.Alert, routeRule *models.Route
 		"source":        alert.Source,
 		"status":        alert.Status,
 		"trigger_time":  alert.TriggerTime.Format(time.RFC3339),
-		"labels":        decodeJSONMap(alert.Labels),
+		"labels":        utils.DecodeJSONMap(alert.Labels),
 		"route_name":    "",
 	}
 	if routeRule != nil {
@@ -1164,32 +1164,13 @@ func isInTimeRange(timeRangesJSON []byte) bool {
 	now := time.Now()
 	currentTime := now.Hour()*60 + now.Minute()
 	for _, tr := range timeRanges {
-		startMinutes := parseTimeToMinutes(tr.StartTime)
-		endMinutes := parseTimeToMinutes(tr.EndTime)
+		startMinutes := utils.ParseTimeToMinutes(tr.StartTime)
+		endMinutes := utils.ParseTimeToMinutes(tr.EndTime)
 		if endMinutes < startMinutes {
 			if currentTime >= startMinutes || currentTime <= endMinutes {
 				return true
 			}
 		} else if currentTime >= startMinutes && currentTime <= endMinutes {
-			return true
-		}
-	}
-	return false
-}
-
-func parseTimeToMinutes(timeStr string) int {
-	parts := strings.Split(timeStr, ":")
-	if len(parts) != 2 {
-		return 0
-	}
-	hour, _ := strconv.Atoi(parts[0])
-	minute, _ := strconv.Atoi(parts[1])
-	return hour*60 + minute
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
 			return true
 		}
 	}
@@ -1245,19 +1226,6 @@ func marshalJSON(v interface{}) (datatypes.JSON, error) {
 		return nil, err
 	}
 	return datatypes.JSON(encoded), nil
-}
-
-func decodeJSONMap(raw []byte) map[string]interface{} {
-	if len(raw) == 0 {
-		return map[string]interface{}{}
-	}
-
-	var decoded map[string]interface{}
-	if err := json.Unmarshal(raw, &decoded); err != nil || decoded == nil {
-		return map[string]interface{}{}
-	}
-
-	return decoded
 }
 
 func decodeChannelIDs(raw []byte) ([]uint, error) {

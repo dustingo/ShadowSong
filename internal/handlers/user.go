@@ -14,6 +14,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
+	"github.com/game-ops/ai-alert-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -120,7 +121,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 
 // RefreshToken handles token refresh
 func (h *UserHandler) RefreshToken(c *gin.Context) {
-	tokenString, err := bearerTokenFromHeader(c.GetHeader("Authorization"))
+	tokenString, err := utils.BearerTokenFromHeader(c.GetHeader("Authorization"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -432,19 +433,6 @@ func parseUserID(c *gin.Context) (uint, error) {
 	}
 
 	return uint(id), nil
-}
-
-func bearerTokenFromHeader(authHeader string) (string, error) {
-	if authHeader == "" {
-		return "", errors.New("authorization header required")
-	}
-
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		return "", errors.New("invalid token format")
-	}
-
-	return parts[1], nil
 }
 
 func bindStrictJSON(c *gin.Context, target any) error {

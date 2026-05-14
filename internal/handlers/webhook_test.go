@@ -16,6 +16,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/delivery"
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/game-ops/ai-alert-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -569,7 +570,7 @@ func TestMarshalRawAlertData_PrefersIndividualAlertObject(t *testing.T) {
 	}, []byte(`[{"summary":"wrong"}]`))
 
 	assert.JSONEq(t, `{"summary":"array item summary","annotations":{"runbook":"https://runbook.local/array-item"}}`, string(rawAlertBody))
-	assert.Equal(t, "array item summary", decodeJSONMap(rawAlertBody)["summary"])
+	assert.Equal(t, "array item summary", utils.DecodeJSONMap(rawAlertBody)["summary"])
 }
 
 func TestWebhookHandlerProcessAlertNotificationsAsync_RecoversFromPanic(t *testing.T) {

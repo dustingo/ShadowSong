@@ -3,11 +3,11 @@ package middleware
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/game-ops/ai-alert-system/internal/auth"
 	"github.com/game-ops/ai-alert-system/internal/authz"
 	"github.com/game-ops/ai-alert-system/internal/models"
+	"github.com/game-ops/ai-alert-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -28,7 +28,7 @@ type Principal struct {
 // JWTAuth creates a middleware that validates JWT tokens
 func JWTAuth(jwtAuth *auth.JWT, db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString, err := bearerTokenFromHeader(c.GetHeader(AuthorizationHeader))
+		tokenString, err := utils.BearerTokenFromHeader(c.GetHeader(AuthorizationHeader))
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			c.Abort()
@@ -82,19 +82,6 @@ func AuthenticateToken(jwtAuth *auth.JWT, db *gorm.DB, tokenString string) (*mod
 	}
 
 	return &user, principal, nil
-}
-
-func bearerTokenFromHeader(authHeader string) (string, error) {
-	if authHeader == "" {
-		return "", errors.New("authorization header required")
-	}
-
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || parts[0] != "Bearer" {
-		return "", errors.New("invalid authorization header format")
-	}
-
-	return parts[1], nil
 }
 
 func isAllowedForcedResetPath(c *gin.Context) bool {

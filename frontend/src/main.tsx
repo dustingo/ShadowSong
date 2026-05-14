@@ -1,14 +1,22 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import zhCN from 'antd/locale/zh_CN'
-import { ConfigProvider } from 'antd'
+import { PrimeReactProvider } from 'primereact/api'
 import App from './App'
+import { initLocale } from './primereact-locale'
 import './index.css'
+
+// PrimeReact 样式
+import 'primereact/resources/themes/lara-light-indigo/theme.css'
+import 'primereact/resources/primereact.min.css'
+import 'primeicons/primeicons.css'
+import 'primeflex/primeflex.css'
+
+initLocale()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider locale={zhCN}>
+    <PrimeReactProvider>
       <App />
-    </ConfigProvider>
+    </PrimeReactProvider>
   </React.StrictMode>
 )

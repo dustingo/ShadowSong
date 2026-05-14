@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Table, Statistic, Row, Col, Spin, Alert } from 'antd'
+import { Card } from 'primereact/card'
+import { DataTable } from 'primereact/datatable'
+import { Column } from 'primereact/column'
+import { ProgressSpinner } from 'primereact/progressspinner'
+import { Message } from 'primereact/message'
+import { StatisticCard } from '../components'
 import { metricsApi, MetricsResponse, channelHealthApi, ChannelHealthResponse, channelApi } from '../api/client'
 import type { Channel } from '../types'
 
@@ -34,43 +39,81 @@ const OpsHealth: React.FC = () => {
     fetchData()
   }, [])
 
-  if (loading) return <Spin />
-  if (error) return <Alert type="error" message={error} />
+  if (loading) {
+    return (
+      <div className="flex justify-content-center align-items-center" style={{ minHeight: '200px' }}>
+        <ProgressSpinner />
+      </div>
+    )
+  }
+  if (error) return <Message severity="error" text={error} />
+
+  const successRateBodyTemplate = (rowData: ChannelHealthResponse) => {
+    return `${(rowData.success_rate * 100).toFixed(1)}%`
+  }
+
+  const lastErrorBodyTemplate = (rowData: ChannelHealthResponse) => {
+    return rowData.last_failure?.error_message || '-'
+  }
 
   return (
     <div>
       <Card title="系统指标 (24小时)">
-        <Row gutter={16}>
-          <Col span={4}>
-            <Statistic title="Webhook 接收" value={metrics?.webhook_ingest_total || 0} />
-          </Col>
-          <Col span={4}>
-            <Statistic title="发送成功" value={metrics?.notification_send_success_total || 0} valueStyle={{ color: '#3f8600' }} />
-          </Col>
-          <Col span={4}>
-            <Statistic title="发送失败" value={metrics?.notification_send_failure_total || 0} valueStyle={{ color: '#cf1322' }} />
-          </Col>
-          <Col span={4}>
-            <Statistic title="重试次数" value={metrics?.notification_retry_total || 0} />
-          </Col>
-          <Col span={4}>
-            <Statistic title="终态失败" value={metrics?.notification_terminal_failure_total || 0} valueStyle={{ color: '#cf1322' }} />
-          </Col>
-        </Row>
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-2">
+            <StatisticCard
+              title="Webhook 接收"
+              value={metrics?.webhook_ingest_total || 0}
+              icon="pi pi-sign-in"
+              color="#6366f1"
+            />
+          </div>
+          <div className="col-span-2">
+            <StatisticCard
+              title="发送成功"
+              value={metrics?.notification_send_success_total || 0}
+              icon="pi pi-check-circle"
+              color="#22c55e"
+            />
+          </div>
+          <div className="col-span-2">
+            <StatisticCard
+              title="发送失败"
+              value={metrics?.notification_send_failure_total || 0}
+              icon="pi pi-times-circle"
+              color="#ef4444"
+            />
+          </div>
+          <div className="col-span-2">
+            <StatisticCard
+              title="重试次数"
+              value={metrics?.notification_retry_total || 0}
+              icon="pi pi-refresh"
+              color="#f59e0b"
+            />
+          </div>
+          <div className="col-span-2">
+            <StatisticCard
+              title="终态失败"
+              value={metrics?.notification_terminal_failure_total || 0}
+              icon="pi pi-exclamation-triangle"
+              color="#ef4444"
+            />
+          </div>
+        </div>
       </Card>
 
-      <Card title="渠道健康度 (24小时)" style={{ marginTop: 16 }}>
-        <Table
-          dataSource={channelHealth}
-          rowKey="channel_id"
-          columns={[
-            { title: '渠道名称', dataIndex: 'channel_name', key: 'name' },
-            { title: '投递总数', dataIndex: 'total_deliveries', key: 'total' },
-            { title: '成功率', dataIndex: 'success_rate', key: 'rate', render: (v: number) => `${(v * 100).toFixed(1)}%` },
-            { title: '失败数', dataIndex: 'failed', key: 'failed' },
-            { title: '最近错误', dataIndex: 'last_failure', key: 'error', render: (v: ChannelHealthResponse['last_failure']) => v?.error_message || '-' },
-          ]}
-        />
+      <Card title="渠道健康度 (24小时)" className="mt-4">
+        <DataTable
+          value={channelHealth}
+          dataKey="channel_id"
+        >
+          <Column field="channel_name" header="渠道名称" />
+          <Column field="total_deliveries" header="投递总数" />
+          <Column field="success_rate" header="成功率" body={successRateBodyTemplate} />
+          <Column field="failed" header="失败数" />
+          <Column field="last_failure" header="最近错误" body={lastErrorBodyTemplate} />
+        </DataTable>
       </Card>
     </div>
   )

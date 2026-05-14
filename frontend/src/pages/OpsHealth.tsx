@@ -26,7 +26,7 @@ const OpsHealth: React.FC = () => {
         const healthResults = await Promise.all(healthPromises)
         setChannelHealth(healthResults.filter(Boolean) as ChannelHealthResponse[])
       } catch (e) {
-        setError('Failed to load ops health data')
+        setError('加载运维健康数据失败')
       } finally {
         setLoading(false)
       }
@@ -39,36 +39,36 @@ const OpsHealth: React.FC = () => {
 
   return (
     <div>
-      <Card title="System Metrics (24h)">
+      <Card title="系统指标 (24小时)">
         <Row gutter={16}>
           <Col span={4}>
-            <Statistic title="Webhook Ingest" value={metrics?.webhook_ingest_total || 0} />
+            <Statistic title="Webhook 接收" value={metrics?.webhook_ingest_total || 0} />
           </Col>
           <Col span={4}>
-            <Statistic title="Success" value={metrics?.notification_send_success_total || 0} valueStyle={{ color: '#3f8600' }} />
+            <Statistic title="发送成功" value={metrics?.notification_send_success_total || 0} valueStyle={{ color: '#3f8600' }} />
           </Col>
           <Col span={4}>
-            <Statistic title="Failures" value={metrics?.notification_send_failure_total || 0} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="发送失败" value={metrics?.notification_send_failure_total || 0} valueStyle={{ color: '#cf1322' }} />
           </Col>
           <Col span={4}>
-            <Statistic title="Retries" value={metrics?.notification_retry_total || 0} />
+            <Statistic title="重试次数" value={metrics?.notification_retry_total || 0} />
           </Col>
           <Col span={4}>
-            <Statistic title="Terminal Failures" value={metrics?.notification_terminal_failure_total || 0} valueStyle={{ color: '#cf1322' }} />
+            <Statistic title="终态失败" value={metrics?.notification_terminal_failure_total || 0} valueStyle={{ color: '#cf1322' }} />
           </Col>
         </Row>
       </Card>
 
-      <Card title="Channel Health (24h)" style={{ marginTop: 16 }}>
+      <Card title="渠道健康度 (24小时)" style={{ marginTop: 16 }}>
         <Table
           dataSource={channelHealth}
           rowKey="channel_id"
           columns={[
-            { title: 'Channel', dataIndex: 'channel_name', key: 'name' },
-            { title: 'Total', dataIndex: 'total_deliveries', key: 'total' },
-            { title: 'Success Rate', dataIndex: 'success_rate', key: 'rate', render: (v: number) => `${(v * 100).toFixed(1)}%` },
-            { title: 'Failed', dataIndex: 'failed', key: 'failed' },
-            { title: 'Last Error', dataIndex: 'last_failure', key: 'error', render: (v: ChannelHealthResponse['last_failure']) => v?.error_message || '-' },
+            { title: '渠道名称', dataIndex: 'channel_name', key: 'name' },
+            { title: '投递总数', dataIndex: 'total_deliveries', key: 'total' },
+            { title: '成功率', dataIndex: 'success_rate', key: 'rate', render: (v: number) => `${(v * 100).toFixed(1)}%` },
+            { title: '失败数', dataIndex: 'failed', key: 'failed' },
+            { title: '最近错误', dataIndex: 'last_failure', key: 'error', render: (v: ChannelHealthResponse['last_failure']) => v?.error_message || '-' },
           ]}
         />
       </Card>

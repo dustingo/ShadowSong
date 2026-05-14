@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/delivery"
@@ -312,7 +312,18 @@ func (h *WebhookHandler) renderAlert(data map[string]interface{}, tmplStr string
 	var alert models.Alert
 	resultStr := buf.String()
 
-	// 尝试解析为 JSON
+	// 先解析为通用 map 以提取 labels 字段
+	var resultMap map[string]interface{}
+	if err := json.Unmarshal([]byte(resultStr), &resultMap); err == nil {
+		// 如果模板渲染结果中有 labels 字段，使用它
+		if labelsVal, ok := resultMap["labels"]; ok {
+			if labelsBytes, err := json.Marshal(labelsVal); err == nil {
+				alert.Labels = labelsBytes
+			}
+		}
+	}
+
+	// 再解析为 Alert 结构体
 	if err := json.Unmarshal([]byte(resultStr), &alert); err != nil {
 		// 如果不是 JSON，尝试手动解析
 		alert = h.parseNonJsonAlert(resultStr, source)
@@ -347,9 +358,11 @@ func (h *WebhookHandler) renderAlert(data map[string]interface{}, tmplStr string
 	// 保存原始数据
 	alert.Raw = rawBody
 
-	// 设置 Labels
-	labelsBytes, _ := json.Marshal(data)
-	alert.Labels = labelsBytes
+	// 如果 Labels 为空，使用原始数据
+	if len(alert.Labels) == 0 {
+		labelsBytes, _ := json.Marshal(data)
+		alert.Labels = labelsBytes
+	}
 
 	return alert, nil
 }
@@ -434,10 +447,20 @@ func (h *WebhookHandler) mapStatus(v interface{}) string {
 	return "pending"
 }
 
-// parseTime 解析时间字符串
+// parseTime 解析时间字符串或时间戳
 func (h *WebhookHandler) parseTime(v interface{}) string {
 	if v == nil {
 		return time.Now().Format(time.RFC3339)
+	}
+
+	// 处理数字类型时间戳（毫秒）
+	switch t := v.(type) {
+	case float64:
+		return time.Unix(0, int64(t)*int64(time.Millisecond)).Format(time.RFC3339)
+	case int64:
+		return time.Unix(0, t*int64(time.Millisecond)).Format(time.RFC3339)
+	case int:
+		return time.Unix(0, int64(t)*int64(time.Millisecond)).Format(time.RFC3339)
 	}
 
 	s, ok := v.(string)

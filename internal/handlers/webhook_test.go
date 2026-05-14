@@ -1448,3 +1448,26 @@ func assertWebhookLogFields(t *testing.T, logLine string, expected map[string]st
 // TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetryBoundary
 // which verifies the error path when route matches but channel lookup fails.
 // Log fields: trace_id, route_rule_id, channel_id, error, stage=channel_lookup
+
+func TestWebhookHandlerParseTimeHandlesMillisecondTimestamp(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, _ := newWebhookTestHandler(db)
+
+	// 测试毫秒时间戳
+	result := handler.parseTime(float64(1715665800000))
+	assert.NotEqual(t, "", result)
+	assert.Contains(t, result, "2024") // 1715665800000 对应 2024 年
+
+	// 测试 int64 类型
+	result2 := handler.parseTime(int64(1715665800000))
+	assert.NotEqual(t, "", result2)
+	assert.Contains(t, result2, "2024")
+
+	// 测试字符串时间（现有功能）
+	result3 := handler.parseTime("2024-05-14T10:30:00Z")
+	assert.Equal(t, "2024-05-14T10:30:00Z", result3)
+
+	// 测试 nil 返回当前时间
+	result4 := handler.parseTime(nil)
+	assert.NotEqual(t, "", result4)
+}

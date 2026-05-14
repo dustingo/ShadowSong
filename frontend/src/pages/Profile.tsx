@@ -1,97 +1,106 @@
-import React, { useEffect } from 'react'
-import { Button, Card, Form, Input, Space, message } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Card } from 'primereact/card'
+import { InputText } from 'primereact/inputtext'
+import { Password } from 'primereact/password'
+import { Button } from 'primereact/button'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/auth'
 import { useUserStore } from '../stores/userStore'
-
-type ProfileFormValues = {
-  name: string
-  email?: string
-}
-
-type PasswordFormValues = {
-  password: string
-}
+import { useToast } from '../components'
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate()
+  const toast = useToast()
   const user = useUserStore((state) => state.user)
   const setUser = useUserStore((state) => state.setUser)
   const logout = useUserStore((state) => state.logout)
-  const [profileForm] = Form.useForm<ProfileFormValues>()
-  const [passwordForm] = Form.useForm<PasswordFormValues>()
+
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
   useEffect(() => {
     if (user) {
-      profileForm.setFieldsValue({
-        name: user.name,
-        email: user.email,
-      })
+      setName(user.name)
+      setEmail(user.email || '')
     }
-  }, [profileForm, user])
+  }, [user])
 
   const handleProfileSubmit = async () => {
+    if (!name.trim()) {
+      toast.showError('请输入姓名')
+      return
+    }
     try {
-      const values = await profileForm.validateFields()
-      const nextUser = await authApi.updateOwnProfile(values)
+      const nextUser = await authApi.updateOwnProfile({ name, email: email || undefined })
       setUser(nextUser)
-      message.success('个人资料已更新')
-    } catch (error) {
-      if (error && typeof error === 'object' && 'errorFields' in error) {
-        return
-      }
-      message.error('更新个人资料失败')
+      toast.showSuccess('个人资料已更新')
+    } catch {
+      toast.showError('更新个人资料失败')
     }
   }
 
   const handlePasswordSubmit = async () => {
+    if (!password.trim()) {
+      toast.showError('请输入新密码')
+      return
+    }
     try {
-      const values = await passwordForm.validateFields()
-      await authApi.updateOwnPassword(values.password)
+      await authApi.updateOwnPassword(password)
       logout()
-      message.success('密码已更新，请重新登录')
+      toast.showSuccess('密码已更新，请重新登录')
       navigate('/login')
-    } catch (error) {
-      if (error && typeof error === 'object' && 'errorFields' in error) {
-        return
-      }
-      message.error('更新密码失败')
+    } catch {
+      toast.showError('更新密码失败')
     }
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <div className="flex flex-column gap-4">
       <Card title="个人资料">
-        <Form form={profileForm} layout="vertical">
-          <Form.Item label="用户名">
-            <Input value={user?.username} disabled />
-          </Form.Item>
-          <Form.Item name="name" label="姓名" rules={[{ required: true, message: '请输入姓名' }]}>
-            <Input placeholder="姓名" />
-          </Form.Item>
-          <Form.Item name="email" label="邮箱">
-            <Input placeholder="邮箱" />
-          </Form.Item>
-          <Button type="primary" onClick={handleProfileSubmit}>
-            保存资料
-          </Button>
-        </Form>
+        <div className="flex flex-column gap-3">
+          <div className="flex flex-column gap-2">
+            <label className="font-medium">用户名</label>
+            <InputText value={user?.username || ''} disabled className="p-inputtext-sm" />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="font-medium">姓名 *</label>
+            <InputText
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="姓名"
+              className="p-inputtext-sm"
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="font-medium">邮箱</label>
+            <InputText
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="邮箱"
+              className="p-inputtext-sm"
+            />
+          </div>
+          <Button label="保存资料" onClick={handleProfileSubmit} className="w-fit" />
+        </div>
       </Card>
 
       <Card title="修改密码">
-        <Form form={passwordForm} layout="vertical">
-          <Form.Item
-            name="password"
-            label="新密码"
-            rules={[{ required: true, message: '请输入新密码' }]}
-          >
-            <Input.Password placeholder="请输入新密码" />
-          </Form.Item>
-          <Button type="primary" onClick={handlePasswordSubmit}>
-            更新密码
-          </Button>
-        </Form>
+        <div className="flex flex-column gap-3">
+          <div className="flex flex-column gap-2">
+            <label className="font-medium">新密码 *</label>
+            <Password
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="请输入新密码"
+              feedback={false}
+              toggleMask
+              className="p-inputtext-sm"
+            />
+          </div>
+          <Button label="更新密码" onClick={handlePasswordSubmit} className="w-fit" />
+        </div>
       </Card>
-    </Space>
+    </div>
   )
 }

@@ -1,29 +1,46 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Card,
-  Table,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Form,
-  Input,
-  Select,
-  Switch,
-  message,
-  Divider,
-} from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SendOutlined } from '@ant-design/icons'
-import { PermissionNotice } from '../components'
+import { Card } from 'primereact/card'
+import { DataTable } from 'primereact/datatable'
+import { Column } from 'primereact/column'
+import { Button } from 'primereact/button'
+import { Dialog } from 'primereact/dialog'
+import { InputText } from 'primereact/inputtext'
+import { InputTextarea } from 'primereact/inputtextarea'
+import { Dropdown } from 'primereact/dropdown'
+import { InputSwitch } from 'primereact/inputswitch'
+import { Tag } from 'primereact/tag'
+import { Divider } from 'primereact/divider'
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog'
+import { PermissionNotice, useToast } from '../components'
 import { canUser, capabilityManageConfig, isReadOnlyConfigUser } from '../authz/capabilities'
 import { useConfigStore } from '../stores/configStore'
 import { channelApi, getApiErrorMessage } from '../api/client'
 import { useUserStore } from '../stores/userStore'
 import type { Channel } from '../types'
 
-const { Option } = Select
+interface ChannelFormValues {
+  id?: number
+  name: string
+  type: string
+  enabled: boolean
+  config: {
+    webhook_url?: string
+    secret?: string
+    url?: string
+    method?: string
+    headers?: string
+    template?: string
+  }
+}
 
-const formatChannelConfigForForm = (channel: Channel) => {
+const initialFormValues: ChannelFormValues = {
+  name: '',
+  type: 'feishu',
+  enabled: true,
+  config: {},
+}
+
+const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
   const config = channel.config ?? {}
 
   if (channel.type === 'feishu') {
@@ -70,10 +87,10 @@ const formatChannelConfigForForm = (channel: Channel) => {
     }
   }
 
-  return channel
+  return { ...channel, config: {} }
 }
 
-const buildChannelPayload = (values: Partial<Channel>) => {
+const buildChannelPayload = (values: ChannelFormValues) => {
   const config = values.config ?? {}
 
   if (values.type === 'webhook') {
@@ -118,6 +135,7 @@ const buildChannelPayload = (values: Partial<Channel>) => {
 
 export const Channels: React.FC = () => {
   const user = useUserStore((state) => state.user)
+  const toast = useToast()
   const {
     channels,
     channelsLoading,
@@ -131,7 +149,7 @@ export const Channels: React.FC = () => {
 
   const [modalVisible, setModalVisible] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null)
-  const [form] = Form.useForm()
+  const [formValues, setFormValues] = useState<ChannelFormValues>(initialFormValues)
   const canManageConfig = canUser(user, capabilityManageConfig)
   const readOnly = isReadOnlyConfigUser(user)
 
@@ -140,53 +158,60 @@ export const Channels: React.FC = () => {
   }, [fetchChannels])
 
   const channelTypeOptions = [
-    { value: 'feishu', label: '飞书', icon: '📱' },
-    { value: 'dingtalk', label: '钉钉', icon: '💬' },
-    { value: 'wecom', label: '企业微信', icon: '💼' },
-    { value: 'webhook', label: '自定义 Webhook', icon: '🔗' },
+    { value: 'feishu', label: '飞书', icon: 'pi pi-mobile' },
+    { value: 'dingtalk', label: '钉钉', icon: 'pi pi-comment' },
+    { value: 'wecom', label: '企业微信', icon: 'pi pi-briefcase' },
+    { value: 'webhook', label: '自定义 Webhook', icon: 'pi pi-link' },
+  ]
+
+  const methodOptions = [
+    { label: 'POST', value: 'POST' },
+    { label: 'PUT', value: 'PUT' },
   ]
 
   const handleCreate = () => {
     if (!canManageConfig) {
-      message.warning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setEditingChannel(null)
-    form.resetFields()
-    form.setFieldsValue({ enabled: true, type: 'feishu' })
+    setFormValues({ ...initialFormValues })
     setModalVisible(true)
   }
 
   const handleEdit = async (record: Channel) => {
     if (!canManageConfig) {
-      message.warning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     try {
       const fullChannel = await channelApi.get(record.id) as unknown as Channel
-      const formValues = formatChannelConfigForForm(fullChannel)
+      const formVals = formatChannelConfigForForm(fullChannel)
       setEditingChannel(fullChannel)
-      form.setFieldsValue(formValues)
+      setFormValues(formVals)
       setModalVisible(true)
     } catch (error) {
-      message.error(getApiErrorMessage(error, '加载渠道配置失败'))
+      toast.showError(getApiErrorMessage(error, '加载渠道配置失败'))
     }
   }
 
   const handleDelete = (record: Channel) => {
     if (!canManageConfig) {
-      message.warning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除渠道 "${record.name}" 吗？`,
-      onOk: async () => {
+    confirmDialog({
+      message: `确定要删除渠道 "${record.name}" 吗？`,
+      header: '确认删除',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: '确认',
+      rejectLabel: '取消',
+      accept: async () => {
         try {
           await deleteChannel(record.id)
-          message.success('删除成功')
+          toast.showSuccess('删除成功')
         } catch (error) {
-          message.error(getApiErrorMessage(error, '删除失败'))
+          toast.showError(getApiErrorMessage(error, '删除失败'))
         }
       },
     })
@@ -194,135 +219,291 @@ export const Channels: React.FC = () => {
 
   const handleToggle = async (record: Channel) => {
     if (!canManageConfig) {
-      message.warning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     try {
       await toggleChannel(record.id, !record.enabled)
-      message.success(record.enabled ? '已禁用' : '已启用')
+      toast.showSuccess(record.enabled ? '已禁用' : '已启用')
     } catch (error) {
-      message.error(getApiErrorMessage(error, '操作失败'))
+      toast.showError(getApiErrorMessage(error, '操作失败'))
     }
   }
 
   const handleTest = async (record: Channel) => {
     if (!canManageConfig) {
-      message.warning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     try {
       await testChannel(record.id)
-      message.success('测试消息已发送')
+      toast.showSuccess('测试消息已发送')
     } catch (error) {
-      message.error(getApiErrorMessage(error, '发送失败'))
+      toast.showError(getApiErrorMessage(error, '发送失败'))
     }
   }
 
   const handleSubmit = async () => {
     if (!canManageConfig) {
-      message.warning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
+      return
+    }
+    if (!formValues.name.trim()) {
+      toast.showError('请输入名称')
       return
     }
     try {
-      const values = await form.validateFields()
-      const payload = buildChannelPayload(values)
-      const channelId = values.id || editingChannel?.id
+      const payload = buildChannelPayload(formValues)
+      const channelId = formValues.id || editingChannel?.id
       if (channelId) {
         await updateChannel(channelId, payload)
-        message.success('更新成功')
+        toast.showSuccess('更新成功')
       } else {
         await createChannel(payload)
-        message.success('创建成功')
+        toast.showSuccess('创建成功')
       }
       setModalVisible(false)
       setEditingChannel(null)
-      form.resetFields()
+      setFormValues(initialFormValues)
     } catch (error) {
       if (error instanceof SyntaxError) {
-        message.error('请求头必须是合法 JSON')
+        toast.showError('请求头必须是合法 JSON')
+      } else {
+        toast.showError(getApiErrorMessage(error, '保存失败'))
       }
     }
+  }
+
+  const handleModalHide = () => {
+    setModalVisible(false)
+    setEditingChannel(null)
+    setFormValues(initialFormValues)
   }
 
   const getTypeLabel = (type: string) => {
     const opt = channelTypeOptions.find((o) => o.value === type)
-    return opt ? `${opt.icon} ${opt.label}` : type
+    return opt ? `${opt.label}` : type
   }
 
-  const columns = [
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type: string) => <Tag>{getTypeLabel(type)}</Tag>,
-    },
-    {
-      title: '状态',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      render: (enabled: boolean) => (
-        <Tag color={enabled ? 'green' : 'default'}>
-          {enabled ? '已启用' : '已禁用'}
-        </Tag>
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: unknown, record: Channel) => (
-        canManageConfig ? (
-          <Space>
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
-              编辑
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<SendOutlined />}
-              onClick={() => handleTest(record)}
-            >
-              测试
-            </Button>
-            <Button type="link" size="small" onClick={() => handleToggle(record)}>
-              {record.enabled ? '禁用' : '启用'}
-            </Button>
-            <Button
-              type="link"
-              danger
-              size="small"
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record)}
-            >
-              删除
-            </Button>
-          </Space>
-        ) : (
-          <Tag>只读</Tag>
-        )
-      ),
-    },
-  ]
+  const nameBodyTemplate = (row: Channel) => row.name
+
+  const typeBodyTemplate = (row: Channel) => {
+    const opt = channelTypeOptions.find((o) => o.value === row.type)
+    return <Tag value={opt?.label || row.type} icon={opt?.icon} />
+  }
+
+  const statusBodyTemplate = (row: Channel) => {
+    if (row.enabled) {
+      return <Tag value="已启用" severity="success" />
+    }
+    return <Tag value="已禁用" severity="secondary" />
+  }
+
+  const actionBodyTemplate = (row: Channel) => {
+    if (!canManageConfig) {
+      return <Tag value="只读" />
+    }
+    return (
+      <div className="flex gap-1">
+        <Button label="编辑" link size="small" icon="pi pi-pencil" onClick={() => handleEdit(row)} />
+        <Button label="测试" link size="small" icon="pi pi-send" onClick={() => handleTest(row)} />
+        <Button
+          label={row.enabled ? '禁用' : '启用'}
+          link
+          size="small"
+          onClick={() => handleToggle(row)}
+        />
+        <Button
+          label="删除"
+          link
+          size="small"
+          severity="danger"
+          icon="pi pi-trash"
+          onClick={() => handleDelete(row)}
+        />
+      </div>
+    )
+  }
+
+  const dialogFooter = (
+    <div>
+      <Button label="取消" outlined onClick={handleModalHide} />
+      {canManageConfig && <Button label="保存" onClick={handleSubmit} />}
+    </div>
+  )
+
+  const renderConfigFields = () => {
+    const { type } = formValues
+
+    if (type === 'feishu') {
+      return (
+        <>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">Webhook URL</label>
+            <InputText
+              placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx"
+              value={formValues.config.webhook_url || ''}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, webhook_url: e.target.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">签名密钥（可选）</label>
+            <InputText
+              placeholder="签名密钥"
+              value={formValues.config.secret || ''}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, secret: e.target.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+        </>
+      )
+    }
+
+    if (type === 'dingtalk') {
+      return (
+        <>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">Webhook URL</label>
+            <InputText
+              placeholder="https://oapi.dingtalk.com/robot/send?access_token=xxx"
+              value={formValues.config.webhook_url || ''}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, webhook_url: e.target.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">加签密钥（可选）</label>
+            <InputText
+              placeholder="密钥"
+              value={formValues.config.secret || ''}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, secret: e.target.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+        </>
+      )
+    }
+
+    if (type === 'wecom') {
+      return (
+        <div className="flex flex-column gap-2">
+          <label className="text-sm">Webhook URL</label>
+          <InputText
+            placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
+            value={formValues.config.webhook_url || ''}
+            onChange={(e) =>
+              setFormValues({
+                ...formValues,
+                config: { ...formValues.config, webhook_url: e.target.value },
+              })
+            }
+            disabled={!canManageConfig}
+          />
+        </div>
+      )
+    }
+
+    if (type === 'webhook') {
+      return (
+        <>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">请求 URL</label>
+            <InputText
+              placeholder="https://example.com/webhook"
+              value={formValues.config.url || ''}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, url: e.target.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">请求方法</label>
+            <Dropdown
+              value={formValues.config.method || 'POST'}
+              options={methodOptions}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, method: e.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">请求头（JSON）</label>
+            <InputTextarea
+              rows={2}
+              placeholder='{"Content-Type": "application/json"}'
+              value={formValues.config.headers || ''}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, headers: e.target.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">请求体模板</label>
+            <InputTextarea
+              rows={3}
+              placeholder='{"text": "{{.message}}"}'
+              value={formValues.config.template || ''}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, template: e.target.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+        </>
+      )
+    }
+
+    return null
+  }
 
   return (
     <div>
       <Card
+        className="shadow-sm border-0"
         title="推送渠道管理"
-        extra={
+        subTitle="管理告警通知推送渠道"
+        header={
           canManageConfig ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新建渠道
-            </Button>
-          ) : null
+            <div className="flex justify-content-end p-3">
+              <Button label="新建渠道" icon="pi pi-plus" onClick={handleCreate} />
+            </div>
+          ) : undefined
         }
       >
         {readOnly && (
@@ -332,157 +513,70 @@ export const Channels: React.FC = () => {
             type="info"
           />
         )}
-        <Table
-          columns={columns}
-          dataSource={channels}
-          rowKey="id"
+        <DataTable
+          value={channels}
+          dataKey="id"
           loading={channelsLoading}
-        />
+        >
+          <Column field="name" header="名称" body={nameBodyTemplate} />
+          <Column field="type" header="类型" body={typeBodyTemplate} />
+          <Column field="enabled" header="状态" body={statusBodyTemplate} />
+          <Column body={actionBodyTemplate} header="操作" style={{ width: '280px' }} />
+        </DataTable>
       </Card>
 
-      <Modal
-        title={editingChannel ? '编辑渠道' : '新建渠道'}
-        open={modalVisible}
-        onOk={canManageConfig ? handleSubmit : undefined}
-        onCancel={() => {
-          setModalVisible(false)
-          setEditingChannel(null)
-          form.resetFields()
-        }}
-        width={600}
-        okButtonProps={{ style: { display: canManageConfig ? 'inline-block' : 'none' } }}
+      <Dialog
+        header={editingChannel ? '编辑渠道' : '新建渠道'}
+        visible={modalVisible}
+        onHide={handleModalHide}
+        footer={dialogFooter}
+        style={{ width: '600px' }}
       >
-        <Form form={form} layout="vertical">
-          <Form.Item name="id" hidden>
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
-          >
-            <Input placeholder="渠道名称" disabled={!canManageConfig} />
-          </Form.Item>
-          <Form.Item
-            name="type"
-            label="类型"
-            rules={[{ required: true, message: '请选择类型' }]}
-          >
-            <Select placeholder="选择渠道类型" disabled={!canManageConfig}>
-              {channelTypeOptions.map((opt) => (
-                <Option key={opt.value} value={opt.value}>
-                  {opt.icon} {opt.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+        <div className="flex flex-column gap-3">
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">名称</label>
+            <InputText
+              placeholder="渠道名称"
+              value={formValues.name}
+              onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
+              disabled={!canManageConfig}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">类型</label>
+            <Dropdown
+              placeholder="选择渠道类型"
+              value={formValues.type}
+              options={channelTypeOptions}
+              optionLabel="label"
+              optionValue="value"
+              onChange={(e) =>
+                setFormValues({ ...formValues, type: e.value, config: {} })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
 
-          <Divider>配置信息</Divider>
+          <Divider align="center">
+            <span className="text-sm">配置信息</span>
+          </Divider>
 
-          <Form.Item
-            noStyle
-            shouldUpdate={(prev, curr) => prev.type !== curr.type}
-          >
-            {() => {
-              const type = form.getFieldValue('type')
-              if (type === 'feishu') {
-                return (
-                  <>
-                    <Form.Item
-                      name={['config', 'webhook_url']}
-                      label="Webhook URL"
-                      rules={[{ required: true, message: '请输入 Webhook URL' }]}
-                    >
-                      <Input
-                        placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx"
-                        disabled={!canManageConfig}
-                      />
-                    </Form.Item>
-                    <Form.Item name={['config', 'secret']} label="签名密钥（可选）">
-                      <Input placeholder="签名密钥" disabled={!canManageConfig} />
-                    </Form.Item>
-                  </>
-                )
-              }
-              if (type === 'dingtalk') {
-                return (
-                  <>
-                    <Form.Item
-                      name={['config', 'webhook_url']}
-                      label="Webhook URL"
-                      rules={[{ required: true, message: '请输入 Webhook URL' }]}
-                    >
-                      <Input
-                        placeholder="https://oapi.dingtalk.com/robot/send?access_token=xxx"
-                        disabled={!canManageConfig}
-                      />
-                    </Form.Item>
-                    <Form.Item name={['config', 'secret']} label="加签密钥（可选）">
-                      <Input placeholder="密钥" disabled={!canManageConfig} />
-                    </Form.Item>
-                  </>
-                )
-              }
-              if (type === 'wecom') {
-                return (
-                  <>
-                    <Form.Item
-                      name={['config', 'webhook_url']}
-                      label="Webhook URL"
-                      rules={[{ required: true, message: '请输入 Webhook URL' }]}
-                    >
-                      <Input
-                        placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
-                        disabled={!canManageConfig}
-                      />
-                    </Form.Item>
-                  </>
-                )
-              }
-              if (type === 'webhook') {
-                return (
-                  <>
-                    <Form.Item
-                      name={['config', 'url']}
-                      label="请求 URL"
-                      rules={[{ required: true, message: '请输入 URL' }]}
-                    >
-                      <Input placeholder="https://example.com/webhook" disabled={!canManageConfig} />
-                    </Form.Item>
-                    <Form.Item name={['config', 'method']} label="请求方法">
-                      <Select disabled={!canManageConfig}>
-                        <Option value="POST">POST</Option>
-                        <Option value="PUT">PUT</Option>
-                      </Select>
-                    </Form.Item>
-                    <Form.Item name={['config', 'headers']} label="请求头（JSON）">
-                      <Input.TextArea
-                        rows={2}
-                        placeholder='{"Content-Type": "application/json"}'
-                        disabled={!canManageConfig}
-                      />
-                    </Form.Item>
-                    <Form.Item name={['config', 'template']} label="请求体模板">
-                      <Input.TextArea
-                        rows={3}
-                        placeholder='{"text": "{{.message}}"}'
-                        disabled={!canManageConfig}
-                      />
-                    </Form.Item>
-                  </>
-                )
-              }
-              return null
-            }}
-          </Form.Item>
+          {renderConfigFields()}
 
           <Divider />
 
-          <Form.Item name="enabled" label="启用" valuePropName="checked">
-            <Switch disabled={!canManageConfig} />
-          </Form.Item>
-        </Form>
-      </Modal>
+          <div className="flex align-items-center gap-2">
+            <label className="text-sm">启用</label>
+            <InputSwitch
+              checked={formValues.enabled}
+              onChange={(e) => setFormValues({ ...formValues, enabled: e.value })}
+              disabled={!canManageConfig}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      <ConfirmDialog />
     </div>
   )
 }

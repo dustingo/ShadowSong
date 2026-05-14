@@ -8,6 +8,7 @@ import (
 
 	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
+	"github.com/game-ops/ai-alert-system/internal/stats"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -166,7 +167,14 @@ func (h *AlertHandler) QuickSilence(c *gin.Context) {
 
 // Get alert statistics
 func (h *AlertHandler) Stats(c *gin.Context) {
-	var stats struct {
+	alertStats, err := stats.GetAlertStats(h.db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert to API response format with string time for trend
+	response := struct {
 		Total      int64            `json:"total"`
 		Firing     int64            `json:"firing"`
 		Acked      int64            `json:"acked"`
@@ -176,38 +184,31 @@ func (h *AlertHandler) Stats(c *gin.Context) {
 			Time  string `json:"time"`
 			Count int64  `json:"count"`
 		} `json:"trend"`
-	}
-	stats.BySeverity = make(map[string]int64)
-
-	h.db.Model(&models.Alert{}).Count(&stats.Total)
-	h.db.Model(&models.Alert{}).Where("status = ?", "firing").Count(&stats.Firing)
-	h.db.Model(&models.Alert{}).Where("status = ?", "acked").Count(&stats.Acked)
-	h.db.Model(&models.Alert{}).Where("status = ?", "silenced").Count(&stats.Silenced)
-
-	// By severity (firing only)
-	for _, sev := range []string{"P0", "P1", "P2", "P3"} {
-		var count int64
-		h.db.Model(&models.Alert{}).Where("severity = ? AND status = ?", sev, "firing").Count(&count)
-		stats.BySeverity[sev] = count
+	}{
+		Total:      int64(alertStats.Total),
+		Firing:     int64(alertStats.Firing),
+		Acked:      int64(alertStats.Acked),
+		Silenced:   int64(alertStats.Silenced),
+		BySeverity: make(map[string]int64),
 	}
 
-	// Trend - last 24 hours
-	for i := 23; i >= 0; i-- {
-		hour := time.Now().Add(-time.Duration(i) * time.Hour)
-		start := hour.Truncate(time.Hour)
-		end := start.Add(time.Hour)
-		var count int64
-		h.db.Model(&models.Alert{}).Where("trigger_time >= ? AND trigger_time < ?", start, end).Count(&count)
-		stats.Trend = append(stats.Trend, struct {
+	// Convert by_severity
+	for k, v := range alertStats.BySeverity {
+		response.BySeverity[k] = int64(v)
+	}
+
+	// Convert trend with formatted time string
+	for _, t := range alertStats.Trend {
+		response.Trend = append(response.Trend, struct {
 			Time  string `json:"time"`
 			Count int64  `json:"count"`
 		}{
-			Time:  start.Format("15:04"),
-			Count: count,
+			Time:  t.Time.Format("15:04"),
+			Count: int64(t.Count),
 		})
 	}
 
-	c.JSON(http.StatusOK, stats)
+	c.JSON(http.StatusOK, response)
 }
 
 // Get active alerts

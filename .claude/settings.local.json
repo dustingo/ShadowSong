@@ -25,7 +25,16 @@
       "Bash(cd \"D:\\\\goproject\\\\shadowsongAI\" && /usr/local/bin/golangci-lint.exe run --format=line-number 2>&1)",
       "Bash(/usr/local/bin/golangci-lint.exe run:*)",
       "Bash(cd D:/goproject/shadowsongAI && go test ./... 2>&1)",
-      "Bash(cd D:/goproject/shadowsongAI && staticcheck ./... 2>&1)"
+      "Bash(cd D:/goproject/shadowsongAI && staticcheck ./... 2>&1)",
+      "Bash(staticcheck ./... 2>/dev/null || echo \"staticcheck not available\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(xxd)",
+      "Bash(gh pr *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(go test *)",
+      "Bash(go doc *)",
+      "Bash(git checkout *)"
     ]
   }
 }

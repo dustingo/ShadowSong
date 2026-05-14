@@ -49,3 +49,5 @@ frontend/dist/
 frontend/.pnpm-store/
 frontend/.vite/
 frontend/.claude/
+.claude/settings.local.json
+.planning/config.json

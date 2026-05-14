@@ -1,11 +1,9 @@
 import React from 'react'
-import { Tag, Typography, Space, Button, Tooltip } from 'antd'
-import { CheckOutlined } from '@ant-design/icons'
-import type { Alert } from '../types'
+import { Tag } from 'primereact/tag'
+import { Button } from 'primereact/button'
 import { SeverityBadge } from './SeverityBadge'
 import dayjs from 'dayjs'
-
-const { Text } = Typography
+import type { Alert } from '../types'
 
 interface AlertCardProps {
   alert: Alert
@@ -23,80 +21,65 @@ export const AlertCard: React.FC<AlertCardProps> = ({
   const isP0 = alert.severity === 'P0'
   const isActive = alert.status === 'firing'
 
-  const handleAck = () => {
-    onAck?.(alert)
-  }
-
-  const handleQuickSilence = () => {
-    onQuickSilence?.(alert)
-  }
-
   return (
     <div
+      className="mb-3 p-4"
       style={{
         background: '#fff',
-        borderRadius: 8,
-        padding: 16,
-        marginBottom: 12,
-        border: isP0 && isActive ? '2px solid #ff4d4f' : '1px solid #f0f0f0',
-        boxShadow: isP0 && isActive ? '0 0 8px rgba(255, 77, 79, 0.3)' : 'none',
+        borderRadius: '8px',
+        border: isP0 && isActive ? '2px solid #ef4444' : '1px solid #e2e8f0',
+        boxShadow: isP0 && isActive ? '0 0 8px rgba(239, 68, 68, 0.3)' : 'none',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Space direction="vertical" size={4} style={{ flex: 1 }}>
-          <Space align="center">
+      <div className="flex justify-content-between align-items-start">
+        <div className="flex flex-column gap-2 flex-1">
+          <div className="flex align-items-center gap-2 flex-wrap">
             <SeverityBadge severity={alert.severity} />
-            <Text strong style={{ fontSize: 16 }}>{alert.alert_name}</Text>
-            <Tag color="blue">{alert.source}</Tag>
+            <span className="font-semibold text-slate-700">{alert.alert_name}</span>
+            <Tag value={alert.source} />
             {alert.trigger_count > 1 && (
-              <Tooltip title="触发次数">
-                <Tag color="orange">x{alert.trigger_count}</Tag>
-              </Tooltip>
+              <Tag value={`x${alert.trigger_count}`} severity="warning" />
             )}
-          </Space>
-          <Text type="secondary">{alert.message}</Text>
-          <Space size="large">
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              触发时间: {dayjs(alert.trigger_time).format('YYYY-MM-DD HH:mm:ss')}
-            </Text>
+          </div>
+          <p className="text-slate-500 m-0">{alert.message}</p>
+          <div className="flex gap-4 text-sm text-slate-400">
+            <span>触发时间: {dayjs(alert.trigger_time).format('YYYY-MM-DD HH:mm:ss')}</span>
             {alert.labels && Object.keys(alert.labels).length > 0 && (
-              <Space size={4}>
+              <div className="flex gap-1">
                 {Object.entries(alert.labels).slice(0, 3).map(([key, value]) => (
-                  <Tag key={key} style={{ margin: 0 }}>{key}: {String(value)}</Tag>
+                  <Tag key={key} value={`${key}: ${String(value)}`} className="text-xs" />
                 ))}
                 {Object.keys(alert.labels).length > 3 && (
-                  <Text type="secondary">+{Object.keys(alert.labels).length - 3}</Text>
+                  <span className="text-slate-400">+{Object.keys(alert.labels).length - 3}</span>
                 )}
-              </Space>
+              </div>
             )}
-          </Space>
-        </Space>
+          </div>
+        </div>
+
         {showActions && isActive && (
-          <Space>
+          <div className="flex gap-2">
             <Button
-              type="primary"
+              icon="pi pi-check"
+              label="确认"
               size="small"
-              icon={<CheckOutlined />}
-              onClick={handleAck}
-            >
-              确认
-            </Button>
+              onClick={() => onAck?.(alert)}
+            />
             <Button
+              icon="pi pi-volume-off"
+              label="静默"
               size="small"
-              onClick={handleQuickSilence}
-            >
-              静默
-            </Button>
-          </Space>
+              severity="warning"
+              onClick={() => onQuickSilence?.(alert)}
+            />
+          </div>
         )}
       </div>
 
       {alert.acked_by && (
-        <div style={{ marginTop: 8 }}>
-          <Text type="secondary">
-            已由 {alert.acked_by} 于 {dayjs(alert.acked_at).format('MM-DD HH:mm')} 确认
-            {alert.ack_comment && `: ${alert.ack_comment}`}
-          </Text>
+        <div className="mt-2 text-sm text-slate-400">
+          已由 {alert.acked_by} 于 {dayjs(alert.acked_at).format('MM-DD HH:mm')} 确认
+          {alert.ack_comment && `: ${alert.ack_comment}`}
         </div>
       )}
     </div>

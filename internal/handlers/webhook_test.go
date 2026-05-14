@@ -1471,3 +1471,99 @@ func TestWebhookHandlerParseTimeHandlesMillisecondTimestamp(t *testing.T) {
 	result4 := handler.parseTime(nil)
 	assert.NotEqual(t, "", result4)
 }
+
+func TestWebhookHandlerAliyunSubscriptionTemplate(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, _ := newWebhookTestHandler(db)
+
+	// 创建阿里云数据源
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:        "aliyun_event_push",
+		DisplayName: "阿里云事件订阅",
+		APIKey:      "test-api-key",
+		Enabled:     true,
+		InputTemplate: `{
+			"alert_id": "{{.alert.dedupId}}",
+			"alert_name": "{{.alert.meta.sysEventMeta.eventNameZh}}",
+			"severity": "{{toSeverity .alert.meta.sysEventMeta.level}}",
+			"message": "{{.userInfo.aliyunId}} {{.alert.meta.sysEventMeta.eventTime}} {{.alert.meta.sysEventMeta.serviceTypeZh}} {{.alert.meta.sysEventMeta.eventNameZh}}",
+			"source": "aliyun_event_push",
+			"status": "{{toStatus .alert.alertStatus}}",
+			"trigger_time": "{{toTime .time}}",
+			"labels": {
+				"instance": "{{.alert.meta.sysEventMeta.instanceName}}",
+				"region": "{{.alert.meta.sysEventMeta.regionId}}",
+				"service_type": "{{.alert.meta.sysEventMeta.serviceTypeZh}}",
+				"event_type": "{{.alert.meta.sysEventMeta.eventType}}",
+				"product": "{{.alert.meta.sysEventMeta.product}}",
+				"resource_id": "{{.alert.meta.sysEventMeta.resourceId}}"
+			}
+		}`,
+		OutputTemplate:     `{"title": "[{{.severity}}] {{.alert_name}}", "content": "实例: {{.labels.instance}}\n区域: {{.labels.region}}"}`,
+		GroupByLabels:      datatypes.JSON(`["alert_name","severity","source"]`),
+		DeduplicateEnabled: true,
+		DeduplicateWindow:  3600,
+	}).Error)
+
+	// 模拟阿里云推送数据
+	payload := map[string]interface{}{
+		"severity": "CRITICAL",
+		"userInfo": map[string]interface{}{
+			"aliyunId": "user123@example.com",
+		},
+		"strategyName": "ECS监控策略",
+		"alert": map[string]interface{}{
+			"alertStatus": "TRIGGERED",
+			"dedupId":     "dedup-test-123",
+			"meta": map[string]interface{}{
+				"sysEventMeta": map[string]interface{}{
+					"eventNameZh":   "实例状态改变",
+					"instanceName":  "ecs-production-01",
+					"regionId":      "cn-hangzhou",
+					"serviceTypeZh": "云服务器ECS",
+					"eventType":     "StatusChange",
+					"product":       "ECS",
+					"resourceId":    "i-bp1234567890",
+					"level":         "CRITICAL",
+					"eventTime":     "2026-05-14 10:30:00",
+				},
+			},
+		},
+		"time": float64(1715665800000),
+	}
+
+	// 发送请求
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest("POST", "/webhook/aliyun_event_push", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", "test-api-key")
+
+	w := httptest.NewRecorder()
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.POST("/webhook/:source_name", handler.HandleWebhook)
+	r.ServeHTTP(w, req)
+
+	// 验证响应
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, "success", resp["status"])
+	assert.Equal(t, float64(1), resp["processed"])
+
+	// 验证告警数据
+	alerts := resp["alerts"].([]interface{})
+	alert := alerts[0].(map[string]interface{})
+	assert.Equal(t, "dedup-test-123", alert["alert_id"])
+	assert.Equal(t, "实例状态改变", alert["alert_name"])
+	assert.Equal(t, "P0", alert["severity"])
+	assert.Equal(t, "firing", alert["status"])
+	assert.Equal(t, "aliyun_event_push", alert["source"])
+
+	// 验证 labels 结构
+	labels := alert["labels"].(map[string]interface{})
+	assert.Equal(t, "ecs-production-01", labels["instance"])
+	assert.Equal(t, "cn-hangzhou", labels["region"])
+	assert.Equal(t, "云服务器ECS", labels["service_type"])
+}

@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/auth"
 	"github.com/game-ops/ai-alert-system/internal/middleware"
 	"github.com/game-ops/ai-alert-system/internal/models"
+	wslib "github.com/game-ops/ai-alert-system/internal/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/gorm"
@@ -21,8 +21,7 @@ type WSHandler struct {
 	jwtAuth        *auth.JWT
 	allowedOrigins []string
 	upgrader       websocket.Upgrader
-	clients        map[*websocket.Conn]bool
-	broadcast      chan []byte
+	hub            *wslib.Hub
 	mu             sync.RWMutex
 }
 
@@ -31,33 +30,16 @@ func NewWSHandler(db *gorm.DB, jwtAuth *auth.JWT, allowedOrigins []string) *WSHa
 		db:             db,
 		jwtAuth:        jwtAuth,
 		allowedOrigins: allowedOrigins,
-		clients:        make(map[*websocket.Conn]bool),
-		broadcast:      make(chan []byte, 256),
+		hub:            wslib.NewHub(),
 	}
 	h.upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin:     h.checkOrigin,
 	}
-	// Start broadcast goroutine
-	go h.run()
+	// Start the hub's run loop
+	go h.hub.Run()
 	return h
-}
-
-func (h *WSHandler) run() {
-	for {
-		msg := <-h.broadcast
-		h.mu.RLock()
-		for client := range h.clients {
-			err := client.WriteMessage(websocket.TextMessage, msg)
-			if err != nil {
-				log.Printf("WS write error: %v", err)
-				client.Close()
-				delete(h.clients, client)
-			}
-		}
-		h.mu.RUnlock()
-	}
 }
 
 func (h *WSHandler) HandleAlerts(c *gin.Context) {
@@ -88,13 +70,15 @@ func (h *WSHandler) HandleAlerts(c *gin.Context) {
 		return
 	}
 
-	h.mu.Lock()
-	h.clients[conn] = true
-	h.mu.Unlock()
+	// Create a new client using the websocket module
+	client := wslib.NewClient(h.hub, conn)
+
+	// Register the client with the hub
+	h.hub.Register(client)
 
 	log.Printf("WebSocket client connected")
 
-	// Send current active alerts
+	// Send current active alerts directly to this client
 	var alerts []models.Alert
 	h.db.Where("status = ?", "firing").Order("trigger_time DESC").Limit(50).Find(&alerts)
 	if len(alerts) > 0 {
@@ -102,32 +86,18 @@ func (h *WSHandler) HandleAlerts(c *gin.Context) {
 			"type":   "init",
 			"alerts": alerts,
 		})
-		conn.WriteMessage(websocket.TextMessage, msg)
-	}
-
-	// Heartbeat
-	go func() {
-		for {
-			time.Sleep(30 * time.Second)
-			err := conn.WriteMessage(websocket.PingMessage, []byte{})
-			if err != nil {
-				break
-			}
-		}
-	}()
-
-	// Read loop
-	for {
-		_, _, err := conn.ReadMessage()
-		if err != nil {
-			break
+		// Send directly to this client's send queue
+		select {
+		case client.SendQueue() <- msg:
+		default:
+			// Client buffer full, will be handled by the hub
 		}
 	}
 
-	h.mu.Lock()
-	delete(h.clients, conn)
-	h.mu.Unlock()
-	conn.Close()
+	// Start the client's read and write pumps
+	// This blocks until the connection is closed
+	client.Start()
+
 	log.Printf("WebSocket client disconnected")
 }
 
@@ -172,5 +142,5 @@ func (h *WSHandler) BroadcastAlert(alert models.Alert) {
 		log.Printf("WS marshal error: %v", err)
 		return
 	}
-	h.broadcast <- msg
+	h.hub.Broadcast(msg)
 }

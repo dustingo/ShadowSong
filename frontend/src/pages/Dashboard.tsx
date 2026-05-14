@@ -1,15 +1,18 @@
 import React, { useEffect, useRef } from 'react'
-import { Row, Col, Card, Statistic, Spin, Typography, Space, Alert, message } from 'antd'
-import ReactECharts from 'echarts-for-react'
+import { Card } from 'primereact/card'
+import { Button } from 'primereact/button'
+import { Message } from 'primereact/message'
+import { ProgressSpinner } from 'primereact/progressspinner'
+import { Chart } from 'primereact/chart'
 import { useAlertStore } from '../stores/alertStore'
 import { useUserStore } from '../stores/userStore'
 import { AlertCard } from '../components/AlertCard'
+import { StatisticCard, useToast } from '../components'
 import type { Alert as AlertItem } from '../types'
-
-const { Text } = Typography
 
 export const Dashboard: React.FC = () => {
   const token = useUserStore((state) => state.token)
+  const toast = useToast()
   const {
     activeAlerts,
     stats,
@@ -25,18 +28,18 @@ export const Dashboard: React.FC = () => {
   const handleAck = async (alert: AlertItem) => {
     try {
       await ackAlert(alert.alert_id, '')
-      message.success('已确认')
-    } catch (error) {
-      message.error('确认失败')
+      toast.showSuccess('已确认')
+    } catch {
+      toast.showError('确认失败')
     }
   }
 
   const handleQuickSilence = async (alert: AlertItem) => {
     try {
       await quickSilence(alert.alert_id, 3600)
-      message.success('已静默')
-    } catch (error) {
-      message.error('静默失败')
+      toast.showSuccess('已静默')
+    } catch {
+      toast.showError('静默失败')
     }
   }
 
@@ -46,12 +49,10 @@ export const Dashboard: React.FC = () => {
     fetchActiveAlerts()
     fetchStats()
 
-    // WebSocket connection
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     let isConnecting = false
 
     const connectWS = () => {
-      // Prevent multiple concurrent connections
       if (isConnecting || wsRef.current?.readyState === WebSocket.OPEN) {
         return
       }
@@ -69,7 +70,6 @@ export const Dashboard: React.FC = () => {
         wsRef.current = ws
 
         ws.onopen = () => {
-          console.log('WebSocket connected')
           isConnecting = false
           setWsConnected(true)
         }
@@ -82,25 +82,21 @@ export const Dashboard: React.FC = () => {
             } else if (data.type === 'update_alert') {
               useAlertStore.getState().updateAlert(data.alert)
             }
-          } catch (e) {
-            console.error('Failed to parse WS message:', e)
+          } catch {
+            // Ignore parse errors
           }
         }
 
         ws.onclose = () => {
-          console.log('WebSocket disconnected')
           isConnecting = false
           setWsConnected(false)
-          // Reconnect after 3 seconds
           reconnectTimer = setTimeout(connectWS, 3000)
         }
 
         ws.onerror = () => {
-          console.error('WebSocket error, will reconnect...')
           isConnecting = false
         }
-      } catch (error) {
-        console.error('Failed to create WebSocket:', error)
+      } catch {
         isConnecting = false
         reconnectTimer = setTimeout(connectWS, 3000)
       }
@@ -108,7 +104,6 @@ export const Dashboard: React.FC = () => {
 
     connectWS()
 
-    // Poll for updates
     const interval = setInterval(() => {
       fetchActiveAlerts()
       fetchStats()
@@ -119,140 +114,108 @@ export const Dashboard: React.FC = () => {
         clearTimeout(reconnectTimer)
       }
       if (wsRef.current) {
-        wsRef.current.onclose = null // Prevent reconnect on cleanup
+        wsRef.current.onclose = null
         wsRef.current.close()
       }
       clearInterval(interval)
     }
   }, [fetchActiveAlerts, fetchStats, setWsConnected, token])
 
-  const getTrendOption = () => {
-    const trendData = stats?.trend || []
-    return {
-      tooltip: {
-        trigger: 'axis',
+  const chartData = {
+    labels: (stats?.trend || []).map((t) => t.time),
+    datasets: [
+      {
+        label: '告警数量',
+        data: (stats?.trend || []).map((t) => t.count),
+        fill: true,
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+        borderColor: '#10b981',
+        tension: 0.4,
       },
-      xAxis: {
-        type: 'category',
-        data: trendData.map((t) => t.time),
-        boundaryGap: false,
+    ],
+  }
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: '#f1f5f9' },
       },
-      yAxis: {
-        type: 'value',
+      x: {
+        grid: { display: false },
       },
-      series: [
-        {
-          data: trendData.map((t) => t.count),
-          type: 'line',
-          smooth: true,
-          areaStyle: {
-            color: 'rgba(24, 144, 255, 0.2)',
-          },
-          lineStyle: {
-            color: '#1890ff',
-          },
-        },
-      ],
-    }
+    },
   }
 
   const sortedAlerts = [...activeAlerts].sort((a, b) => {
-    // P0 first
     if (a.severity === 'P0' && b.severity !== 'P0') return -1
     if (b.severity === 'P0' && a.severity !== 'P0') return 1
-    // Then by trigger time
     return new Date(b.trigger_time).getTime() - new Date(a.trigger_time).getTime()
   })
 
+  const statsCards = [
+    { label: '活跃告警', value: stats?.firing || 0, color: '#ef4444', icon: 'pi pi-bell' },
+    { label: 'P0 告警', value: stats?.by_severity?.P0 || 0, color: '#ef4444', icon: 'pi pi-exclamation-triangle' },
+    { label: '已确认', value: stats?.acked || 0, color: '#22c55e', icon: 'pi pi-check-circle' },
+    { label: '已静默', value: stats?.silenced || 0, color: '#f59e0b', icon: 'pi pi-volume-off' },
+  ]
+
   return (
-    <div>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* Connection status */}
-        {!wsConnected && (
-          <Alert
-            message="实时连接已断开"
-            description="正在尝试重新连接..."
-            type="warning"
-            showIcon
-          />
+    <div className="flex flex-column gap-4">
+      {!wsConnected && (
+        <Message
+          severity="warn"
+          text="实时连接已断开，正在尝试重新连接..."
+        />
+      )}
+
+      {/* Stats cards */}
+      <div className="grid grid-cols-12 gap-4">
+        {statsCards.map((stat, index) => (
+          <div key={index} className="col-span-12 md:col-span-3">
+            <StatisticCard {...stat} />
+          </div>
+        ))}
+      </div>
+
+      {/* Chart */}
+      <Card title="24 小时告警趋势" className="shadow-sm border-0">
+        <div style={{ height: '250px' }}>
+          <Chart type="line" data={chartData} options={chartOptions} />
+        </div>
+      </Card>
+
+      {/* Active alerts */}
+      <Card
+        title={`活跃告警 (${activeAlerts.length})`}
+        className="shadow-sm border-0"
+        extra={<Button label="查看全部" link onClick={() => window.location.href = '/alerts'} />}
+      >
+        {loading ? (
+          <div className="flex justify-content-center p-4">
+            <ProgressSpinner />
+          </div>
+        ) : sortedAlerts.length === 0 ? (
+          <Message severity="success" text="暂无活跃告警，系统运行正常" />
+        ) : (
+          <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            {sortedAlerts.map((alert) => (
+              <AlertCard
+                key={alert.alert_id}
+                alert={alert}
+                showActions={true}
+                onAck={handleAck}
+                onQuickSilence={handleQuickSilence}
+              />
+            ))}
+          </div>
         )}
-
-        {/* Stats cards */}
-        <Row gutter={16}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="活跃告警"
-                value={stats?.firing || 0}
-                valueStyle={{ color: '#ff4d4f' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="P0 告警"
-                value={stats?.by_severity?.P0 || 0}
-                valueStyle={{ color: '#ff4d4f', fontWeight: 'bold' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="已确认"
-                value={stats?.acked || 0}
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="已静默"
-                value={stats?.silenced || 0}
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Trend chart */}
-        <Card title="24 小时告警趋势">
-          <ReactECharts option={getTrendOption()} style={{ height: 250 }} showLoading={loading} />
-        </Card>
-
-        {/* Active alerts */}
-        <Card
-          title={
-            <Space>
-              <span>活跃告警</span>
-              <Text type="secondary">({activeAlerts.length})</Text>
-            </Space>
-          }
-          extra={<a href="/alerts">查看全部</a>}
-        >
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: 40 }}>
-              <Spin />
-            </div>
-          ) : sortedAlerts.length === 0 ? (
-            <Alert message="暂无活跃告警" description="系统运行正常" type="success" showIcon />
-          ) : (
-            <div style={{ maxHeight: 600, overflowY: 'auto' }}>
-              {sortedAlerts.map((alert) => (
-                <AlertCard
-                  key={alert.alert_id}
-                  alert={alert}
-                  showActions={true}
-                  onAck={handleAck}
-                  onQuickSilence={handleQuickSilence}
-                />
-              ))}
-            </div>
-          )}
-        </Card>
-      </Space>
+      </Card>
     </div>
   )
 }

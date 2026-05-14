@@ -1,17 +1,17 @@
 package delivery
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"strings"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/game-ops/ai-alert-system/internal/routing"
+	"github.com/game-ops/ai-alert-system/internal/template"
 	"github.com/game-ops/ai-alert-system/internal/utils"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -19,8 +19,19 @@ import (
 
 type Service struct {
 	db            *gorm.DB
+	matcher       *routing.Matcher
+	renderer      *template.Renderer
 	sendToChannel func(channel *models.Channel, title, content string) error
 	sleep         func(time.Duration)
+}
+
+// gormAdapter wraps *gorm.DB to implement routing.dbLoader interface
+type gormAdapter struct {
+	db *gorm.DB
+}
+
+func (a *gormAdapter) Find(dst interface{}, conds ...interface{}) error {
+	return a.db.Find(dst, conds...).Error
 }
 
 type StartDeliveryInput struct {
@@ -104,6 +115,8 @@ type recoveredExecutionInput struct {
 func NewService(db *gorm.DB) *Service {
 	return &Service{
 		db:            db,
+		matcher:       routing.NewMatcher(&gormAdapter{db: db}),
+		renderer:      template.NewRenderer(),
 		sendToChannel: notifier.SendToChannel,
 		sleep:         time.Sleep,
 	}
@@ -498,7 +511,7 @@ func (s *Service) ReplayDelivery(ctx context.Context, input ReplayDeliveryInput)
 			return s.completeRecovery(tx, recovery, 0, models.RecoveryStatusFailed, err.Error())
 		}
 
-		title, content, err := renderNotification(alert, routeRule, string(ds.OutputTemplate))
+		title, content, err := s.renderer.RenderAlert(string(ds.OutputTemplate), alert, routeRule)
 		if err != nil {
 			recoveryErr = err
 			return s.completeRecovery(tx, recovery, 0, models.RecoveryStatusFailed, err.Error())
@@ -734,7 +747,9 @@ func (s *Service) findReplayTarget(ctx context.Context, tx *gorm.DB, alert *mode
 	if err := tx.WithContext(ctx).Where("enabled = ?", true).Order("priority ASC").Find(&rules).Error; err != nil {
 		return nil, nil, fmt.Errorf("load route rules: %w", err)
 	}
-	targets, err := findMatchedTargets(tx, alert, rules)
+	// Create a matcher that uses the transaction
+	txMatcher := routing.NewMatcher(&gormAdapter{db: tx})
+	targets, err := txMatcher.FindMatchedTargets(alert, rules)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -742,11 +757,11 @@ func (s *Service) findReplayTarget(ctx context.Context, tx *gorm.DB, alert *mode
 		return nil, nil, errors.New("no live route matched for replay")
 	}
 	for _, target := range targets {
-		if target.channel.ID == preferredChannelID {
-			return &target.channel, target.routeRule, nil
+		if target.Channel.ID == preferredChannelID {
+			return &target.Channel, &target.RouteRule, nil
 		}
 	}
-	return &targets[0].channel, targets[0].routeRule, nil
+	return &targets[0].Channel, &targets[0].RouteRule, nil
 }
 
 func (s *Service) executeRecoveredDelivery(ctx context.Context, tx *gorm.DB, input recoveredExecutionInput) (*models.NotificationDelivery, error) {
@@ -981,202 +996,6 @@ func (s *Service) sleeper() func(time.Duration) {
 	return time.Sleep
 }
 
-type notificationTarget struct {
-	channel   models.Channel
-	routeRule *models.RouteRule
-}
-
-func findMatchedTargets(tx *gorm.DB, alert *models.Alert, rules []models.RouteRule) ([]notificationTarget, error) {
-	var matchedTargets []notificationTarget
-	for idx := range rules {
-		rule := rules[idx]
-		var sources []string
-		_ = json.Unmarshal(rule.Sources, &sources)
-		if len(sources) > 0 && !utils.ContainsString(sources, alert.Source) {
-			continue
-		}
-		var severities []string
-		_ = json.Unmarshal(rule.Severities, &severities)
-		if len(severities) > 0 && !utils.ContainsString(severities, alert.Severity) {
-			continue
-		}
-		var labelMatchers []models.LabelMatcher
-		_ = json.Unmarshal(rule.LabelMatchers, &labelMatchers)
-		if len(labelMatchers) > 0 && !matchLabels(alert.Labels, labelMatchers) {
-			continue
-		}
-		if !isInTimeRange(rule.TimeRanges) {
-			continue
-		}
-		var channelIDs []uint
-		_ = json.Unmarshal(rule.ChannelIDs, &channelIDs)
-		for _, channelID := range channelIDs {
-			var channel models.Channel
-			if err := tx.First(&channel, channelID).Error; err != nil {
-				continue
-			}
-			if channel.Enabled {
-				matchedTargets = append(matchedTargets, notificationTarget{
-					channel:   channel,
-					routeRule: &rule,
-				})
-			}
-		}
-		if len(matchedTargets) > 0 {
-			break
-		}
-	}
-	return matchedTargets, nil
-}
-
-func renderNotification(alert *models.Alert, routeRule *models.RouteRule, tmplStr string) (string, string, error) {
-	data := buildNotificationRenderContext(alert, routeRule)
-	tmpl, err := template.New("output").Funcs(templateFuncMap()).Parse(tmplStr)
-	if err != nil {
-		return "", "", err
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", "", err
-	}
-	resultStr := buf.String()
-	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
-		return "告警通知", resultStr, nil
-	}
-	title := strings.TrimSpace(fmt.Sprintf("%v", result["title"]))
-	content := strings.TrimSpace(fmt.Sprintf("%v", result["content"]))
-	if title == "" {
-		title = "告警通知"
-	}
-	if content == "" {
-		content = resultStr
-	}
-	return title, content, nil
-}
-
-func buildNotificationRenderContext(alert *models.Alert, routeRule *models.RouteRule) map[string]interface{} {
-	event := utils.DecodeJSONMap(alert.Raw)
-	severityRaw := ""
-	if raw := lookupString(event, "severity", "level", "priority"); raw != "" {
-		severityRaw = raw
-	}
-	if severityRaw == "" {
-		if labels, ok := event["labels"].(map[string]interface{}); ok {
-			severityRaw = lookupString(labels, "severity", "level", "priority")
-		}
-	}
-	data := map[string]interface{}{
-		"alert_id":      alert.AlertID,
-		"alert_name":    alert.AlertName,
-		"severity":      alert.Severity,
-		"severity_code": alert.Severity,
-		"severity_raw":  severityRaw,
-		"message":       alert.Message,
-		"source":        alert.Source,
-		"status":        alert.Status,
-		"trigger_time":  alert.TriggerTime.Format(time.RFC3339),
-		"labels":        utils.DecodeJSONMap(alert.Labels),
-		"route_name":    "",
-	}
-	if routeRule != nil {
-		data["route_name"] = routeRule.Name
-	}
-	data["event"] = event
-	data["alert"] = map[string]interface{}{
-		"id":            alert.AlertID,
-		"name":          alert.AlertName,
-		"severity":      alert.Severity,
-		"severity_code": alert.Severity,
-		"severity_raw":  severityRaw,
-		"message":       alert.Message,
-		"source":        alert.Source,
-		"status":        alert.Status,
-		"trigger_time":  alert.TriggerTime.Format(time.RFC3339),
-		"labels":        data["labels"],
-	}
-	return data
-}
-
-func templateFuncMap() template.FuncMap {
-	return template.FuncMap{
-		"toJson": func(v interface{}) string {
-			b, _ := json.Marshal(v)
-			return string(b)
-		},
-		"get": func(m map[string]interface{}, key string) interface{} {
-			if m == nil {
-				return nil
-			}
-			return m[key]
-		},
-		"default": func(v, def interface{}) interface{} {
-			if v == nil {
-				return def
-			}
-			if s, ok := v.(string); ok && s == "" {
-				return def
-			}
-			return v
-		},
-		"lookup": func(m map[string]interface{}, keys ...string) interface{} {
-			if m == nil {
-				return nil
-			}
-			for _, key := range keys {
-				if val, ok := m[key]; ok && val != nil {
-					return val
-				}
-			}
-			return nil
-		},
-	}
-}
-
-func matchLabels(labelsJSON []byte, matchers []models.LabelMatcher) bool {
-	if len(matchers) == 0 {
-		return true
-	}
-	var labels map[string]string
-	if err := json.Unmarshal(labelsJSON, &labels); err != nil {
-		return false
-	}
-	for _, matcher := range matchers {
-		value, exists := labels[matcher.Key]
-		if !exists {
-			return false
-		}
-		if matcher.Pattern != "" && !strings.Contains(value, strings.Trim(matcher.Pattern, "^$")) {
-			return false
-		}
-	}
-	return true
-}
-
-func isInTimeRange(timeRangesJSON []byte) bool {
-	if len(timeRangesJSON) == 0 || string(timeRangesJSON) == "[]" {
-		return true
-	}
-	var timeRanges []models.TimeRange
-	if err := json.Unmarshal(timeRangesJSON, &timeRanges); err != nil || len(timeRanges) == 0 {
-		return true
-	}
-	now := time.Now()
-	currentTime := now.Hour()*60 + now.Minute()
-	for _, tr := range timeRanges {
-		startMinutes := utils.ParseTimeToMinutes(tr.StartTime)
-		endMinutes := utils.ParseTimeToMinutes(tr.EndTime)
-		if endMinutes < startMinutes {
-			if currentTime >= startMinutes || currentTime <= endMinutes {
-				return true
-			}
-		} else if currentTime >= startMinutes && currentTime <= endMinutes {
-			return true
-		}
-	}
-	return false
-}
-
 func notificationAttemptResult(err error) string {
 	if err == nil {
 		return models.AttemptResultSuccess
@@ -1189,20 +1008,6 @@ func notificationErrorMessage(err error) string {
 		return ""
 	}
 	return err.Error()
-}
-
-func lookupString(m map[string]interface{}, keys ...string) string {
-	for _, key := range keys {
-		value, ok := m[key]
-		if !ok || value == nil {
-			continue
-		}
-		result := strings.TrimSpace(fmt.Sprintf("%v", value))
-		if result != "" && result != "<nil>" {
-			return result
-		}
-	}
-	return ""
 }
 
 func mustMarshalJSON(value interface{}) datatypes.JSON {

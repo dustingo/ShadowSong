@@ -11,7 +11,7 @@ import { Dropdown } from 'primereact/dropdown'
 import { InputSwitch } from 'primereact/inputswitch'
 import { Tag } from 'primereact/tag'
 import { TabView, TabPanel } from 'primereact/tabview'
-import { Paginator } from 'primereact/paginator'
+import { Paginator, PaginatorPageChangeEvent } from 'primereact/paginator'
 import { authApi, getApiErrorMessage } from '../api/auth'
 import { PermissionNotice, useToast } from '../components'
 import { canUser, capabilityManageUsers } from '../authz/capabilities'
@@ -115,6 +115,7 @@ export const Users: React.FC = () => {
   const [auditTotal, setAuditTotal] = useState(0)
   const [auditPage, setAuditPage] = useState(0)
   const [auditPageSize] = useState(20)
+  const [activeTabIndex, setActiveTabIndex] = useState(0)
 
   const fetchUsers = useCallback(async () => {
     if (!canManageUsers) {
@@ -152,8 +153,10 @@ export const Users: React.FC = () => {
   }, [fetchUsers])
 
   useEffect(() => {
-    fetchAuditLogs(auditPage)
-  }, [fetchAuditLogs, auditPage])
+    if (activeTabIndex === 1) {
+      fetchAuditLogs(auditPage)
+    }
+  }, [fetchAuditLogs, auditPage, activeTabIndex])
 
   if (!canManageUsers) {
     return (
@@ -404,7 +407,7 @@ export const Users: React.FC = () => {
     )
   }
 
-  const handleAuditPageChange = (event: { page: number }) => {
+  const handleAuditPageChange = (event: PaginatorPageChangeEvent) => {
     setAuditPage(event.page)
   }
 
@@ -415,7 +418,7 @@ export const Users: React.FC = () => {
         title: { className: 'text-xl font-semibold' },
       }}
     >
-      <TabView>
+      <TabView activeIndex={activeTabIndex} onTabChange={(e) => setActiveTabIndex(e.index)}>
         <TabPanel header="用户列表">
           <div className="flex justify-content-end mb-3">
             <Button type="button" icon="pi pi-plus" label="新建用户" onClick={handleCreate} />

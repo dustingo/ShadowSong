@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { User, AuditLog } from '../types'
+import type { User, AuditLog, AuditLogListResponse } from '../types'
 import { getApiErrorMessage } from './client'
 
 const authClient = axios.create({
@@ -116,8 +116,8 @@ export const authApi = {
     result?: string
     start_time?: string
     end_time?: string
-  }): Promise<{ items: AuditLog[]; total: number; page: number; page_size: number }> => {
-    const res = await authClient.get<{ items: AuditLog[]; total: number; page: number; page_size: number }>('/users/audit-logs', { params })
+  }): Promise<AuditLogListResponse> => {
+    const res = await authClient.get<AuditLogListResponse>('/users/audit-logs', { params })
     return res.data
   },
 }

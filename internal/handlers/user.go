@@ -548,14 +548,20 @@ func (h *UserHandler) ListAuditLogs(c *gin.Context) {
 		query = query.Where("result = ?", result)
 	}
 	if startTime := c.Query("start_time"); startTime != "" {
-		if t, err := time.Parse(time.RFC3339, startTime); err == nil {
-			query = query.Where("created_at >= ?", t)
+		t, err := time.Parse(time.RFC3339, startTime)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start_time format, expected RFC3339"})
+			return
 		}
+		query = query.Where("created_at >= ?", t)
 	}
 	if endTime := c.Query("end_time"); endTime != "" {
-		if t, err := time.Parse(time.RFC3339, endTime); err == nil {
-			query = query.Where("created_at <= ?", t)
+		t, err := time.Parse(time.RFC3339, endTime)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end_time format, expected RFC3339"})
+			return
 		}
+		query = query.Where("created_at <= ?", t)
 	}
 
 	var total int64

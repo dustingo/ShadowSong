@@ -10,11 +10,13 @@ import { Password } from 'primereact/password'
 import { Dropdown } from 'primereact/dropdown'
 import { InputSwitch } from 'primereact/inputswitch'
 import { Tag } from 'primereact/tag'
+import { TabView, TabPanel } from 'primereact/tabview'
+import { Paginator } from 'primereact/paginator'
 import { authApi, getApiErrorMessage } from '../api/auth'
 import { PermissionNotice, useToast } from '../components'
 import { canUser, capabilityManageUsers } from '../authz/capabilities'
 import { useUserStore } from '../stores/userStore'
-import type { User } from '../types'
+import type { User, AuditLog } from '../types'
 
 type UserFormValues = {
   username: string
@@ -42,6 +44,53 @@ const getRoleSeverity = (role: User['role']): 'danger' | 'info' | 'secondary' =>
   }
 }
 
+const actionLabelMap: Record<string, string> = {
+  'user.create': '创建用户',
+  'user.update_profile': '更新资料',
+  'user.role_change': '角色变更',
+  'user.disable': '禁用用户',
+  'user.enable': '启用用户',
+  'user.force_password_reset': '强制改密',
+  'user.clear_force_password_reset': '取消强制改密',
+  'user.password_change': '修改密码',
+  'user.delete': '删除用户',
+  'alert.ack': '确认告警',
+  'alert.quick_silence': '快速静默',
+  'config.datasource.create': '创建数据源',
+  'config.datasource.update': '更新数据源',
+  'config.datasource.delete': '删除数据源',
+  'config.datasource.toggle': '切换数据源',
+  'config.channel.create': '创建渠道',
+  'config.channel.update': '更新渠道',
+  'config.channel.delete': '删除渠道',
+  'config.channel.toggle': '切换渠道',
+  'config.channel.test': '测试渠道',
+  'config.route.create': '创建路由',
+  'config.route.update': '更新路由',
+  'config.route.delete': '删除路由',
+  'config.route.reorder': '重排路由',
+  'config.silence.create': '创建静默',
+  'config.silence.update': '更新静默',
+  'config.silence.delete': '删除静默',
+  'config.silence.create_from_alert': '从告警创建静默',
+  'config.onduty.create': '创建值班',
+  'config.onduty.update': '更新值班',
+  'config.onduty.delete': '删除值班',
+  'delivery.retry': '重试投递',
+  'delivery.replay': '重放投递',
+}
+
+const targetTypeLabelMap: Record<string, string> = {
+  user: '用户',
+  alert: '告警',
+  datasource: '数据源',
+  channel: '渠道',
+  route_rule: '路由规则',
+  silence_rule: '静默规则',
+  onduty: '值班',
+  delivery_recovery: '投递恢复',
+}
+
 export const Users: React.FC = () => {
   const currentUser = useUserStore((state) => state.user)
   const [users, setUsers] = useState<User[]>([])
@@ -60,6 +109,13 @@ export const Users: React.FC = () => {
   const canManageUsers = canUser(currentUser, capabilityManageUsers)
   const toast = useToast()
 
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditTotal, setAuditTotal] = useState(0)
+  const [auditPage, setAuditPage] = useState(0)
+  const [auditPageSize] = useState(20)
+
   const fetchUsers = useCallback(async () => {
     if (!canManageUsers) {
       return
@@ -75,9 +131,29 @@ export const Users: React.FC = () => {
     }
   }, [canManageUsers, toast])
 
+  const fetchAuditLogs = useCallback(async (page: number) => {
+    if (!canManageUsers) {
+      return
+    }
+    setAuditLoading(true)
+    try {
+      const res = await authApi.listAuditLogs({ page: page + 1, page_size: auditPageSize })
+      setAuditLogs(res.items)
+      setAuditTotal(res.total)
+    } catch (error) {
+      toast.showError(getApiErrorMessage(error, '加载审计日志失败'))
+    } finally {
+      setAuditLoading(false)
+    }
+  }, [canManageUsers, auditPageSize, toast])
+
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
+
+  useEffect(() => {
+    fetchAuditLogs(auditPage)
+  }, [fetchAuditLogs, auditPage])
 
   if (!canManageUsers) {
     return (
@@ -296,6 +372,42 @@ export const Users: React.FC = () => {
     </div>
   )
 
+  // Audit log column templates
+  const auditTimeTemplate = (log: AuditLog) => {
+    return new Date(log.created_at).toLocaleString('zh-CN')
+  }
+
+  const auditActorTemplate = (log: AuditLog) => {
+    const roleLabel = roleOptions.find((item) => item.value === log.actor_role)?.label || log.actor_role
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{log.actor_username}</span>
+        <Tag value={roleLabel} severity={getRoleSeverity(log.actor_role as User['role'])} />
+      </div>
+    )
+  }
+
+  const auditActionTemplate = (log: AuditLog) => {
+    return actionLabelMap[log.action] || log.action
+  }
+
+  const auditTargetTypeTemplate = (log: AuditLog) => {
+    return targetTypeLabelMap[log.target_type] || log.target_type
+  }
+
+  const auditResultTemplate = (log: AuditLog) => {
+    return (
+      <Tag
+        value={log.result === 'allowed' ? '成功' : '拒绝'}
+        severity={log.result === 'allowed' ? 'success' : 'danger'}
+      />
+    )
+  }
+
+  const handleAuditPageChange = (event: { page: number }) => {
+    setAuditPage(event.page)
+  }
+
   return (
     <Card
       title="用户管理"
@@ -303,18 +415,40 @@ export const Users: React.FC = () => {
         title: { className: 'text-xl font-semibold' },
       }}
     >
-      <div className="flex justify-content-end mb-3">
-        <Button type="button" icon="pi pi-plus" label="新建用户" onClick={handleCreate} />
-      </div>
+      <TabView>
+        <TabPanel header="用户列表">
+          <div className="flex justify-content-end mb-3">
+            <Button type="button" icon="pi pi-plus" label="新建用户" onClick={handleCreate} />
+          </div>
 
-      <DataTable value={users} dataKey="id" loading={loading} stripedRows>
-        <Column field="username" header="用户名" />
-        <Column field="name" header="姓名" />
-        <Column header="角色" body={roleBodyTemplate} />
-        <Column header="状态" body={statusBodyTemplate} />
-        <Column field="email" header="邮箱" body={emailBodyTemplate} />
-        <Column header="操作" body={actionBodyTemplate} style={{ minWidth: '280px' }} />
-      </DataTable>
+          <DataTable value={users} dataKey="id" loading={loading} stripedRows>
+            <Column field="username" header="用户名" />
+            <Column field="name" header="姓名" />
+            <Column header="角色" body={roleBodyTemplate} />
+            <Column header="状态" body={statusBodyTemplate} />
+            <Column field="email" header="邮箱" body={emailBodyTemplate} />
+            <Column header="操作" body={actionBodyTemplate} style={{ minWidth: '280px' }} />
+          </DataTable>
+        </TabPanel>
+
+        <TabPanel header="审计日志">
+          <DataTable value={auditLogs} dataKey="id" loading={auditLoading} stripedRows>
+            <Column header="时间" body={auditTimeTemplate} style={{ minWidth: '160px' }} />
+            <Column header="操作人" body={auditActorTemplate} />
+            <Column header="操作类型" body={auditActionTemplate} />
+            <Column header="目标类型" body={auditTargetTypeTemplate} />
+            <Column field="target_id" header="目标ID" />
+            <Column header="结果" body={auditResultTemplate} />
+            <Column field="detail" header="详情" style={{ minWidth: '200px' }} />
+          </DataTable>
+          <Paginator
+            first={auditPage * auditPageSize}
+            rows={auditPageSize}
+            totalRecords={auditTotal}
+            onPageChange={handleAuditPageChange}
+          />
+        </TabPanel>
+      </TabView>
 
       <Dialog
         header={editingUser ? `编辑用户: ${editingUser.username}` : '新建用户'}

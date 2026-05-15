@@ -518,19 +518,23 @@ export const Channels: React.FC = () => {
     return null
   }
 
+  const cardHeader = (
+    <div className="flex align-items-center justify-content-between">
+      <div>
+        <span className="text-xl font-bold">推送渠道管理</span>
+        <span className="text-color-secondary text-sm ml-2">管理告警通知推送渠道</span>
+      </div>
+      {canManageConfig && (
+        <Button label="新建渠道" icon="pi pi-plus" onClick={handleCreate} />
+      )}
+    </div>
+  )
+
   return (
     <div>
       <Card
         className="shadow-sm border-0"
-        title="推送渠道管理"
-        subTitle="管理告警通知推送渠道"
-        header={
-          canManageConfig ? (
-            <div className="flex justify-content-end p-3">
-              <Button label="新建渠道" icon="pi pi-plus" onClick={handleCreate} />
-            </div>
-          ) : undefined
-        }
+        header={cardHeader}
       >
         {readOnly && (
           <PermissionNotice

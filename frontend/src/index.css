@@ -330,6 +330,12 @@ code {
   border-radius: 8px;
 }
 
+/* 移除边框的 Card */
+.p-card.border-0,
+.p-card[class*="border-0"] {
+  border: none;
+}
+
 .p-card .p-card-title {
   color: var(--text-primary);
   font-weight: 600;
@@ -337,6 +343,15 @@ code {
 
 .p-card .p-card-subtitle {
   color: var(--text-secondary);
+}
+
+/* Card header 和 body 对齐 */
+.p-card .p-card-header {
+  padding: 1rem;
+}
+
+.p-card .p-card-body {
+  padding: 0 1rem 1rem 1rem;
 }
 
 /* ========== DataTable 样式 ========== */
@@ -372,6 +387,15 @@ code {
 
 .p-datatable .p-datatable-tbody > tr > td {
   border-bottom: 1px solid var(--surface-border);
+}
+
+/* DataTable 操作列按钮容器 - 确保按钮横向排列 */
+.p-datatable .p-datatable-tbody > tr > td .p-button {
+  white-space: nowrap;
+}
+
+.p-datatable .p-datatable-tbody > tr > td .p-button .p-button-label {
+  white-space: nowrap;
 }
 
 /* ========== Tag 样式覆盖 ========== */

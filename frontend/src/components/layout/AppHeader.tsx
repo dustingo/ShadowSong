@@ -2,7 +2,6 @@ import React, { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from 'primereact/button'
 import { Avatar } from 'primereact/avatar'
-import { InputText } from 'primereact/inputtext'
 import { Menu } from 'primereact/menu'
 import { useUserStore } from '../../stores/userStore'
 
@@ -62,15 +61,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
 
       <div className="flex align-items-center gap-3">
-        <span className="p-input-icon-left hidden md:block">
-          <i className="pi pi-search" style={{ color: 'var(--text-disabled)' }} />
-          <InputText
-            placeholder="搜索..."
-            className="p-inputtext-sm"
-            style={{ width: '220px' }}
-          />
-        </span>
-
         <div className="flex align-items-center gap-2 cursor-pointer">
           <Avatar
             label={user?.name?.charAt(0) || user?.username?.charAt(0) || 'U'}

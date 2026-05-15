@@ -11,7 +11,6 @@ import { Dropdown } from 'primereact/dropdown'
 import { Calendar } from 'primereact/calendar'
 import { Tag } from 'primereact/tag'
 import { Message } from 'primereact/message'
-import { Divider } from 'primereact/divider'
 import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { deliveryApi, getApiErrorMessage } from '../api/client'
@@ -29,10 +28,6 @@ type DeliveryFilterForm = {
 }
 
 type RecoveryAction = 'retry' | 'replay'
-
-type RecoveryFormValues = {
-  reason: string
-}
 
 type RecoveryFeedback = DeliveryRecoveryResult & {
   original_delivery_status?: string
@@ -155,10 +150,11 @@ const buildFiltersFromForm = (values: DeliveryFilterForm, base?: DeliveryFilters
   offset: 0,
 })
 
-const statusSeverityMap: Record<string, 'success' | 'danger' | 'warning' | undefined> = {
-  delivered: 'success',
-  failed: 'danger',
-  pending: 'warning',
+// 状态样式配置
+const statusStyleMap: Record<string, { bgColor: string; color: string }> = {
+  delivered: { bgColor: 'var(--success-light-color)', color: 'var(--success-color)' },
+  failed: { bgColor: 'var(--danger-light-color)', color: 'var(--danger-color)' },
+  pending: { bgColor: 'var(--warning-light-color)', color: 'var(--warning-color)' },
 }
 
 export const Deliveries: React.FC = () => {
@@ -235,19 +231,6 @@ export const Deliveries: React.FC = () => {
       setDetailLoading(false)
     }
   }
-
-  const evidenceTags = useMemo(() => {
-    if (!selectedDelivery) {
-      return []
-    }
-
-    return [
-      `alert_id=${selectedDelivery.alert_id}`,
-      `trace_id=${selectedDelivery.trace_id}`,
-      `channel=${selectedDelivery.channel_snapshot.name}`,
-      `status=${selectedDelivery.delivery_status}`,
-    ]
-  }, [selectedDelivery])
 
   const closeRecoveryModal = () => {
     setRecoveryModalOpen(false)
@@ -331,12 +314,19 @@ export const Deliveries: React.FC = () => {
     </div>
   )
 
-  const statusBodyTemplate = (row: Delivery) => (
-    <Tag
-      value={row.delivery_status}
-      severity={statusSeverityMap[row.delivery_status] ?? undefined}
-    />
-  )
+  const statusBodyTemplate = (row: Delivery) => {
+    const style = statusStyleMap[row.delivery_status]
+    return (
+      <Tag
+        value={row.delivery_status}
+        style={{
+          background: style?.bgColor || 'var(--surface-hover)',
+          color: style?.color || 'var(--text-secondary)',
+          border: `1px solid ${style?.color || 'var(--surface-border)'}`,
+        }}
+      />
+    )
+  }
 
   const failureBodyTemplate = (row: Delivery) =>
     row.final_failure_summary ? (
@@ -511,7 +501,12 @@ export const Deliveries: React.FC = () => {
       </Card>
 
       <Sidebar
-        header="投递证据"
+        header={() => (
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-file text-primary text-xl" />
+            <span className="text-xl font-semibold">投递证据</span>
+          </div>
+        )}
         visible={drawerOpen}
         onHide={() => {
           setDrawerOpen(false)
@@ -521,94 +516,219 @@ export const Deliveries: React.FC = () => {
         style={{ width: '720px' }}
       >
         {detailLoading || !selectedDelivery ? (
-          <span>正在加载详情...</span>
+          <div className="flex justify-content-center align-items-center p-4">
+            <i className="pi pi-spinner pi-spin text-2xl text-primary" />
+          </div>
         ) : (
           <div className="flex flex-column gap-4">
+            {/* 证据标签区域 */}
             <div className="flex flex-wrap gap-2">
-              {evidenceTags.map((item) => (
-                <Tag key={item} value={item} />
-              ))}
+              <Tag
+                icon="pi pi-bell"
+                value={`alert_id: ${selectedDelivery.alert_id}`}
+                style={{ background: 'var(--primary-light-color)', color: 'var(--primary-color)', border: '1px solid var(--primary-color)' }}
+              />
+              <Tag
+                icon="pi pi-link"
+                value={`trace_id: ${selectedDelivery.trace_id}`}
+                style={{ background: 'var(--secondary-light-color)', color: 'var(--secondary-color)', border: '1px solid var(--secondary-color)' }}
+              />
+              <Tag
+                icon="pi pi-send"
+                value={`channel: ${selectedDelivery.channel_snapshot.name}`}
+                style={{ background: 'var(--info-light-color)', color: 'var(--info-color)', border: '1px solid var(--info-color)' }}
+              />
+              <Tag
+                icon="pi pi-check-circle"
+                value={`status: ${selectedDelivery.delivery_status}`}
+                style={{
+                  background: statusStyleMap[selectedDelivery.delivery_status]?.bgColor || 'var(--surface-hover)',
+                  color: statusStyleMap[selectedDelivery.delivery_status]?.color || 'var(--text-secondary)',
+                  border: `1px solid ${statusStyleMap[selectedDelivery.delivery_status]?.color || 'var(--surface-border)'}`,
+                }}
+              />
             </div>
 
-            <div>
-              <h4 className="m-0 mb-2">基础信息</h4>
+            {/* 基础信息卡片 */}
+            <Card className="shadow-1 border-0">
+              <div className="flex align-items-center gap-2 mb-3">
+                <i className="pi pi-info-circle text-primary" />
+                <h4 className="m-0 text-base font-semibold">基础信息</h4>
+              </div>
               <div className="grid">
-                <div className="col-6 flex flex-column gap-1">
-                  <span className="text-color-secondary text-sm">投递 ID</span>
-                  <span>{selectedDelivery.id}</span>
+                <div className="col-6">
+                  <div className="flex flex-column gap-1 p-2 surface-hover border-round">
+                    <span className="text-color-secondary text-xs">投递 ID</span>
+                    <span className="font-medium">{selectedDelivery.id}</span>
+                  </div>
                 </div>
-                <div className="col-6 flex flex-column gap-1">
-                  <span className="text-color-secondary text-sm">投递模式</span>
-                  <span>{selectedDelivery.delivery_mode}</span>
+                <div className="col-6">
+                  <div className="flex flex-column gap-1 p-2 surface-hover border-round">
+                    <span className="text-color-secondary text-xs">投递模式</span>
+                    <span className="font-medium">{selectedDelivery.delivery_mode}</span>
+                  </div>
                 </div>
-                <div className="col-6 flex flex-column gap-1">
-                  <span className="text-color-secondary text-sm">渠道类型</span>
-                  <span>{selectedDelivery.channel_snapshot.type}</span>
+                <div className="col-6">
+                  <div className="flex flex-column gap-1 p-2 surface-hover border-round">
+                    <span className="text-color-secondary text-xs">渠道类型</span>
+                    <Tag value={selectedDelivery.channel_snapshot.type} severity="info" className="w-fit" />
+                  </div>
                 </div>
-                <div className="col-6 flex flex-column gap-1">
-                  <span className="text-color-secondary text-sm">最后成功时间</span>
-                  <span>
-                    {selectedDelivery.last_success_at
-                      ? dayjs(selectedDelivery.last_success_at).format('YYYY-MM-DD HH:mm:ss')
-                      : '-'}
-                  </span>
+                <div className="col-6">
+                  <div className="flex flex-column gap-1 p-2 surface-hover border-round">
+                    <span className="text-color-secondary text-xs">最后成功时间</span>
+                    <span className="font-medium">
+                      {selectedDelivery.last_success_at
+                        ? dayjs(selectedDelivery.last_success_at).format('YYYY-MM-DD HH:mm:ss')
+                        : '-'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </Card>
 
-            <Divider />
-
-            <div>
-              <h4 className="m-0 mb-2">最终失败摘要</h4>
+            {/* 失败摘要卡片 */}
+            <Card className="shadow-1 border-0">
+              <div className="flex align-items-center gap-2 mb-3">
+                <i className="pi pi-exclamation-triangle text-orange-500" />
+                <h4 className="m-0 text-base font-semibold">最终失败摘要</h4>
+              </div>
               {selectedDelivery.final_failure_summary ? (
-                <div className="flex flex-column gap-1">
-                  <span className="text-red-500">{selectedDelivery.final_failure_summary.error_message}</span>
-                  <span className="text-color-secondary text-sm">
-                    result={selectedDelivery.final_failure_summary.result} retryable=
-                    {String(selectedDelivery.final_failure_summary.retryable)} attempts=
-                    {selectedDelivery.final_failure_summary.attempt_count}
-                  </span>
+                <div className="flex flex-column gap-2">
+                  <div className="p-3 border-round" style={{ background: 'var(--danger-light-color)', borderLeft: '3px solid var(--danger-color)' }}>
+                    <span className="font-medium" style={{ color: 'var(--danger-color)' }}>
+                      {selectedDelivery.final_failure_summary.error_message}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-sm text-color-secondary">
+                    <span><strong>result:</strong> {selectedDelivery.final_failure_summary.result}</span>
+                    <span><strong>retryable:</strong> {String(selectedDelivery.final_failure_summary.retryable)}</span>
+                    <span><strong>attempts:</strong> {selectedDelivery.final_failure_summary.attempt_count}</span>
+                  </div>
                 </div>
               ) : (
-                <span>无</span>
+                <div className="p-3 surface-hover border-round text-center text-color-secondary">
+                  <i className="pi pi-check-circle text-green-500 mr-2" />
+                  无失败记录
+                </div>
               )}
-            </div>
+            </Card>
 
-            <Divider />
-
-            <div>
-              <h4 className="m-0 mb-2">冻结快照</h4>
-              <div className="flex flex-column gap-2">
-                <div className="flex flex-column gap-1">
-                  <span className="text-color-secondary text-sm">rendered_payload_snapshot</span>
-                  <pre className="surface-100 p-2 border-round text-sm overflow-auto m-0" style={{ whiteSpace: 'pre-wrap' }}>
-                    {selectedDelivery.rendered_payload_snapshot.title}
-                    {'\n'}
-                    {selectedDelivery.rendered_payload_snapshot.content}
-                  </pre>
+            {/* 冻结快照卡片 */}
+            <Card className="shadow-1 border-0">
+              <div className="flex align-items-center gap-2 mb-3">
+                <i className="pi pi-camera text-primary" />
+                <h4 className="m-0 text-base font-semibold">冻结快照</h4>
+              </div>
+              <div className="flex flex-column gap-3">
+                <div>
+                  <span className="text-color-secondary text-xs mb-1 block">rendered_payload_snapshot</span>
+                  <div
+                    className="p-3 border-round text-sm"
+                    style={{
+                      background: 'var(--surface-ground)',
+                      border: '1px solid var(--surface-border)',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.6',
+                    }}
+                  >
+                    <div className="font-semibold mb-2" style={{ color: 'var(--primary-color)' }}>
+                      {selectedDelivery.rendered_payload_snapshot.title}
+                    </div>
+                    <div className="text-color-secondary">
+                      {selectedDelivery.rendered_payload_snapshot.content}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-column gap-1">
-                  <span className="text-color-secondary text-sm">channel_snapshot</span>
-                  <span>{selectedDelivery.channel_snapshot.name}</span>
-                </div>
-                <div className="flex flex-column gap-1">
-                  <span className="text-color-secondary text-sm">route_snapshot</span>
-                  <span>{selectedDelivery.route_snapshot ? selectedDelivery.route_snapshot.name : '未命中路由'}</span>
+                <div className="grid">
+                  <div className="col-6">
+                    <span className="text-color-secondary text-xs mb-1 block">channel_snapshot</span>
+                    <Tag
+                      icon="pi pi-send"
+                      value={selectedDelivery.channel_snapshot.name}
+                      severity="info"
+                    />
+                  </div>
+                  <div className="col-6">
+                    <span className="text-color-secondary text-xs mb-1 block">route_snapshot</span>
+                    {selectedDelivery.route_snapshot ? (
+                      <Tag
+                        icon="pi pi-sitemap"
+                        value={selectedDelivery.route_snapshot.name}
+                        severity="success"
+                      />
+                    ) : (
+                      <Tag
+                        icon="pi pi-minus"
+                        value="未命中路由"
+                        severity="secondary"
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            </Card>
 
-            <Divider />
-
-            <Card className="shadow-sm border-0" title="attempts">
+            {/* 尝试记录表格 */}
+            <Card className="shadow-1 border-0">
+              <div className="flex align-items-center gap-2 mb-3">
+                <i className="pi pi-history text-primary" />
+                <h4 className="m-0 text-base font-semibold">尝试记录 (attempts)</h4>
+              </div>
               <DataTable
                 value={selectedDelivery.attempts}
                 dataKey="id"
+                stripedRows
+                size="small"
               >
-                <Column field="attempt_number" header="第几次" style={{ width: '100px' }} />
-                <Column field="result" header="结果" style={{ width: '120px' }} />
-                <Column field="trigger_kind" header="触发来源" style={{ width: '120px' }} />
-                <Column field="error_message" header="错误" body={(row) => row.error_message || '-'} />
+                <Column
+                  field="attempt_number"
+                  header="第几次"
+                  style={{ width: '80px' }}
+                  body={(row) => (
+                    <Tag
+                      value={`#${row.attempt_number}`}
+                      severity="info"
+                      className="text-xs"
+                    />
+                  )}
+                />
+                <Column
+                  field="result"
+                  header="结果"
+                  style={{ width: '100px' }}
+                  body={(row) => {
+                    const isSuccess = row.result === 'success'
+                    return (
+                      <Tag
+                        value={row.result}
+                        severity={isSuccess ? 'success' : 'danger'}
+                        icon={isSuccess ? 'pi pi-check' : 'pi pi-times'}
+                      />
+                    )
+                  }}
+                />
+                <Column
+                  field="trigger_kind"
+                  header="触发来源"
+                  style={{ width: '100px' }}
+                  body={(row) => (
+                    <Tag
+                      value={row.trigger_kind}
+                      style={{ background: 'var(--surface-hover)', color: 'var(--text-secondary)' }}
+                    />
+                  )}
+                />
+                <Column
+                  field="error_message"
+                  header="错误信息"
+                  body={(row) => row.error_message ? (
+                    <span className="text-red-500 text-sm">{row.error_message}</span>
+                  ) : (
+                    <span className="text-color-secondary">-</span>
+                  )}
+                />
               </DataTable>
             </Card>
           </div>

@@ -15,13 +15,39 @@ import (
 	"gorm.io/gorm"
 )
 
+// isAllowedOrigin checks if the origin matches any allowed pattern.
+// Patterns ending with "*" are treated as prefix matches.
+func isAllowedOrigin(origin string, allowed []string) bool {
+	origin = strings.TrimSpace(origin)
+	if origin == "" {
+		return false
+	}
+	for _, pattern := range allowed {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+		if strings.HasSuffix(pattern, "*") {
+			if strings.HasPrefix(origin, strings.TrimSuffix(pattern, "*")) {
+				return true
+			}
+			continue
+		}
+		if origin == pattern {
+			return true
+		}
+	}
+	return false
+}
+
 func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engine {
 	r := gin.Default()
 
 	// CORS middleware
+	allowedOrigins := cfg.Server.AllowedOrigins
 	r.Use(func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		if strings.HasPrefix(origin, "http://127.0.0.1") || strings.HasPrefix(origin, "http://localhost") {
+		if isAllowedOrigin(origin, allowedOrigins) {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")

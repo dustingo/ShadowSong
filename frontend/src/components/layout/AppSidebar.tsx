@@ -1,5 +1,7 @@
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useUserStore } from '../../stores/userStore'
+import { isAdmin } from '../../authz/capabilities'
 
 interface MenuItem {
   key: string
@@ -7,7 +9,7 @@ interface MenuItem {
   label: string
 }
 
-const menuItems: MenuItem[] = [
+const baseMenuItems: MenuItem[] = [
   { key: '/', icon: 'pi pi-home', label: '告警大盘' },
   { key: '/alerts', icon: 'pi pi-bell', label: '告警管理' },
   { key: '/deliveries', icon: 'pi pi-send', label: '通知投递' },
@@ -18,6 +20,8 @@ const menuItems: MenuItem[] = [
   { key: '/silences', icon: 'pi pi-volume-off', label: '静默管理' },
   { key: '/onduty', icon: 'pi pi-calendar', label: '值班管理' },
 ]
+
+const userManagementItem: MenuItem = { key: '/users', icon: 'pi pi-users', label: '用户管理' }
 
 interface AppSidebarProps {
   collapsed: boolean
@@ -36,6 +40,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
   const location = useLocation()
   const navigate = useNavigate()
+
+  const user = useUserStore((state) => state.user)
+  const menuItems = isAdmin(user)
+    ? [...baseMenuItems, userManagementItem]
+    : baseMenuItems
 
   return (
     <div

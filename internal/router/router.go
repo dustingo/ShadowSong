@@ -82,6 +82,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			users.PATCH("/me/profile", userHandler.UpdateOwnProfile)
 			users.PUT("/me/password", userHandler.UpdateOwnPassword)
 			users.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.DeleteUser)
+			users.GET("/audit-logs", middleware.RequireCapability(authz.CapabilityManageUsers), userHandler.ListAuditLogs)
 		}
 
 		// Alert routes (protected)

@@ -45,8 +45,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       className="flex align-items-center justify-content-between px-4"
       style={{
         height: '60px',
-        background: 'white',
-        borderBottom: '1px solid #e2e8f0',
+        background: 'var(--surface-card)',
+        borderBottom: '1px solid var(--surface-border)',
       }}
     >
       <div className="flex align-items-center gap-3">
@@ -54,14 +54,16 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           icon={sidebarCollapsed ? 'pi pi-bars' : 'pi pi-times'}
           text
           rounded
+          severity="secondary"
           onClick={onToggleSidebar}
+          style={{ color: 'var(--text-secondary)' }}
         />
-        <span className="text-lg font-medium text-slate-700">{title}</span>
+        <span className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>{title}</span>
       </div>
 
       <div className="flex align-items-center gap-3">
         <span className="p-input-icon-left hidden md:block">
-          <i className="pi pi-search" style={{ color: '#94a3b8' }} />
+          <i className="pi pi-search" style={{ color: 'var(--text-disabled)' }} />
           <InputText
             placeholder="搜索..."
             className="p-inputtext-sm"
@@ -73,11 +75,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <Avatar
             label={user?.name?.charAt(0) || user?.username?.charAt(0) || 'U'}
             shape="circle"
-            style={{ backgroundColor: '#10b981', color: 'white' }}
-            size="small"
+            style={{ backgroundColor: 'var(--success-color)', color: 'var(--text-inverse)' }}
+            size="normal"
             onClick={(e) => menuRef.current?.toggle(e)}
           />
-          <span className="text-sm text-slate-600 hidden md:block">
+          <span className="text-sm hidden md:block" style={{ color: 'var(--text-secondary)' }}>
             {user?.name || user?.username}
           </span>
           <Menu model={userMenuItems} popup ref={menuRef} />

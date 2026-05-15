@@ -12,21 +12,645 @@ code {
     monospace;
 }
 
-/* Scrollbar styling */
+/* ========== CSS 变量定义 ========== */
+:root {
+  /* 主色调 */
+  --primary-color: #3B82F6;
+  --primary-hover-color: #2563EB;
+  --primary-light-color: #EFF6FF;
+
+  /* 次要色 */
+  --secondary-color: #6366F1;
+  --secondary-light-color: #EEF2FF;
+
+  /* 语义色 */
+  --success-color: #10B981;
+  --success-light-color: #ECFDF5;
+  --warning-color: #F59E0B;
+  --warning-light-color: #FFFBEB;
+  --danger-color: #EF4444;
+  --danger-light-color: #FEF2F2;
+  --info-color: #06B6D4;
+  --info-light-color: #ECFEFF;
+
+  /* 表面色 */
+  --surface-ground: #F8FAFC;
+  --surface-card: #FFFFFF;
+  --surface-border: #E2E8F0;
+  --surface-hover: #F1F5F9;
+
+  /* 文字色 */
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --text-disabled: #94A3B8;
+  --text-inverse: #FFFFFF;
+
+  /* PrimeReact 主题覆盖 */
+  --highlight-text-color: var(--primary-color);
+  --highlight-bg-color: var(--primary-light-color);
+}
+
+/* ========== 滚动条样式 ========== */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--surface-hover);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #CBD5E1;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #94A3B8;
+}
+
+/* ========== 表单控件高度一致性 ========== */
+.p-dropdown {
+  height: 38px;
+}
+
+.p-dropdown .p-dropdown-label {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.p-button {
+  height: 38px;
+}
+
+.p-inputtext {
+  height: 38px;
+}
+
+.p-calendar {
+  height: 38px;
+}
+
+.p-calendar .p-inputtext {
+  height: 100%;
+}
+
+/* ========== PrimeReact 主题颜色覆盖 ========== */
+
+/* Highlight states */
+.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Autocomplete */
+.p-autocomplete .p-autocomplete-multiple-container .p-autocomplete-token {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+.p-autocomplete-panel .p-autocomplete-items .p-autocomplete-item.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Datepicker */
+.p-datepicker table td > span.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+.p-datepicker table td.p-datepicker-today > span.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+.p-datepicker .p-monthpicker .p-monthpicker-month.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+.p-datepicker .p-yearpicker .p-yearpicker-year.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Cascade select */
+.p-cascadeselect-panel .p-cascadeselect-items .p-cascadeselect-item.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Checkbox */
+.p-checkbox:not(.p-disabled):has(.p-checkbox-input:hover).p-highlight .p-checkbox-box {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+}
+.p-checkbox.p-variant-filled:not(.p-disabled):has(.p-checkbox-input:hover).p-highlight .p-checkbox-box {
+  background: var(--primary-color);
+}
+.p-input-filled .p-checkbox:not(.p-disabled):has(.p-checkbox-input:hover).p-highlight .p-checkbox-box {
+  background: var(--primary-color);
+}
+
+/* Tristate checkbox */
+.p-tristatecheckbox.p-variant-filled:not(.p-disabled):has(.p-checkbox-input:hover).p-highlight .p-checkbox-box {
+  background: var(--primary-color);
+}
+
+/* Dropdown */
+.p-dropdown-panel .p-dropdown-items .p-dropdown-item.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Listbox */
+.p-listbox .p-listbox-list .p-listbox-item.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Mention */
+.p-mention-panel .p-mention-items .p-mention-item.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Multiselect */
+.p-multiselect-panel .p-multiselect-items .p-multiselect-item.p-highlight {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Radiobutton */
+.p-radiobutton:not(.p-disabled):has(.p-radiobutton-input:hover).p-highlight .p-radiobutton-box {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+}
+.p-radiobutton.p-variant-filled:not(.p-disabled):has(.p-radiobutton-input:hover).p-highlight .p-radiobutton-box {
+  background: var(--primary-color);
+}
+.p-input-filled .p-radiobutton:not(.p-disabled):has(.p-radiobutton-input:hover).p-highlight .p-radiobutton-box {
+  background: var(--primary-color);
+}
+
+/* Button active state */
+.p-button:not(:disabled):active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+/* Link button */
+.p-button.p-button-link {
+  color: var(--primary-color);
+}
+.p-button.p-button-link:not(:disabled):hover {
+  color: var(--primary-hover-color);
+}
+.p-button.p-button-link:not(:disabled):active {
+  color: var(--primary-color);
+}
+
+/* Menu components highlight */
+.p-contextmenu .p-menuitem.p-highlight > .p-menuitem-content,
+.p-contextmenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-contextmenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-contextmenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-megamenu .p-menuitem.p-highlight > .p-menuitem-content,
+.p-megamenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-megamenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-megamenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-megamenu.p-megamenu-mobile-active .p-megamenu-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content,
+.p-megamenu.p-megamenu-mobile-active .p-megamenu-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-megamenu.p-megamenu-mobile-active .p-megamenu-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-megamenu.p-megamenu-mobile-active .p-megamenu-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-menu .p-menuitem.p-highlight > .p-menuitem-content,
+.p-menu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-menu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-menu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-menubar .p-menuitem.p-highlight > .p-menuitem-content,
+.p-menubar .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-menubar .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-menubar .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content,
+.p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-menubar .p-menubar-root-list > .p-menuitem > .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-panelmenu .p-panelmenu-content .p-menuitem.p-highlight > .p-menuitem-content,
+.p-panelmenu .p-panelmenu-content .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-panelmenu .p-panelmenu-content .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-panelmenu .p-panelmenu-content .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-slidemenu .p-menuitem-link.p-highlight > .p-menuitem-content,
+.p-slidemenu .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-slidemenu .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-slidemenu .p-menuitem-link.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+.p-slidemenu .p-slidemenu.p-slidemenu-active > .p-slidemenu-link .p-slidemenu-text,
+.p-slidemenu .p-slidemenu.p-slidemenu-active > .p-slidemenu-link .p-slidemenu-icon {
+  color: var(--primary-color);
+}
+
+.p-tieredmenu .p-menuitem.p-highlight > .p-menuitem-content,
+.p-tieredmenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-text,
+.p-tieredmenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-menuitem-icon,
+.p-tieredmenu .p-menuitem.p-highlight > .p-menuitem-content .p-menuitem-link .p-submenu-icon {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Steps */
+.p-steps .p-steps-item.p-highlight .p-steps-number {
+  color: var(--primary-color);
+  background: var(--primary-light-color);
+}
+
+/* Galleria */
+.p-galleria .p-galleria-indicators .p-galleria-indicator.p-highlight button {
+  color: var(--primary-color);
+}
+.p-galleria.p-galleria-indicator-onitem .p-galleria-indicators .p-galleria-indicator.p-highlight button {
+  color: var(--primary-color);
+}
+
+/* Tree */
+.p-tree .p-tree-container .p-treenode.p-highlight > .p-treenode-content .p-treenode-text,
+.p-tree .p-tree-container .p-treenode.p-highlight > .p-treenode-content .p-treenode-icon,
+.p-tree .p-tree-container .p-treenode.p-highlight > .p-treenode-content .p-tree-toggler {
+  color: var(--primary-color);
+}
+
+/* Timeline */
+.p-timeline .p-timeline-event-opposite,
+.p-timeline .p-timeline-event-content {
+  color: var(--primary-color);
+}
+
+/* Tag info */
+.p-tag.p-tag-info {
+  background: var(--info-color);
+}
+
+/* Chip */
+.p-chip {
+  background: var(--primary-light-color);
+  color: var(--primary-color);
+}
+
+/* ========== Card 样式 ========== */
+.p-card {
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+}
+
+.p-card .p-card-title {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.p-card .p-card-subtitle {
+  color: var(--text-secondary);
+}
+
+/* ========== DataTable 样式 ========== */
+.p-datatable {
+  font-size: 0.875rem;
+}
+
+.p-datatable .p-datatable-header {
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--surface-border);
+  color: var(--text-primary);
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.p-datatable .p-datatable-tbody > tr {
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+.p-datatable .p-datatable-tbody > tr:nth-child(even) {
+  background: var(--surface-hover);
+}
+
+.p-datatable .p-datatable-tbody > tr:hover {
+  background: var(--primary-light-color);
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  border-bottom: 1px solid var(--surface-border);
+}
+
+/* ========== Tag 样式覆盖 ========== */
+.p-tag {
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.p-tag.p-tag-success {
+  background: var(--success-light-color);
+  color: var(--success-color);
+}
+
+.p-tag.p-tag-warning {
+  background: var(--warning-light-color);
+  color: var(--warning-color);
+}
+
+.p-tag.p-tag-danger {
+  background: var(--danger-light-color);
+  color: var(--danger-color);
+}
+
+.p-tag.p-tag-info {
+  background: var(--info-light-color);
+  color: var(--info-color);
+}
+
+.p-tag.p-tag-secondary {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+/* ========== Button 样式覆盖 ========== */
+.p-button {
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+/* Text button - 透明背景，圆形 */
+.p-button.p-button-text {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.p-button.p-button-text:not(:disabled):hover {
+  background: var(--surface-hover);
+  border-color: transparent;
+  color: var(--text-primary);
+  transform: none;
+}
+
+/* Rounded button */
+.p-button.p-button-rounded {
+  border-radius: 50%;
+}
+
+/* Text + Rounded button */
+.p-button.p-button-text.p-button-rounded {
+  background: transparent;
+  border-color: transparent;
+}
+
+.p-button.p-button-text.p-button-rounded:not(:disabled):hover {
+  background: var(--surface-hover);
+}
+
+/* Primary button - 排除 text、outlined、link */
+.p-button:not(.p-button-secondary):not(.p-button-success):not(.p-button-warning):not(.p-button-danger):not(.p-button-info):not(.p-button-link):not(.p-button-outlined):not(.p-button-text) {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.p-button:not(.p-button-secondary):not(.p-button-success):not(.p-button-warning):not(.p-button-danger):not(.p-button-info):not(.p-button-link):not(.p-button-outlined):not(.p-button-text):not(:disabled):hover {
+  background: var(--primary-hover-color);
+  border-color: var(--primary-hover-color);
+}
+
+/* Success button */
+.p-button.p-button-success {
+  background: var(--success-color);
+  border-color: var(--success-color);
+}
+
+.p-button.p-button-success:not(:disabled):hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+/* Warning button */
+.p-button.p-button-warning {
+  background: var(--warning-color);
+  border-color: var(--warning-color);
+}
+
+.p-button.p-button-warning:not(:disabled):hover {
+  background: #D97706;
+  border-color: #D97706;
+}
+
+/* Danger button */
+.p-button.p-button-danger {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.p-button.p-button-danger:not(:disabled):hover {
+  background: #DC2626;
+  border-color: #DC2626;
+}
+
+/* Info button */
+.p-button.p-button-info {
+  background: var(--info-color);
+  border-color: var(--info-color);
+}
+
+.p-button.p-button-info:not(:disabled):hover {
+  background: #0891B2;
+  border-color: #0891B2;
+}
+
+/* Outlined button */
+.p-button.p-button-outlined {
+  background: transparent;
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.p-button.p-button-outlined:not(:disabled):hover {
+  background: var(--primary-light-color);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* ========== Message 样式 ========== */
+.p-message {
+  border-radius: 6px;
+}
+
+.p-message.p-message-success {
+  background: var(--success-light-color);
+  border-color: var(--success-color);
+}
+
+.p-message.p-message-success .p-message-text {
+  color: var(--success-color);
+}
+
+.p-message.p-message-warning {
+  background: var(--warning-light-color);
+  border-color: var(--warning-color);
+}
+
+.p-message.p-message-warning .p-message-text {
+  color: var(--warning-color);
+}
+
+.p-message.p-message-error {
+  background: var(--danger-light-color);
+  border-color: var(--danger-color);
+}
+
+.p-message.p-message-error .p-message-text {
+  color: var(--danger-color);
+}
+
+.p-message.p-message-info {
+  background: var(--info-light-color);
+  border-color: var(--info-color);
+}
+
+.p-message.p-message-info .p-message-text {
+  color: var(--info-color);
+}
+
+/* ========== Toast 样式 ========== */
+.p-toast .p-toast-message {
+  border-radius: 8px;
+}
+
+.p-toast .p-toast-message.p-toast-message-success {
+  background: var(--success-light-color);
+  border-color: var(--success-color);
+}
+
+.p-toast .p-toast-message.p-toast-message-warning {
+  background: var(--warning-light-color);
+  border-color: var(--warning-color);
+}
+
+.p-toast .p-toast-message.p-toast-message-error {
+  background: var(--danger-light-color);
+  border-color: var(--danger-color);
+}
+
+.p-toast .p-toast-message.p-toast-message-info {
+  background: var(--info-light-color);
+  border-color: var(--info-color);
+}
+
+/* ========== Dialog 样式 ========== */
+.p-dialog {
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+}
+
+.p-dialog .p-dialog-header {
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--surface-border);
+  color: var(--text-primary);
+}
+
+.p-dialog .p-dialog-content {
+  background: var(--surface-card);
+}
+
+.p-dialog .p-dialog-footer {
+  background: var(--surface-card);
+  border-top: 1px solid var(--surface-border);
+}
+
+/* ========== Input 样式 ========== */
+.p-inputtext {
+  border-color: var(--surface-border);
+  border-radius: 6px;
+}
+
+.p-inputtext:not(:disabled):hover {
+  border-color: var(--primary-color);
+}
+
+.p-inputtext:not(:disabled):focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-light-color);
+}
+
+.p-inputtext:disabled {
+  background: var(--surface-hover);
+  color: var(--text-disabled);
+}
+
+/* ========== Dropdown 样式 ========== */
+.p-dropdown {
+  border-color: var(--surface-border);
+  border-radius: 6px;
+}
+
+.p-dropdown:not(.p-disabled):hover {
+  border-color: var(--primary-color);
+}
+
+.p-dropdown:not(.p-disabled).p-focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-light-color);
+}
+
+.p-dropdown-panel {
+  border-radius: 8px;
+  border: 1px solid var(--surface-border);
+}
+
+/* ========== ConfirmDialog 样式 ========== */
+.p-confirm-dialog .p-confirm-dialog-message {
+  color: var(--text-secondary);
+}
+
+/* ========== 页面标题样式 ========== */
+.page-title {
+  color: var(--text-primary);
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
 }

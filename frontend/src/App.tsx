@@ -14,6 +14,7 @@ import {
   Profile,
   Deliveries,
   OpsHealth,
+  ColorDemo,
 } from './pages'
 import { AppLayout } from './components/layout/AppLayout'
 import {
@@ -97,6 +98,7 @@ export default function App() {
         <Route path="/onduty" element={<RequireAuth requiredCapability={capabilityViewConfig}><OnDutyPage /></RequireAuth>} />
         <Route path="/users" element={<RequireAuth requiredCapability={capabilityManageUsers}><Users /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+        <Route path="/color-demo" element={<ColorDemo />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

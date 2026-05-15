@@ -32,8 +32,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
       className="flex flex-column transition-all transition-duration-300"
       style={{
         width: collapsed ? '60px' : '220px',
-        background: '#ffffff',
-        borderRight: '1px solid #e2e8f0',
+        background: 'var(--surface-card)',
+        borderRight: '1px solid var(--surface-border)',
         overflow: 'hidden',
         height: '100%',
       }}
@@ -43,14 +43,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
         className="flex align-items-center justify-content-center"
         style={{
           height: '60px',
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: '1px solid var(--surface-border)',
         }}
       >
         {collapsed ? (
-          <i className="pi pi-bolt text-2xl" style={{ color: '#10b981' }} />
+          <i className="pi pi-bolt text-2xl" style={{ color: 'var(--primary-color)' }} />
         ) : (
-          <span className="text-lg font-semibold text-slate-700">
-            <i className="pi pi-bolt mr-2" style={{ color: '#10b981' }} />
+          <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <i className="pi pi-bolt mr-2" style={{ color: 'var(--primary-color)' }} />
             告警系统
           </span>
         )}
@@ -65,7 +65,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
               key={item.key}
               className={`
                 flex align-items-center cursor-pointer transition-all transition-duration-200
-                ${isActive ? 'bg-emerald-50' : 'hover:bg-slate-50'}
               `}
               style={{
                 padding: '12px 16px',
@@ -73,18 +72,29 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
                 marginRight: collapsed ? '0' : '8px',
                 borderRadius: collapsed ? '0' : '8px',
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                borderRight: isActive ? '3px solid #10b981' : 'none',
+                background: isActive ? 'var(--primary-light-color)' : 'transparent',
+                borderRight: isActive ? '3px solid var(--primary-color)' : 'none',
               }}
               onClick={() => navigate(item.key)}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = 'var(--surface-hover)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = 'transparent'
+                }
+              }}
             >
               <i
                 className={`${item.icon} text-lg`}
-                style={{ minWidth: '24px', color: isActive ? '#10b981' : '#64748b' }}
+                style={{ minWidth: '24px', color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)' }}
               />
               {!collapsed && (
                 <span
                   className="ml-3 text-sm"
-                  style={{ color: isActive ? '#10b981' : '#475569' }}
+                  style={{ color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)' }}
                 >
                   {item.label}
                 </span>

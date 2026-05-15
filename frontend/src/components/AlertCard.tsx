@@ -25,9 +25,9 @@ export const AlertCard: React.FC<AlertCardProps> = ({
     <div
       className="mb-3 p-4"
       style={{
-        background: '#fff',
+        background: 'var(--surface-card)',
         borderRadius: '8px',
-        border: isP0 && isActive ? '2px solid #ef4444' : '1px solid #e2e8f0',
+        border: isP0 && isActive ? '2px solid var(--danger-color)' : '1px solid var(--surface-border)',
         boxShadow: isP0 && isActive ? '0 0 8px rgba(239, 68, 68, 0.3)' : 'none',
       }}
     >
@@ -35,22 +35,44 @@ export const AlertCard: React.FC<AlertCardProps> = ({
         <div className="flex flex-column gap-2 flex-1">
           <div className="flex align-items-center gap-2 flex-wrap">
             <SeverityBadge severity={alert.severity} />
-            <span className="font-semibold text-slate-700">{alert.alert_name}</span>
-            <Tag value={alert.source} />
+            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{alert.alert_name}</span>
+            <Tag
+              value={alert.source}
+              style={{
+                background: 'var(--surface-hover)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--surface-border)',
+              }}
+            />
             {alert.trigger_count > 1 && (
-              <Tag value={`x${alert.trigger_count}`} severity="warning" />
+              <Tag
+                value={`x${alert.trigger_count}`}
+                style={{
+                  background: 'var(--warning-light-color)',
+                  color: 'var(--warning-color)',
+                  border: '1px solid var(--warning-color)',
+                }}
+              />
             )}
           </div>
-          <p className="text-slate-500 m-0">{alert.message}</p>
-          <div className="flex gap-4 text-sm text-slate-400">
+          <p className="m-0" style={{ color: 'var(--text-secondary)' }}>{alert.message}</p>
+          <div className="flex gap-4 text-sm" style={{ color: 'var(--text-disabled)' }}>
             <span>触发时间: {dayjs(alert.trigger_time).format('YYYY-MM-DD HH:mm:ss')}</span>
             {alert.labels && Object.keys(alert.labels).length > 0 && (
               <div className="flex gap-1">
                 {Object.entries(alert.labels).slice(0, 3).map(([key, value]) => (
-                  <Tag key={key} value={`${key}: ${String(value)}`} className="text-xs" />
+                  <Tag
+                    key={key}
+                    value={`${key}: ${String(value)}`}
+                    style={{
+                      background: 'var(--surface-hover)',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.75rem',
+                    }}
+                  />
                 ))}
                 {Object.keys(alert.labels).length > 3 && (
-                  <span className="text-slate-400">+{Object.keys(alert.labels).length - 3}</span>
+                  <span style={{ color: 'var(--text-disabled)' }}>+{Object.keys(alert.labels).length - 3}</span>
                 )}
               </div>
             )}
@@ -63,13 +85,18 @@ export const AlertCard: React.FC<AlertCardProps> = ({
               icon="pi pi-check"
               label="确认"
               size="small"
+              style={{ background: 'var(--primary-color)', border: 'none' }}
               onClick={() => onAck?.(alert)}
             />
             <Button
               icon="pi pi-volume-off"
               label="静默"
               size="small"
-              severity="warning"
+              style={{
+                background: 'var(--warning-light-color)',
+                color: 'var(--warning-color)',
+                border: '1px solid var(--warning-color)',
+              }}
               onClick={() => onQuickSilence?.(alert)}
             />
           </div>
@@ -77,7 +104,7 @@ export const AlertCard: React.FC<AlertCardProps> = ({
       </div>
 
       {alert.acked_by && (
-        <div className="mt-2 text-sm text-slate-400">
+        <div className="mt-2 text-sm" style={{ color: 'var(--text-disabled)' }}>
           已由 {alert.acked_by} 于 {dayjs(alert.acked_at).format('MM-DD HH:mm')} 确认
           {alert.ack_comment && `: ${alert.ack_comment}`}
         </div>

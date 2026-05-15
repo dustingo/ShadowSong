@@ -30,7 +30,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <ToastProvider>
-      <div className="flex h-screen" style={{ background: '#f8fafc' }}>
+      <div className="flex h-screen" style={{ background: 'var(--surface-ground)' }}>
         <AppSidebar collapsed={sidebarCollapsed} />
         <div className="flex flex-column flex-1 overflow-hidden">
           <AppHeader

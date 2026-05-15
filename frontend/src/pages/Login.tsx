@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { Card } from 'primereact/card'
 import { InputText } from 'primereact/inputtext'
 import { Password } from 'primereact/password'
 import { Button } from 'primereact/button'
@@ -56,36 +55,46 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
   }
 
   return (
-    <div
-      className="flex align-items-center justify-content-center"
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '20px',
-      }}
-    >
-      <Card
-        style={{
-          width: '400px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          borderRadius: '12px',
-        }}
-      >
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-semibold text-slate-700 mb-2">
-            游戏运维告警系统
-          </h2>
-          <p className="text-slate-500 text-sm">请登录您的账户</p>
+    <div className="login-wrapper">
+      {/* Left side */}
+      <div className="login-left">
+        <div className="login-left-content">
+          <div className="login-app-logo">
+            <i className="pi pi-bell" />
+          </div>
+          <h1 className="login-app-name">ShadowSong</h1>
+          <p className="login-app-desc">游戏运维告警系统</p>
+          <div className="login-decoration">
+            <svg viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="250" cy="200" rx="120" ry="100" fill="rgba(255,255,255,0.6)" />
+              <ellipse cx="150" cy="120" rx="60" ry="50" fill="rgba(255,255,255,0.4)" />
+              <ellipse cx="350" cy="280" rx="80" ry="70" fill="rgba(255,255,255,0.3)" />
+              <circle cx="100" cy="300" r="30" fill="rgba(255,255,255,0.25)" />
+              <circle cx="400" cy="100" r="25" fill="rgba(255,255,255,0.25)" />
+            </svg>
+          </div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="flex flex-column gap-3">
+      {/* Right side */}
+      <div className="login-right">
+        <div className="login-form-container">
+          <div className="login-form-header">
+            <div className="login-form-logo">
+              <i className="pi pi-shield" />
+            </div>
+            <h2 className="login-form-title">LOGIN</h2>
+          </div>
+
+          <form onSubmit={handleSubmit} className="login-form">
             {error && (
-              <Message severity="error" text={error} />
+              <div className="login-error">
+                <Message severity="error" text={error} />
+              </div>
             )}
 
-            <div className="flex flex-column gap-2">
-              <label htmlFor="username" className="text-sm text-slate-600">
+            <div className="login-field">
+              <label htmlFor="username" className="login-label">
                 用户名
               </label>
               <InputText
@@ -93,12 +102,12 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="请输入用户名"
-                className="w-full"
+                className="login-input"
               />
             </div>
 
-            <div className="flex flex-column gap-2">
-              <label htmlFor="password" className="text-sm text-slate-600">
+            <div className="login-field">
+              <label htmlFor="password" className="login-label">
                 密码
               </label>
               <Password
@@ -108,25 +117,198 @@ export const Login: React.FC<LoginProps> = ({ onSuccess }) => {
                 placeholder="请输入密码"
                 feedback={false}
                 toggleMask
-                className="w-full"
-                inputClassName="w-full"
+                className="login-password"
+                inputClassName="login-input"
               />
             </div>
 
             <Button
               type="submit"
-              label="登 录"
+              label="LOGIN"
               loading={loading}
-              className="w-full mt-2"
-              style={{ height: '44px' }}
+              className="login-button"
             />
-          </div>
-        </form>
+          </form>
+        </div>
+      </div>
 
-        <p className="text-center text-slate-400 text-xs mt-4">
-          如需创建或重置账户，请联系管理员
-        </p>
-      </Card>
+      <style>{`
+        .login-wrapper {
+          display: flex;
+          min-height: 100vh;
+          width: 100%;
+        }
+
+        /* Left side - 使用主题配色 */
+        .login-left {
+          flex: 1;
+          background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .login-left::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233B82F6' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .login-left-content {
+          text-align: center;
+          color: #1E40AF;
+          z-index: 1;
+          max-width: 400px;
+        }
+
+        .login-app-logo {
+          margin-bottom: 1.5rem;
+        }
+
+        .login-app-logo i {
+          font-size: 3rem;
+          color: #3B82F6;
+        }
+
+        .login-app-name {
+          font-size: 2.5rem;
+          font-weight: 600;
+          margin: 0 0 0.75rem 0;
+          letter-spacing: 2px;
+          color: #1E40AF;
+        }
+
+        .login-app-desc {
+          font-size: 1rem;
+          margin: 0 0 3rem 0;
+          color: #64748B;
+        }
+
+        .login-decoration {
+          width: 100%;
+        }
+
+        .login-decoration svg {
+          width: 100%;
+          height: auto;
+        }
+
+        /* Right side */
+        .login-right {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--surface-card);
+          padding: 2rem;
+        }
+
+        .login-form-container {
+          width: 100%;
+          max-width: 320px;
+        }
+
+        .login-form-header {
+          text-align: center;
+          margin-bottom: 2rem;
+        }
+
+        .login-form-logo {
+          margin-bottom: 1rem;
+        }
+
+        .login-form-logo i {
+          font-size: 2.5rem;
+          color: #3B82F6;
+        }
+
+        .login-form-title {
+          font-size: 1.25rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin: 0;
+          letter-spacing: 1px;
+        }
+
+        .login-form {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .login-error {
+          margin-bottom: 0.5rem;
+        }
+
+        .login-field {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .login-label {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--text-secondary);
+        }
+
+        .login-input {
+          width: 100% !important;
+          height: 40px !important;
+        }
+
+        .login-password {
+          width: 100% !important;
+        }
+
+        .login-password .p-icon-field {
+          width: 100%;
+        }
+
+        .login-password .p-password-input {
+          width: 100% !important;
+          height: 40px !important;
+          padding-right: 2.5rem !important;
+        }
+
+        .login-button {
+          width: 100%;
+          height: 40px;
+          background: #3B82F6;
+          border: none;
+          font-weight: 500;
+          letter-spacing: 1px;
+        }
+
+        .login-button:hover {
+          background: #2563EB;
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+          .login-left {
+            display: none;
+          }
+
+          .login-right {
+            flex: none;
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .login-form-container {
+            padding: 1rem;
+          }
+        }
+      `}</style>
     </div>
   )
 }

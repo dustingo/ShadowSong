@@ -94,7 +94,7 @@ export const RouteRules: React.FC = () => {
 
   const handleCreate = () => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setEditingRule(null)
@@ -104,7 +104,7 @@ export const RouteRules: React.FC = () => {
 
   const handleEdit = (record: RouteRule) => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setEditingRule(record)
@@ -121,7 +121,7 @@ export const RouteRules: React.FC = () => {
 
   const handleDeleteClick = (record: RouteRule) => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setRuleToDelete(record)
@@ -142,7 +142,7 @@ export const RouteRules: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     if (!formData.name.trim()) {
@@ -228,20 +228,32 @@ export const RouteRules: React.FC = () => {
             label="编辑"
             link
             size="small"
+            style={{ color: 'var(--primary-color)' }}
             onClick={() => handleEdit(rowData)}
           />
           <Button
             icon="pi pi-trash"
             label="删除"
-            link
-            severity="danger"
+            outlined
             size="small"
+            style={{
+              color: 'var(--danger-color)',
+              borderColor: 'var(--danger-color)',
+            }}
             onClick={() => handleDeleteClick(rowData)}
           />
         </div>
       )
     }
-    return <Tag value="只读" />
+    return (
+      <Tag
+        value="只读"
+        style={{
+          background: 'var(--surface-hover)',
+          color: 'var(--text-secondary)',
+        }}
+      />
+    )
   }
 
   const dialogFooter = canManageConfig ? (
@@ -254,7 +266,15 @@ export const RouteRules: React.FC = () => {
   const deleteDialogFooter = (
     <div className="flex justify-content-end gap-2">
       <Button label="取消" outlined onClick={() => setDeleteDialogVisible(false)} />
-      <Button label="删除" severity="danger" onClick={handleDeleteConfirm} />
+      <Button
+        label="删除"
+        outlined
+        style={{
+          color: 'var(--danger-color)',
+          borderColor: 'var(--danger-color)',
+        }}
+        onClick={handleDeleteConfirm}
+      />
     </div>
   )
 

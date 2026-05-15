@@ -60,7 +60,7 @@ export const OnDutyPage: React.FC = () => {
 
   const handleCreate = () => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setEditingOnDuty(null)
@@ -70,7 +70,7 @@ export const OnDutyPage: React.FC = () => {
 
   const handleEdit = (record: OnDutyType) => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setEditingOnDuty(record)
@@ -85,7 +85,7 @@ export const OnDutyPage: React.FC = () => {
 
   const handleDelete = (record: OnDutyType) => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     confirmDialog({
@@ -120,7 +120,7 @@ export const OnDutyPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     if (!validateForm()) {
@@ -166,20 +166,32 @@ export const OnDutyPage: React.FC = () => {
             icon="pi pi-pencil"
             link
             size="small"
+            style={{ color: 'var(--primary-color)' }}
             onClick={() => handleEdit(record)}
           />
           <Button
             label="删除"
             icon="pi pi-trash"
-            link
-            severity="danger"
+            outlined
             size="small"
+            style={{
+              color: 'var(--danger-color)',
+              borderColor: 'var(--danger-color)',
+            }}
             onClick={() => handleDelete(record)}
           />
         </div>
       )
     }
-    return <Tag value="只读" />
+    return (
+      <Tag
+        value="只读"
+        style={{
+          background: 'var(--surface-hover)',
+          color: 'var(--text-secondary)',
+        }}
+      />
+    )
   }
 
   const channelBodyTemplate = (rowData: OnDutyType) => {

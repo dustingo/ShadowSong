@@ -111,7 +111,7 @@ export const Users: React.FC = () => {
       name: user.name,
       email: user.email || '',
       role: user.role,
-      force_password_reset: user.force_password_reset,
+      force_password_reset: user.force_password_reset ?? false,
     })
     setFormErrors({})
     setModalVisible(true)
@@ -235,7 +235,7 @@ export const Users: React.FC = () => {
     return (
       <div className="flex gap-2">
         <Tag value={user.disabled_at ? '已禁用' : '正常'} severity={user.disabled_at ? 'secondary' : 'success'} />
-        {user.force_password_reset && <Tag value="强制改密" severity="warn" />}
+        {user.force_password_reset && <Tag value="强制改密" severity="warning" />}
       </div>
     )
   }
@@ -253,6 +253,7 @@ export const Users: React.FC = () => {
           label="编辑"
           link
           size="small"
+          style={{ color: 'var(--primary-color)' }}
           onClick={() => handleEdit(user)}
         />
         <Button
@@ -261,6 +262,7 @@ export const Users: React.FC = () => {
           label="强制改密"
           link
           size="small"
+          style={{ color: 'var(--warning-color)' }}
           onClick={() => handleForcePasswordReset(user)}
         />
         <Button
@@ -268,15 +270,19 @@ export const Users: React.FC = () => {
           label={user.disabled_at ? '启用' : '禁用'}
           link
           size="small"
+          style={{ color: 'var(--text-secondary)' }}
           onClick={() => handleToggleDisabled(user)}
         />
         <Button
           type="button"
           icon="pi pi-trash"
           label="删除"
-          link
+          outlined
           size="small"
-          severity="danger"
+          style={{
+            color: 'var(--danger-color)',
+            borderColor: 'var(--danger-color)',
+          }}
           onClick={() => confirmDelete(user)}
         />
       </div>

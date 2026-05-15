@@ -5,7 +5,7 @@ import { Column } from 'primereact/column'
 import { Button } from 'primereact/button'
 import { Dialog } from 'primereact/dialog'
 import { InputText } from 'primereact/inputtext'
-import { InputTextarea } from 'primereact/inputtext'
+import { InputTextarea } from 'primereact/inputtextarea'
 import { InputNumber } from 'primereact/inputnumber'
 import { Dropdown } from 'primereact/dropdown'
 import { Calendar } from 'primereact/calendar'
@@ -43,6 +43,9 @@ export const Alerts: React.FC = () => {
 
   const [silenceModalVisible, setSilenceModalVisible] = useState(false)
   const [silenceDuration, setSilenceDuration] = useState(3600)
+
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+
   const canProcessAlerts = canCurrentUserProcessAlerts(user)
 
   useEffect(() => {
@@ -109,48 +112,111 @@ export const Alerts: React.FC = () => {
 
   const severityBodyTemplate = (row: Alert) => <SeverityBadge severity={row.severity} />
 
-  const sourceBodyTemplate = (row: Alert) => <Tag value={row.source} />
+  const sourceBodyTemplate = (row: Alert) => (
+    <Tag
+      value={row.source}
+      style={{
+        background: 'var(--surface-hover)',
+        color: 'var(--text-secondary)',
+        border: '1px solid var(--surface-border)',
+      }}
+    />
+  )
 
   const statusBodyTemplate = (row: Alert) => {
-    const statusMap: Record<string, { severity: 'danger' | 'success' | 'warning' | 'info' | 'secondary', text: string }> = {
-      firing: { severity: 'danger', text: '告警中' },
-      acked: { severity: 'success', text: '已确认' },
-      silenced: { severity: 'warning', text: '已静默' },
-      resolved: { severity: 'info', text: '已解决' },
-      deduplicated: { severity: 'secondary', text: '已去重' },
+    const statusConfig: Record<string, { bgColor: string; color: string; text: string }> = {
+      firing: { bgColor: 'var(--danger-light-color)', color: 'var(--danger-color)', text: '告警中' },
+      acked: { bgColor: 'var(--success-light-color)', color: 'var(--success-color)', text: '已确认' },
+      silenced: { bgColor: 'var(--warning-light-color)', color: 'var(--warning-color)', text: '已静默' },
+      resolved: { bgColor: 'var(--info-light-color)', color: 'var(--info-color)', text: '已解决' },
+      deduplicated: { bgColor: 'var(--surface-hover)', color: 'var(--text-secondary)', text: '已去重' },
     }
-    const config = statusMap[row.status] || { severity: 'secondary', text: row.status }
-    return <Tag value={config.text} severity={config.severity} />
+    const config = statusConfig[row.status] || { bgColor: 'var(--surface-hover)', color: 'var(--text-secondary)', text: row.status }
+    return (
+      <Tag
+        value={config.text}
+        style={{
+          background: config.bgColor,
+          color: config.color,
+          border: `1px solid ${config.color}`,
+        }}
+      />
+    )
   }
 
   const timeBodyTemplate = (row: Alert) => dayjs(row.trigger_time).format('YYYY-MM-DD HH:mm:ss')
 
   const countBodyTemplate = (row: Alert) =>
-    row.trigger_count > 1 ? <Tag value={`x${row.trigger_count}`} severity="warning" /> : row.trigger_count
+    row.trigger_count > 1 ? (
+      <Tag
+        value={`x${row.trigger_count}`}
+        style={{
+          background: 'var(--warning-light-color)',
+          color: 'var(--warning-color)',
+          border: '1px solid var(--warning-color)',
+        }}
+      />
+    ) : (
+      <span style={{ color: 'var(--text-secondary)' }}>{row.trigger_count}</span>
+    )
 
   const actionBodyTemplate = (row: Alert) => (
     <div className="flex gap-1">
-      <Button label="投递历史" link size="small" onClick={() => handleOpenDeliveries(row)} />
+      <Button
+        label="投递历史"
+        link
+        size="small"
+        style={{ color: 'var(--primary-color)' }}
+        onClick={() => handleOpenDeliveries(row)}
+      />
       {row.status === 'firing' && (
         canProcessAlerts ? (
           <>
-            <Button label="确认" link size="small" onClick={() => handleAck(row)} />
-            <Button label="静默" link size="small" onClick={() => handleQuickSilence(row)} />
+            <Button
+              label="确认"
+              link
+              size="small"
+              style={{ color: 'var(--primary-color)' }}
+              onClick={() => handleAck(row)}
+            />
+            <Button
+              label="静默"
+              link
+              size="small"
+              style={{ color: 'var(--warning-color)' }}
+              onClick={() => handleQuickSilence(row)}
+            />
           </>
         ) : (
-          <Tag value="只读" />
+          <Tag
+            value="只读"
+            style={{
+              background: 'var(--surface-hover)',
+              color: 'var(--text-secondary)',
+            }}
+          />
         )
       )}
     </div>
   )
 
   const rowExpansionTemplate = (row: Alert) => (
-    <div className="p-3">
-      <p className="m-0 mb-2"><strong>消息:</strong> {row.message}</p>
-      <div className="flex gap-1 flex-wrap">
-        <strong>Labels:</strong>
+    <div className="p-3" style={{ background: 'var(--surface-hover)', borderRadius: '8px' }}>
+      <p className="m-0 mb-2" style={{ color: 'var(--text-primary)' }}>
+        <strong>消息:</strong> {row.message}
+      </p>
+      <div className="flex gap-1 flex-wrap align-items-center">
+        <strong style={{ color: 'var(--text-primary)' }}>Labels:</strong>
         {row.labels && Object.entries(row.labels).map(([k, v]) => (
-          <Tag key={k} value={`${k}: ${String(v)}`} className="ml-1" />
+          <Tag
+            key={k}
+            value={`${k}: ${String(v)}`}
+            style={{
+              background: 'var(--surface-card)',
+              color: 'var(--text-secondary)',
+              marginLeft: '4px',
+            }}
+          />
         ))}
       </div>
     </div>
@@ -179,14 +245,14 @@ export const Alerts: React.FC = () => {
         />
       )}
 
-      <Card className="shadow-sm border-0">
+      <Card className="shadow-sm">
         <div className="flex flex-wrap gap-3 align-items-end">
           <div className="flex flex-column gap-2">
             <label className="text-sm">级别</label>
             <Dropdown
               placeholder="级别"
               showClear
-              style={{ width: '120px' }}
+              className="w-10rem"
               value={filters.severity}
               options={severityOptions}
               onChange={(e) => setFilters({ ...filters, severity: e.value })}
@@ -196,7 +262,7 @@ export const Alerts: React.FC = () => {
             <label className="text-sm">来源</label>
             <InputText
               placeholder="来源"
-              style={{ width: '120px' }}
+              className="w-10rem"
               value={filters.source || ''}
               onChange={(e) => setFilters({ ...filters, source: e.target.value })}
             />
@@ -206,7 +272,7 @@ export const Alerts: React.FC = () => {
             <Dropdown
               placeholder="状态"
               showClear
-              style={{ width: '120px' }}
+              className="w-10rem"
               value={filters.status}
               options={statusOptions}
               onChange={(e) => setFilters({ ...filters, status: e.value })}
@@ -217,7 +283,7 @@ export const Alerts: React.FC = () => {
             <Calendar
               selectionMode="range"
               showTime
-              style={{ width: '300px' }}
+              className="w-18rem"
               value={
                 filters.startTime && filters.endTime
                   ? [new Date(filters.startTime), new Date(filters.endTime)]
@@ -241,13 +307,15 @@ export const Alerts: React.FC = () => {
             <label className="text-sm">Labels</label>
             <InputText
               placeholder="Labels (如: env=prod)"
-              style={{ width: '200px' }}
+              className="w-14rem"
               value={filters.labelSelector || ''}
               onChange={(e) => setFilters({ ...filters, labelSelector: e.target.value })}
             />
           </div>
-          <Button label="搜索" icon="pi pi-search" onClick={handleSearch} />
-          <Button label="重置" icon="pi pi-refresh" outlined onClick={handleReset} />
+          <div className="flex gap-2">
+            <Button label="搜索" icon="pi pi-search" onClick={handleSearch} />
+            <Button label="重置" icon="pi pi-refresh" outlined onClick={handleReset} />
+          </div>
         </div>
       </Card>
 
@@ -263,7 +331,8 @@ export const Alerts: React.FC = () => {
           totalRecords={total}
           onPage={handlePageChange}
           rowsPerPageOptions={[10, 20, 50]}
-          expandedRows={null}
+          expandedRows={expandedRows}
+          onRowToggle={(e) => setExpandedRows(e.data as Record<string, boolean>)}
           rowExpansionTemplate={rowExpansionTemplate}
         >
           <Column expander style={{ width: '40px' }} />
@@ -320,7 +389,7 @@ export const Alerts: React.FC = () => {
               min={60}
               max={86400}
               value={silenceDuration}
-              onValueChange={(e) => setSilenceDuration(e.value || 3600)}
+              onChange={(e: { value: number | null }) => setSilenceDuration(e.value || 3600)}
               suffix=" 秒"
             />
           </div>

@@ -69,7 +69,7 @@ export const Silences: React.FC = () => {
 
   const handleCreate = () => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setEditingRule(null)
@@ -81,7 +81,7 @@ export const Silences: React.FC = () => {
 
   const handleEdit = (record: SilenceRule) => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     setEditingRule(record)
@@ -97,7 +97,7 @@ export const Silences: React.FC = () => {
 
   const handleDelete = (record: SilenceRule) => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     confirmDialog({
@@ -117,7 +117,7 @@ export const Silences: React.FC = () => {
 
   const handleCancel = (record: SilenceRule) => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     confirmDialog({
@@ -141,7 +141,7 @@ export const Silences: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!canManageConfig) {
-      toast.showWarning('当前角色无权执行该操作')
+      toast.showWarn('当前角色无权执行该操作')
       return
     }
     if (!formName) {
@@ -224,7 +224,15 @@ export const Silences: React.FC = () => {
 
   const actionBodyTemplate = (rowData: SilenceRule) => {
     if (!canManageConfig) {
-      return <Tag value="只读" />
+      return (
+        <Tag
+          value="只读"
+          style={{
+            background: 'var(--surface-hover)',
+            color: 'var(--text-secondary)',
+          }}
+        />
+      )
     }
     return (
       <div className="flex gap-2">
@@ -233,6 +241,7 @@ export const Silences: React.FC = () => {
           label="编辑"
           link
           size="small"
+          style={{ color: 'var(--primary-color)' }}
           onClick={() => handleEdit(rowData)}
         />
         {activeTab === 0 && (
@@ -241,15 +250,19 @@ export const Silences: React.FC = () => {
             label="取消"
             link
             size="small"
+            style={{ color: 'var(--text-secondary)' }}
             onClick={() => handleCancel(rowData)}
           />
         )}
         <Button
           icon="pi pi-trash"
           label="删除"
-          link
+          outlined
           size="small"
-          severity="danger"
+          style={{
+            color: 'var(--danger-color)',
+            borderColor: 'var(--danger-color)',
+          }}
           onClick={() => handleDelete(rowData)}
         />
       </div>

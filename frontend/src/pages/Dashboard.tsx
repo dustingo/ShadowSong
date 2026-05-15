@@ -128,8 +128,8 @@ export const Dashboard: React.FC = () => {
         label: '告警数量',
         data: (stats?.trend || []).map((t) => t.count),
         fill: true,
-        backgroundColor: 'rgba(16, 185, 129, 0.2)',
-        borderColor: '#10b981',
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: '#3B82F6',
         tension: 0.4,
       },
     ],
@@ -144,7 +144,7 @@ export const Dashboard: React.FC = () => {
     scales: {
       y: {
         beginAtZero: true,
-        grid: { color: '#f1f5f9' },
+        grid: { color: '#E2E8F0' },
       },
       x: {
         grid: { display: false },
@@ -159,10 +159,10 @@ export const Dashboard: React.FC = () => {
   })
 
   const statsCards = [
-    { label: '活跃告警', value: stats?.firing || 0, color: '#ef4444', icon: 'pi pi-bell' },
-    { label: 'P0 告警', value: stats?.by_severity?.P0 || 0, color: '#ef4444', icon: 'pi pi-exclamation-triangle' },
-    { label: '已确认', value: stats?.acked || 0, color: '#22c55e', icon: 'pi pi-check-circle' },
-    { label: '已静默', value: stats?.silenced || 0, color: '#f59e0b', icon: 'pi pi-volume-off' },
+    { label: '活跃告警', value: stats?.firing || 0, color: 'var(--danger-color)', icon: 'pi pi-bell' },
+    { label: 'P0 告警', value: stats?.by_severity?.P0 || 0, color: 'var(--danger-color)', icon: 'pi pi-exclamation-triangle' },
+    { label: '已确认', value: stats?.acked || 0, color: 'var(--success-color)', icon: 'pi pi-check-circle' },
+    { label: '已静默', value: stats?.silenced || 0, color: 'var(--warning-color)', icon: 'pi pi-volume-off' },
   ]
 
   return (
@@ -175,27 +175,34 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid">
         {statsCards.map((stat, index) => (
-          <div key={index} className="col-span-12 md:col-span-3">
+          <div key={index} className="col-12 md:col-6 lg:col-3">
             <StatisticCard {...stat} />
           </div>
         ))}
       </div>
 
       {/* Chart */}
-      <Card title="24 小时告警趋势" className="shadow-sm border-0">
+      <Card title="24 小时告警趋势" className="shadow-sm">
         <div style={{ height: '250px' }}>
           <Chart type="line" data={chartData} options={chartOptions} />
         </div>
       </Card>
 
       {/* Active alerts */}
-      <Card
-        title={`活跃告警 (${activeAlerts.length})`}
-        className="shadow-sm border-0"
-        extra={<Button label="查看全部" link onClick={() => window.location.href = '/alerts'} />}
-      >
+      <Card className="shadow-sm">
+        <div className="flex align-items-center justify-content-between mb-3">
+          <span className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            活跃告警 ({activeAlerts.length})
+          </span>
+          <Button
+            label="查看全部"
+            link
+            style={{ color: 'var(--primary-color)' }}
+            onClick={() => window.location.href = '/alerts'}
+          />
+        </div>
         {loading ? (
           <div className="flex justify-content-center p-4">
             <ProgressSpinner />

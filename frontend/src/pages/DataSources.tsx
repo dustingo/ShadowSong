@@ -12,7 +12,6 @@ import { Message } from 'primereact/message'
 import { Divider } from 'primereact/divider'
 import { InputNumber } from 'primereact/inputnumber'
 import { confirmDialog } from 'primereact/confirmdialog'
-import { CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons'
 import { CodeEditor } from '../components/CodeEditor'
 import { PermissionNotice } from '../components'
 import { useToast } from '../components'
@@ -306,8 +305,9 @@ export const DataSources: React.FC = () => {
         /webhook/{rowData.name}
       </code>
       <Button
-        icon={<CopyOutlined />}
-        className="p-button-text p-button-sm"
+        icon="pi pi-copy"
+        link
+        size="small"
         onClick={() => navigator.clipboard.writeText(`/webhook/${rowData.name}`)}
       />
     </div>
@@ -318,9 +318,10 @@ export const DataSources: React.FC = () => {
       <code>{maskApiKey(rowData.api_key)}</code>
       {rowData.api_key && (
         <Button
-          icon={<CopyOutlined />}
-          className="p-button-text p-button-sm"
-          onClick={() => navigator.clipboard.writeText(rowData.api_key)}
+          icon="pi pi-copy"
+          link
+          size="small"
+          onClick={() => navigator.clipboard.writeText(rowData.api_key || '')}
         />
       )}
     </div>
@@ -338,32 +339,49 @@ export const DataSources: React.FC = () => {
       return (
         <div className="flex gap-2">
           <Button
-            icon={<EditOutlined />}
+            icon="pi pi-pencil"
             label="编辑"
-            className="p-button-text p-button-sm"
+            link
+            size="small"
+            style={{ color: 'var(--primary-color)' }}
             onClick={() => handleEdit(rowData)}
           />
           <Button
             label={rowData.enabled ? '禁用' : '启用'}
-            className="p-button-text p-button-sm"
+            link
+            size="small"
+            style={{ color: 'var(--text-secondary)' }}
             onClick={() => handleToggle(rowData)}
           />
           <Button
-            icon={<DeleteOutlined />}
+            icon="pi pi-trash"
             label="删除"
-            className="p-button-text p-button-sm p-button-danger"
+            outlined
+            size="small"
+            style={{
+              color: 'var(--danger-color)',
+              borderColor: 'var(--danger-color)',
+            }}
             onClick={() => handleDelete(rowData)}
           />
         </div>
       )
     }
-    return <Tag value="只读" severity="secondary" />
+    return (
+      <Tag
+        value="只读"
+        style={{
+          background: 'var(--surface-hover)',
+          color: 'var(--text-secondary)',
+        }}
+      />
+    )
   }
 
   const dialogFooter = (
     <div className="flex justify-content-end gap-2">
-      <Button label="取消" icon="pi pi-times" className="p-button-text" onClick={closeEditor} />
-      <Button label="预览模板" icon={<EyeOutlined />} loading={previewLoading} onClick={handlePreview} />
+      <Button label="取消" icon="pi pi-times" outlined onClick={closeEditor} />
+      <Button label="预览模板" icon="pi pi-eye" loading={previewLoading} onClick={handlePreview} />
       {canManageConfig && <Button label="保存" icon="pi pi-check" onClick={handleSubmit} />}
     </div>
   )
@@ -371,20 +389,19 @@ export const DataSources: React.FC = () => {
   return (
     <div>
       <Card
-        title={
-          <div className="flex justify-content-between align-items-center">
-            <span>数据源管理</span>
-            <div className="flex align-items-center gap-3">
-              <span className="text-sm text-color-secondary">
-                接收任意 Webhook JSON，经 input template 映射后再渲染通知
-              </span>
-              {canManageConfig && (
-                <Button icon={<PlusOutlined />} label="新建数据源" onClick={handleCreate} />
-              )}
-            </div>
-          </div>
-        }
+        className="shadow-sm border-0"
       >
+        <div className="flex justify-content-between align-items-center mb-3">
+          <span className="text-xl font-semibold">数据源管理</span>
+          <div className="flex align-items-center gap-3">
+            <span className="text-sm text-color-secondary">
+              接收任意 Webhook JSON，经 input template 映射后再渲染通知
+            </span>
+            {canManageConfig && (
+              <Button icon="pi pi-plus" label="新建数据源" onClick={handleCreate} />
+            )}
+          </div>
+        </div>
         {readOnly && (
           <div className="mb-3">
             <PermissionNotice
@@ -441,7 +458,7 @@ export const DataSources: React.FC = () => {
 
           <div className="flex flex-column gap-2">
             <label className="font-semibold flex align-items-center gap-2">
-              <KeyOutlined />
+              <i className="pi pi-key" />
               <span>API Key</span>
             </label>
             <small className="text-color-secondary">用于 Webhook 安全校验。留空会拒绝该数据源的所有请求。</small>
@@ -454,7 +471,7 @@ export const DataSources: React.FC = () => {
                 disabled={!canManageConfig}
               />
               <Button
-                icon={<KeyOutlined />}
+                icon="pi pi-key"
                 label="生成"
                 onClick={() => setCurrentApiKey(generateApiKey())}
                 disabled={!canManageConfig}

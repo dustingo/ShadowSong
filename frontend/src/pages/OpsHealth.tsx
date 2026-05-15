@@ -58,52 +58,52 @@ const OpsHealth: React.FC = () => {
 
   return (
     <div>
-      <Card title="系统指标 (24小时)">
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-2">
+      <Card title="系统指标 (24小时)" className="shadow-sm">
+        <div className="grid">
+          <div className="col-12 md:col-6 lg:col-2">
             <StatisticCard
-              title="Webhook 接收"
+              label="Webhook 接收"
               value={metrics?.webhook_ingest_total || 0}
               icon="pi pi-sign-in"
-              color="#6366f1"
+              color="var(--primary-color)"
             />
           </div>
-          <div className="col-span-2">
+          <div className="col-12 md:col-6 lg:col-2">
             <StatisticCard
-              title="发送成功"
+              label="发送成功"
               value={metrics?.notification_send_success_total || 0}
               icon="pi pi-check-circle"
-              color="#22c55e"
+              color="var(--success-color)"
             />
           </div>
-          <div className="col-span-2">
+          <div className="col-12 md:col-6 lg:col-2">
             <StatisticCard
-              title="发送失败"
+              label="发送失败"
               value={metrics?.notification_send_failure_total || 0}
               icon="pi pi-times-circle"
-              color="#ef4444"
+              color="var(--danger-color)"
             />
           </div>
-          <div className="col-span-2">
+          <div className="col-12 md:col-6 lg:col-2">
             <StatisticCard
-              title="重试次数"
+              label="重试次数"
               value={metrics?.notification_retry_total || 0}
               icon="pi pi-refresh"
-              color="#f59e0b"
+              color="var(--warning-color)"
             />
           </div>
-          <div className="col-span-2">
+          <div className="col-12 md:col-6 lg:col-2">
             <StatisticCard
-              title="终态失败"
+              label="终态失败"
               value={metrics?.notification_terminal_failure_total || 0}
               icon="pi pi-exclamation-triangle"
-              color="#ef4444"
+              color="var(--danger-color)"
             />
           </div>
         </div>
       </Card>
 
-      <Card title="渠道健康度 (24小时)" className="mt-4">
+      <Card title="渠道健康度 (24小时)" className="mt-4 shadow-sm">
         <DataTable
           value={channelHealth}
           dataKey="channel_id"

@@ -2,7 +2,7 @@ import React from 'react'
 import { Card } from 'primereact/card'
 
 interface StatisticCardProps {
-  title: string
+  label: string
   value: number | string
   icon: string
   color: string
@@ -10,20 +10,38 @@ interface StatisticCardProps {
 }
 
 export const StatisticCard: React.FC<StatisticCardProps> = ({
-  title,
+  label,
   value,
   icon,
   color,
   suffix,
 }) => {
   return (
-    <Card className="shadow-sm border-0">
+    <Card
+      className="shadow-sm"
+      style={{
+        border: '1px solid var(--surface-border)',
+        borderRadius: '8px',
+      }}
+    >
       <div className="flex align-items-center justify-content-between">
         <div>
-          <div className="text-sm text-slate-500 mb-1">{title}</div>
-          <div className="text-3xl font-bold" style={{ color }}>
+          <div
+            className="text-sm mb-1"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {label}
+          </div>
+          <div
+            className="text-3xl font-bold"
+            style={{ color }}
+          >
             {value}
-            {suffix && <span className="text-lg ml-1">{suffix}</span>}
+            {suffix && (
+              <span className="text-lg ml-1" style={{ color: 'var(--text-secondary)' }}>
+                {suffix}
+              </span>
+            )}
           </div>
         </div>
         <div

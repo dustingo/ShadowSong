@@ -47,8 +47,8 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
     return {
       ...channel,
       config: {
-        webhook_url: config.webhook_url ?? '',
-        secret: config.secret ?? '',
+        webhook_url: String(config.webhook_url ?? ''),
+        secret: String(config.secret ?? ''),
       },
     }
   }
@@ -57,8 +57,8 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
     return {
       ...channel,
       config: {
-        webhook_url: config.webhook_url ?? '',
-        secret: config.secret ?? '',
+        webhook_url: String(config.webhook_url ?? ''),
+        secret: String(config.secret ?? ''),
       },
     }
   }
@@ -67,7 +67,7 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
     return {
       ...channel,
       config: {
-        webhook_url: config.webhook_url ?? '',
+        webhook_url: String(config.webhook_url ?? ''),
       },
     }
   }
@@ -76,13 +76,13 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
     return {
       ...channel,
       config: {
-        url: config.url ?? '',
-        method: config.method ?? 'POST',
+        url: String(config.url ?? ''),
+        method: String(config.method ?? 'POST'),
         headers:
           typeof config.headers === 'string'
             ? config.headers
             : JSON.stringify(config.headers ?? {}, null, 2),
-        template: config.template ?? '',
+        template: String(config.template ?? ''),
       },
     }
   }
@@ -115,8 +115,8 @@ const buildChannelPayload = (values: ChannelFormValues) => {
     return {
       ...values,
       config: {
-        webhook_url: config.webhook_url ?? '',
-        secret: config.secret ?? '',
+        webhook_url: String(config.webhook_url ?? ''),
+        secret: String(config.secret ?? ''),
       },
     }
   }
@@ -125,7 +125,7 @@ const buildChannelPayload = (values: ChannelFormValues) => {
     return {
       ...values,
       config: {
-        webhook_url: config.webhook_url ?? '',
+        webhook_url: String(config.webhook_url ?? ''),
       },
     }
   }
@@ -256,10 +256,10 @@ export const Channels: React.FC = () => {
       const payload = buildChannelPayload(formValues)
       const channelId = formValues.id || editingChannel?.id
       if (channelId) {
-        await updateChannel(channelId, payload)
+        await updateChannel(channelId, payload as Partial<Channel>)
         toast.showSuccess('更新成功')
       } else {
-        await createChannel(payload)
+        await createChannel(payload as Partial<Channel>)
         toast.showSuccess('创建成功')
       }
       setModalVisible(false)
@@ -301,24 +301,50 @@ export const Channels: React.FC = () => {
 
   const actionBodyTemplate = (row: Channel) => {
     if (!canManageConfig) {
-      return <Tag value="只读" />
+      return (
+        <Tag
+          value="只读"
+          style={{
+            background: 'var(--surface-hover)',
+            color: 'var(--text-secondary)',
+          }}
+        />
+      )
     }
     return (
       <div className="flex gap-1">
-        <Button label="编辑" link size="small" icon="pi pi-pencil" onClick={() => handleEdit(row)} />
-        <Button label="测试" link size="small" icon="pi pi-send" onClick={() => handleTest(row)} />
+        <Button
+          label="编辑"
+          link
+          size="small"
+          icon="pi pi-pencil"
+          style={{ color: 'var(--primary-color)' }}
+          onClick={() => handleEdit(row)}
+        />
+        <Button
+          label="测试"
+          link
+          size="small"
+          icon="pi pi-send"
+          style={{ color: 'var(--primary-color)' }}
+          onClick={() => handleTest(row)}
+        />
         <Button
           label={row.enabled ? '禁用' : '启用'}
           link
           size="small"
+          style={{ color: 'var(--text-secondary)' }}
           onClick={() => handleToggle(row)}
         />
         <Button
           label="删除"
-          link
+          outlined
           size="small"
-          severity="danger"
           icon="pi pi-trash"
+          style={{
+            color: 'var(--danger-color)',
+            borderColor: 'var(--danger-color)',
+          }}
           onClick={() => handleDelete(row)}
         />
       </div>

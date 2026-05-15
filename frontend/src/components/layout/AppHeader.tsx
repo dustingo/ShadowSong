@@ -7,14 +7,14 @@ import { useUserStore } from '../../stores/userStore'
 
 interface AppHeaderProps {
   title: string
-  onToggleSidebar: () => void
-  sidebarCollapsed: boolean
+  pinned: boolean
+  onPinChange: (pinned: boolean) => void
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   title,
-  onToggleSidebar,
-  sidebarCollapsed,
+  pinned,
+  onPinChange,
 }) => {
   const navigate = useNavigate()
   const user = useUserStore((state) => state.user)
@@ -50,11 +50,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     >
       <div className="flex align-items-center gap-3">
         <Button
-          icon={sidebarCollapsed ? 'pi pi-bars' : 'pi pi-times'}
+          icon={pinned ? 'pi pi-lock-open' : 'pi pi-lock'}
           text
           rounded
           severity="secondary"
-          onClick={onToggleSidebar}
+          onClick={() => onPinChange(!pinned)}
           style={{ color: 'var(--text-secondary)' }}
         />
         <span className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>{title}</span>

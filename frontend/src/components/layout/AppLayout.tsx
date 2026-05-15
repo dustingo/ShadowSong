@@ -24,19 +24,28 @@ const pageTitles: Record<string, string> = {
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [pinned, setPinned] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const location = useLocation()
   const title = pageTitles[location.pathname] || '告警系统'
+
+  const collapsed = !(pinned || hovered)
 
   return (
     <ToastProvider>
       <div className="flex h-screen" style={{ background: 'var(--surface-ground)' }}>
-        <AppSidebar collapsed={sidebarCollapsed} />
+        <AppSidebar
+          collapsed={collapsed}
+          pinned={pinned}
+          onPinChange={setPinned}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        />
         <div className="flex flex-column flex-1 overflow-hidden">
           <AppHeader
             title={title}
-            onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-            sidebarCollapsed={sidebarCollapsed}
+            pinned={pinned}
+            onPinChange={setPinned}
           />
           <main className="flex-1 overflow-auto p-4">
             {children}

@@ -21,9 +21,19 @@ const menuItems: MenuItem[] = [
 
 interface AppSidebarProps {
   collapsed: boolean
+  pinned: boolean
+  onPinChange: (pinned: boolean) => void
+  onMouseEnter: () => void
+  onMouseLeave: () => void
 }
 
-export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
+export const AppSidebar: React.FC<AppSidebarProps> = ({
+  collapsed,
+  pinned,
+  onPinChange,
+  onMouseEnter,
+  onMouseLeave,
+}) => {
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -37,6 +47,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
         overflow: 'hidden',
         height: '100%',
       }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {/* Logo area */}
       <div
@@ -102,6 +114,26 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
             </div>
           )
         })}
+      </div>
+
+      {/* Pin button */}
+      <div
+        className="flex align-items-center justify-content-center cursor-pointer transition-all transition-duration-200"
+        style={{
+          height: '48px',
+          borderTop: '1px solid var(--surface-border)',
+          color: pinned ? 'var(--primary-color)' : 'var(--text-secondary)',
+        }}
+        onClick={() => onPinChange(!pinned)}
+        title={pinned ? '取消固定' : '固定侧边栏'}
+      >
+        <i className="pi pi-thumbtack text-lg" style={{
+          transform: pinned ? 'rotate(0deg)' : 'rotate(45deg)',
+          transition: 'transform 0.2s',
+        }} />
+        {!collapsed && (
+          <span className="ml-3 text-sm">{pinned ? '取消固定' : '固定侧边栏'}</span>
+        )}
       </div>
     </div>
   )

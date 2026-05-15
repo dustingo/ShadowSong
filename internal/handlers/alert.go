@@ -3,7 +3,9 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/middleware"
@@ -41,6 +43,9 @@ func (h *AlertHandler) List(c *gin.Context) {
 	}
 	if endTime := c.Query("end_time"); endTime != "" {
 		query = query.Where("trigger_time <= ?", endTime)
+	}
+	if labelSelector := c.Query("label_selector"); labelSelector != "" {
+		query = applyLabelSelector(query, labelSelector)
 	}
 
 	// Pagination
@@ -221,4 +226,35 @@ func (h *AlertHandler) Active(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, alerts)
+}
+
+// applyLabelSelector parses a label selector string and applies JSON-based filtering.
+// Format: "key1=value1,key2=~regex2" (~ prefix means regex match on value).
+func applyLabelSelector(query *gorm.DB, selector string) *gorm.DB {
+	pairs := strings.Split(selector, ",")
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		eqIdx := strings.Index(pair, "=")
+		if eqIdx < 1 {
+			continue
+		}
+		key := strings.TrimSpace(pair[:eqIdx])
+		value := strings.TrimSpace(pair[eqIdx+1:])
+		if key == "" {
+			continue
+		}
+		if strings.HasPrefix(value, "~") {
+			pattern := value[1:]
+			if _, err := regexp.Compile(pattern); err != nil {
+				continue
+			}
+			query = query.Where("labels->>? ~ ?", key, pattern)
+		} else {
+			query = query.Where("labels->>? = ?", key, value)
+		}
+	}
+	return query
 }

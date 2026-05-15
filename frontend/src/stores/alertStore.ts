@@ -59,7 +59,12 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       const res = await alertApi.list({
         page,
         page_size: pageSize,
-        ...filters,
+        severity: filters.severity,
+        source: filters.source,
+        status: filters.status,
+        start_time: filters.startTime,
+        end_time: filters.endTime,
+        label_selector: filters.labelSelector,
       }) as unknown as { list: Alert[]; total: number }
       set({ alerts: res.list, total: res.total, page, pageSize, loading: false })
     } catch (error) {

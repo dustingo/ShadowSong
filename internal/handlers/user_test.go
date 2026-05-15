@@ -495,6 +495,99 @@ func newJSONRequest(t *testing.T, method, target string, body any) *http.Request
 	return req
 }
 
+func TestListAuditLogsReturnsPaginatedResults(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	for i := 0; i < 5; i++ {
+		require.NoError(t, db.Create(&models.AuditLog{
+			ActorUserID:   1,
+			ActorUsername: "admin",
+			ActorRole:     authz.RoleAdmin,
+			Action:        "user.create",
+			TargetType:    "user",
+			TargetID:      fmt.Sprintf("%d", i+2),
+			Result:        auditResultAllowed,
+			Detail:        "role=viewer",
+		}).Error)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/users/audit-logs?page=1&page_size=3", nil)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.ListAuditLogs(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, float64(5), response["total"])
+	assert.Equal(t, float64(1), response["page"])
+	assert.Equal(t, float64(3), response["page_size"])
+
+	items := response["items"].([]any)
+	assert.Len(t, items, 3)
+}
+
+func TestListAuditLogsFiltersByAction(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	require.NoError(t, db.Create(&models.AuditLog{
+		ActorUserID: 1, ActorUsername: "admin", ActorRole: authz.RoleAdmin,
+		Action: "user.create", TargetType: "user", TargetID: "2", Result: auditResultAllowed,
+	}).Error)
+	require.NoError(t, db.Create(&models.AuditLog{
+		ActorUserID: 1, ActorUsername: "admin", ActorRole: authz.RoleAdmin,
+		Action: "user.disable", TargetType: "user", TargetID: "2", Result: auditResultAllowed,
+	}).Error)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/audit-logs?action=user.create", nil)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.ListAuditLogs(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, float64(1), response["total"])
+}
+
+func TestListAuditLogsFiltersByResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := openUserTestDB(t)
+	handler := NewUserHandler(db, newUserTestJWT())
+
+	require.NoError(t, db.Create(&models.AuditLog{
+		ActorUserID: 1, ActorUsername: "admin", ActorRole: authz.RoleAdmin,
+		Action: "user.create", TargetType: "user", TargetID: "2", Result: auditResultAllowed,
+	}).Error)
+	require.NoError(t, db.Create(&models.AuditLog{
+		ActorUserID: 1, ActorUsername: "admin", ActorRole: authz.RoleAdmin,
+		Action: "user.disable", TargetType: "user", TargetID: "2", Result: auditResultDenied,
+	}).Error)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/audit-logs?result=denied", nil)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = req
+
+	handler.ListAuditLogs(context)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, float64(1), response["total"])
+}
+
 func newUserTestJWT() *auth.JWT {
 	return auth.NewJWT(&config.SecurityConfig{
 		JWTSecret:   "test-secret",

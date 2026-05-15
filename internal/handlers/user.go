@@ -508,3 +508,89 @@ func recordAudit(db *gorm.DB, c *gin.Context, action, targetType, targetID, resu
 
 	return db.Create(&entry).Error
 }
+
+type auditLogResponse struct {
+	ID            uint      `json:"id"`
+	ActorUserID   uint      `json:"actor_user_id"`
+	ActorUsername string    `json:"actor_username"`
+	ActorRole     string    `json:"actor_role"`
+	Action        string    `json:"action"`
+	TargetType    string    `json:"target_type"`
+	TargetID      string    `json:"target_id"`
+	Result        string    `json:"result"`
+	Detail        string    `json:"detail"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type listAuditLogsResponse struct {
+	Items    []auditLogResponse `json:"items"`
+	Total    int64              `json:"total"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"page_size"`
+}
+
+func (h *UserHandler) ListAuditLogs(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	query := h.db.Model(&models.AuditLog{})
+
+	if action := c.Query("action"); action != "" {
+		query = query.Where("action = ?", action)
+	}
+	if result := c.Query("result"); result != "" {
+		query = query.Where("result = ?", result)
+	}
+	if startTime := c.Query("start_time"); startTime != "" {
+		if t, err := time.Parse(time.RFC3339, startTime); err == nil {
+			query = query.Where("created_at >= ?", t)
+		}
+	}
+	if endTime := c.Query("end_time"); endTime != "" {
+		if t, err := time.Parse(time.RFC3339, endTime); err == nil {
+			query = query.Where("created_at <= ?", t)
+		}
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var logs []models.AuditLog
+	offset := (page - 1) * pageSize
+	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&logs).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	items := make([]auditLogResponse, len(logs))
+	for i, log := range logs {
+		items[i] = auditLogResponse{
+			ID:            log.ID,
+			ActorUserID:   log.ActorUserID,
+			ActorUsername: log.ActorUsername,
+			ActorRole:     log.ActorRole,
+			Action:        log.Action,
+			TargetType:    log.TargetType,
+			TargetID:      log.TargetID,
+			Result:        log.Result,
+			Detail:        log.Detail,
+			CreatedAt:     log.CreatedAt,
+		}
+	}
+
+	c.JSON(http.StatusOK, listAuditLogsResponse{
+		Items:    items,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	})
+}

@@ -113,6 +113,7 @@ export interface SilenceRule {
   label_matchers: LabelMatcher[]
   starts_at: string
   ends_at: string
+  enabled?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -243,4 +244,24 @@ export interface DeliveryRecoveryResult {
   original_delivery_id: number
   result_delivery_id?: number
   error_message?: string
+}
+
+export interface AuditLog {
+  id: number
+  actor_user_id: number
+  actor_username: string
+  actor_role: string
+  action: string
+  target_type: string
+  target_id: string
+  result: string
+  detail: string
+  created_at: string
+}
+
+export interface AuditLogListResponse {
+  items: AuditLog[]
+  total: number
+  page: number
+  page_size: number
 }

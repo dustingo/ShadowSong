@@ -234,3 +234,167 @@ func TestWebhookSender_BasicAuthMissingUsername(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "basic auth requires username")
 }
+
+func TestWebhookSender_TemplateRendersTitleContent(t *testing.T) {
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","template":"{\"msg_type\":\"alert\",\"text\":\"{{.content}}\",\"summary\":\"{{.title}}\"}"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	data := map[string]interface{}{
+		"title":   "[P0] CPU过高",
+		"content": "CPU使用率95%",
+	}
+	err = sender.Send("[P0] CPU过高", "CPU使用率95%", data)
+	assert.NoError(t, err)
+
+	var payload map[string]string
+	assert.NoError(t, json.Unmarshal([]byte(receivedBody), &payload))
+	assert.Equal(t, "alert", payload["msg_type"])
+	assert.Equal(t, "CPU使用率95%", payload["text"])
+	assert.Equal(t, "[P0] CPU过高", payload["summary"])
+}
+
+func TestWebhookSender_TemplateRendersAlertFields(t *testing.T) {
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","template":"{\"alert\":\"{{.alert_name}}\",\"level\":\"{{.severity}}\",\"msg\":\"{{.message}}\"}"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	data := map[string]interface{}{
+		"title":      "[P1] DiskFull",
+		"content":    "磁盘使用率99%",
+		"alert_name": "DiskFull",
+		"severity":   "P1",
+		"message":    "磁盘使用率99%",
+	}
+	err = sender.Send("[P1] DiskFull", "磁盘使用率99%", data)
+	assert.NoError(t, err)
+
+	var payload map[string]string
+	assert.NoError(t, json.Unmarshal([]byte(receivedBody), &payload))
+	assert.Equal(t, "DiskFull", payload["alert"])
+	assert.Equal(t, "P1", payload["level"])
+	assert.Equal(t, "磁盘使用率99%", payload["msg"])
+}
+
+func TestWebhookSender_TemplateRendersEventField(t *testing.T) {
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","template":"{\"host\":\"{{.event.host}}\",\"metric\":\"{{.event.metric}}\"}"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	data := map[string]interface{}{
+		"title":   "test",
+		"content": "test content",
+		"event": map[string]interface{}{
+			"host":   "server-01",
+			"metric": "cpu_usage",
+		},
+	}
+	err = sender.Send("test", "test content", data)
+	assert.NoError(t, err)
+
+	var payload map[string]string
+	assert.NoError(t, json.Unmarshal([]byte(receivedBody), &payload))
+	assert.Equal(t, "server-01", payload["host"])
+	assert.Equal(t, "cpu_usage", payload["metric"])
+}
+
+func TestWebhookSender_TemplateRendersLabels(t *testing.T) {
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","template":"{\"team\":\"{{.labels.team}}\",\"env\":\"{{.labels.env}}\"}"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	data := map[string]interface{}{
+		"title":   "test",
+		"content": "test content",
+		"labels": map[string]interface{}{
+			"team": "ops",
+			"env":  "prod",
+		},
+	}
+	err = sender.Send("test", "test content", data)
+	assert.NoError(t, err)
+
+	var payload map[string]string
+	assert.NoError(t, json.Unmarshal([]byte(receivedBody), &payload))
+	assert.Equal(t, "ops", payload["team"])
+	assert.Equal(t, "prod", payload["env"])
+}
+
+func TestWebhookSender_InvalidTemplateReturnsError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","template":"{{.broken"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	data := map[string]interface{}{
+		"title":   "test",
+		"content": "test content",
+	}
+	err = sender.Send("test", "test content", data)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to render webhook template")
+}
+
+func TestWebhookSender_FormUrlencodedWithTemplate(t *testing.T) {
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","content_type":"application/x-www-form-urlencoded","template":"title={{.title}}&content={{.content}}"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	data := map[string]interface{}{
+		"title":   "AlertTitle",
+		"content": "AlertContent",
+	}
+	err = sender.Send("AlertTitle", "AlertContent", data)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "title=AlertTitle&content=AlertContent", receivedBody)
+}

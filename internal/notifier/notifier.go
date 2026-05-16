@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/models"
+	tmpl "github.com/game-ops/ai-alert-system/internal/template"
 )
 
 type Sender interface {
@@ -324,8 +325,9 @@ type CustomAuthConfig struct {
 }
 
 type WebhookSender struct {
-	config WebhookConfig
-	client *http.Client
+	config   WebhookConfig
+	client   *http.Client
+	renderer *tmpl.Renderer
 }
 
 func NewWebhookSender(config json.RawMessage) (Sender, error) {
@@ -355,8 +357,9 @@ func NewWebhookSender(config json.RawMessage) (Sender, error) {
 		return nil, fmt.Errorf("webhook auth_type must be none, basic, or custom, got: %s", wc.AuthType)
 	}
 	return &WebhookSender{
-		config: wc,
-		client: &http.Client{Timeout: 10 * time.Second},
+		config:   wc,
+		client:   &http.Client{Timeout: 10 * time.Second},
+		renderer: tmpl.NewRenderer(),
 	}, nil
 }
 
@@ -365,12 +368,24 @@ func (s *WebhookSender) Send(title, content string, data map[string]interface{})
 
 	switch s.config.ContentType {
 	case "application/x-www-form-urlencoded":
-		reqBody = strings.NewReader(content)
+		if s.config.Template != "" {
+			rendered, err := s.renderer.Render(s.config.Template, data)
+			if err != nil {
+				return fmt.Errorf("failed to render webhook template: %w", err)
+			}
+			reqBody = strings.NewReader(rendered)
+		} else {
+			reqBody = strings.NewReader(content)
+		}
 	default:
 		// JSON content type
 		var body []byte
 		if s.config.Template != "" {
-			body = []byte(s.config.Template)
+			rendered, err := s.renderer.Render(s.config.Template, data)
+			if err != nil {
+				return fmt.Errorf("failed to render webhook template: %w", err)
+			}
+			body = []byte(rendered)
 		} else {
 			payload := map[string]string{
 				"title":   title,

@@ -1,8 +1,14 @@
 package notifier
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -82,4 +88,149 @@ func TestIsRetryableSendError_DeterministicFailuresRemainTerminal(t *testing.T) 
 			assert.False(t, IsRetryableSendError(tc.err))
 		})
 	}
+}
+
+func TestWebhookSender_FormUrlencoded(t *testing.T) {
+	var receivedContentType string
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedContentType = r.Header.Get("Content-Type")
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","content_type":"application/x-www-form-urlencoded"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	err = sender.Send("alert-title", "alert-content")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "application/x-www-form-urlencoded", receivedContentType)
+	assert.Equal(t, "alert-content", receivedBody)
+}
+
+func TestWebhookSender_BasicAuth(t *testing.T) {
+	var receivedUser, receivedPass string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedUser, receivedPass, _ = r.BasicAuth()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","auth_type":"basic","auth_config":{"username":"myuser","password":"mypass"}}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	err = sender.Send("title", "content")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "myuser", receivedUser)
+	assert.Equal(t, "mypass", receivedPass)
+}
+
+func TestWebhookSender_CustomAuth(t *testing.T) {
+	var receivedHeader string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedHeader = r.Header.Get("X-Custom-Token")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","auth_type":"custom","auth_config":{"header_name":"X-Custom-Token","header_value":"secret-token-123"}}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	err = sender.Send("title", "content")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "secret-token-123", receivedHeader)
+}
+
+func TestWebhookSender_BackwardCompat_NoNewFields(t *testing.T) {
+	var receivedContentType string
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedContentType = r.Header.Get("Content-Type")
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	err = sender.Send("my-title", "my-content")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "application/json", receivedContentType)
+
+	var payload map[string]string
+	assert.NoError(t, json.Unmarshal([]byte(receivedBody), &payload))
+	assert.Equal(t, "my-title", payload["title"])
+	assert.Equal(t, "my-content", payload["content"])
+}
+
+func TestWebhookSender_InvalidAuthType(t *testing.T) {
+	var received bool
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	// Bypass constructor validation to test applyAuth's default branch
+	sender := &WebhookSender{
+		config: WebhookConfig{
+			URL:         ts.URL,
+			Method:      "POST",
+			ContentType: "application/json",
+			AuthType:    "oauth",
+		},
+		client: &http.Client{Timeout: 10 * time.Second},
+	}
+
+	err := sender.Send("title", "content")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported auth_type")
+	assert.False(t, received, "request should not have been sent")
+}
+
+func TestWebhookSender_InvalidMethod(t *testing.T) {
+	config := `{"url":"http://example.com","method":"DELETE"}`
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.Error(t, err)
+	assert.Nil(t, sender)
+	assert.Contains(t, err.Error(), "webhook method must be POST or PUT")
+}
+
+func TestWebhookSender_InvalidContentType(t *testing.T) {
+	config := `{"url":"http://example.com","content_type":"text/plain"}`
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.Error(t, err)
+	assert.Nil(t, sender)
+	assert.Contains(t, err.Error(), "webhook content_type must be application/json or application/x-www-form-urlencoded")
+}
+
+func TestWebhookSender_BasicAuthMissingUsername(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	config := fmt.Sprintf(`{"url":"%s","auth_type":"basic","auth_config":{}}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	err = sender.Send("title", "content")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "basic auth requires username")
 }

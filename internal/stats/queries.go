@@ -15,12 +15,12 @@ type TrendPoint struct {
 
 // AlertStats contains aggregated statistics about alerts.
 type AlertStats struct {
-	Total      int                `json:"total"`
-	Firing     int                `json:"firing"`
-	Acked      int                `json:"acked"`
-	Silenced   int                `json:"silenced"`
-	BySeverity map[string]int     `json:"by_severity"`
-	Trend      []TrendPoint       `json:"trend"`
+	Total      int            `json:"total"`
+	Firing     int            `json:"firing"`
+	Acked      int            `json:"acked"`
+	Silenced   int            `json:"silenced"`
+	BySeverity map[string]int `json:"by_severity"`
+	Trend      []TrendPoint   `json:"trend"`
 }
 
 // GetAlertStats retrieves aggregated alert statistics using optimized GROUP BY queries.
@@ -121,58 +121,85 @@ func getSeverityCounts(db *gorm.DB, stats *AlertStats) error {
 	return nil
 }
 
+// parseHourString parses a timestamp string returned by PostgreSQL into a time.Time.
+// pgx may return timestamps in different formats depending on the protocol mode:
+//   - Simple protocol with text format: "2006-01-02 15:04:05" (space separator)
+//   - pgx codec scanning into string:   "2006-01-02T15:04:05Z" (RFC3339)
+//   - With timezone suffix:              "2006-01-02 15:04:05-07:00"
+func parseHourString(s string) (time.Time, bool) {
+	for _, layout := range []string{
+		"2006-01-02T15:04:05Z07:00", // RFC3339
+		"2006-01-02T15:04:05Z",      // RFC3339 UTC
+		"2006-01-02 15:04:05",       // PostgreSQL text format
+		"2006-01-02 15:04:05-07:00", // PostgreSQL text with tz
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
 // getHourlyTrend retrieves alert counts grouped by hour for the last 24 hours.
+// All internal calculations use UTC to ensure consistent key matching regardless
+// of server timezone or how trigger_time was originally stored.
 func getHourlyTrend(db *gorm.DB, stats *AlertStats) error {
-	var results []hourCount
+	// Calculate time range: last 24 hours in UTC
+	// Start from 23 hours ago (aligned to hour boundary) so the 24th slot is the current hour.
+	nowUTC := time.Now().UTC()
+	startTime := nowUTC.Add(-23 * time.Hour)
+	// Align to hour boundary
+	startTime = time.Date(startTime.Year(), startTime.Month(), startTime.Day(), startTime.Hour(), 0, 0, 0, time.UTC)
 
-	// Calculate time range: last 24 hours
-	now := time.Now()
-	startTime := now.Add(-24 * time.Hour)
-
-	// Use a database-agnostic approach for hour truncation
-	// SQLite: strftime('%Y-%m-%d %H:00:00', trigger_time)
-	// PostgreSQL: date_trunc('hour', trigger_time)
-	// We detect the dialect and use appropriate syntax
 	dialect := db.Dialector.Name()
 
-	var query *gorm.DB
+	// Build a map of UTC-hour -> count
+	countMap := make(map[time.Time]int)
+
 	if dialect == "sqlite" {
-		query = db.Model(&models.Alert{}).
-			Select("strftime('%Y-%m-%d %H:00:00', trigger_time) as hour, count(*) as count").
+		// SQLite: fetch raw trigger_time values and group in Go.
+		var alerts []struct {
+			TriggerTime time.Time
+		}
+		if err := db.Model(&models.Alert{}).
+			Select("trigger_time").
 			Where("trigger_time >= ?", startTime).
-			Group("hour").
-			Order("hour asc")
+			Find(&alerts).Error; err != nil {
+			return err
+		}
+		for _, a := range alerts {
+			utcHour := time.Date(a.TriggerTime.Year(), a.TriggerTime.Month(), a.TriggerTime.Day(), a.TriggerTime.Hour(), 0, 0, 0, time.UTC)
+			countMap[utcHour]++
+		}
 	} else {
-		// PostgreSQL and others that support date_trunc
-		query = db.Model(&models.Alert{}).
-			Select("date_trunc('hour', trigger_time) as hour, count(*) as count").
+		// PostgreSQL: use AT TIME ZONE 'UTC' to force UTC truncation regardless of
+		// session timezone.
+		var results []hourCount
+		query := db.Model(&models.Alert{}).
+			Select("date_trunc('hour', trigger_time AT TIME ZONE 'UTC') as hour, count(*) as count").
 			Where("trigger_time >= ?", startTime).
 			Group("hour").
 			Order("hour asc")
+		if err := query.Scan(&results).Error; err != nil {
+			return err
+		}
+		for _, r := range results {
+			parsed, ok := parseHourString(r.Hour)
+			if !ok {
+				continue
+			}
+			key := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), parsed.Hour(), 0, 0, 0, time.UTC)
+			countMap[key] = r.Count
+		}
 	}
 
-	if err := query.Scan(&results).Error; err != nil {
-		return err
-	}
-
-	// Build a map of hour -> count for easy lookup
-	countMap := make(map[string]int)
-	for _, r := range results {
-		// r.Hour is already a string in format "2006-01-02 15:00:00"
-		countMap[r.Hour] = r.Count
-	}
-
-	// Generate all 24 hours, filling in zeros for missing hours
+	// Generate all 24 hours in UTC, filling in zeros for missing hours
 	stats.Trend = make([]TrendPoint, 24)
 	for i := 0; i < 24; i++ {
 		hourTime := startTime.Add(time.Duration(i) * time.Hour)
-		// Truncate to hour boundary
-		hourTime = time.Date(hourTime.Year(), hourTime.Month(), hourTime.Day(), hourTime.Hour(), 0, 0, 0, hourTime.Location())
-		hourKey := hourTime.Format("2006-01-02 15:00:00")
-
 		stats.Trend[i] = TrendPoint{
 			Time:  hourTime,
-			Count: countMap[hourKey],
+			Count: countMap[hourTime],
 		}
 	}
 

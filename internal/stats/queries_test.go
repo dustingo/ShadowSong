@@ -157,3 +157,59 @@ func TestGetAlertStats_AllSeverityLevelsPresent(t *testing.T) {
 	assert.Equal(t, 0, stats.BySeverity["P2"])
 	assert.Equal(t, 0, stats.BySeverity["P3"])
 }
+
+func TestGetAlertStats_TrendWithMixedTimezones(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Create alerts with different timezone representations — both should
+	// land in the same UTC hour bucket after normalization.
+	now := time.Now()
+
+	// Alert with local timezone (simulating time.Now())
+	require.NoError(t, createTestAlert(db, "alert-local", "P0", "firing", now.Local()))
+
+	// Alert with explicit UTC time
+	require.NoError(t, createTestAlert(db, "alert-utc", "P1", "firing", now.UTC()))
+
+	stats, err := GetAlertStats(db)
+	require.NoError(t, err)
+	require.NotNil(t, stats)
+
+	assert.Len(t, stats.Trend, 24)
+
+	// Both alerts should appear in the same UTC hour bucket
+	utcHour := time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day(), now.UTC().Hour(), 0, 0, 0, time.UTC)
+	found := false
+	for _, point := range stats.Trend {
+		if point.Time.Equal(utcHour) {
+			assert.Equal(t, 2, point.Count, "both alerts should be counted in the same UTC hour")
+			found = true
+		}
+	}
+	assert.True(t, found, "current UTC hour should be present in trend")
+}
+
+func TestParseHourString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantHour int
+		wantOK   bool
+	}{
+		{"RFC3339 UTC", "2026-05-16T06:00:00Z", 6, true},
+		{"RFC3339 with offset", "2026-05-16T06:00:00+00:00", 6, true},
+		{"PostgreSQL text format", "2026-05-16 06:00:00", 6, true},
+		{"PostgreSQL text with tz", "2026-05-16 06:00:00+00:00", 6, true},
+		{"invalid format", "not-a-time", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed, ok := parseHourString(tt.input)
+			assert.Equal(t, tt.wantOK, ok)
+			if ok {
+				assert.Equal(t, tt.wantHour, parsed.Hour())
+			}
+		})
+	}
+}

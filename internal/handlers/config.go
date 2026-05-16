@@ -356,7 +356,7 @@ func (h *ConfigHandler) TestChannel(c *gin.Context) {
 	testTitle := "测试通知"
 	testContent := "这是一条来自游戏运维告警系统的测试消息。"
 
-	if err := notifier.SendToChannel(&ch, testTitle, testContent); err != nil {
+	if err := notifier.SendToChannel(&ch, testTitle, testContent, nil); err != nil {
 		_ = recordAudit(h.db, c, "config.channel.test", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultDenied, err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

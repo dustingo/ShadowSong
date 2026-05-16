@@ -23,7 +23,7 @@ func TestSendToChannel_UnsupportedTypeIncludesChannelContext(t *testing.T) {
 		Config: datatypes.JSON(`{}`),
 	}
 
-	err := SendToChannel(channel, "title", "content")
+	err := SendToChannel(channel, "title", "content", nil)
 	if assert.Error(t, err) {
 		assert.Contains(t, err.Error(), "channel 7 (broken-channel)")
 		assert.Contains(t, err.Error(), "unsupported type")
@@ -106,7 +106,7 @@ func TestWebhookSender_FormUrlencoded(t *testing.T) {
 	sender, err := NewWebhookSender(json.RawMessage(config))
 	assert.NoError(t, err)
 
-	err = sender.Send("alert-title", "alert-content")
+	err = sender.Send("alert-title", "alert-content", nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "application/x-www-form-urlencoded", receivedContentType)
@@ -126,7 +126,7 @@ func TestWebhookSender_BasicAuth(t *testing.T) {
 	sender, err := NewWebhookSender(json.RawMessage(config))
 	assert.NoError(t, err)
 
-	err = sender.Send("title", "content")
+	err = sender.Send("title", "content", nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "myuser", receivedUser)
@@ -146,7 +146,7 @@ func TestWebhookSender_CustomAuth(t *testing.T) {
 	sender, err := NewWebhookSender(json.RawMessage(config))
 	assert.NoError(t, err)
 
-	err = sender.Send("title", "content")
+	err = sender.Send("title", "content", nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "secret-token-123", receivedHeader)
@@ -168,7 +168,7 @@ func TestWebhookSender_BackwardCompat_NoNewFields(t *testing.T) {
 	sender, err := NewWebhookSender(json.RawMessage(config))
 	assert.NoError(t, err)
 
-	err = sender.Send("my-title", "my-content")
+	err = sender.Send("my-title", "my-content", nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "application/json", receivedContentType)
@@ -198,7 +198,7 @@ func TestWebhookSender_InvalidAuthType(t *testing.T) {
 		client: &http.Client{Timeout: 10 * time.Second},
 	}
 
-	err := sender.Send("title", "content")
+	err := sender.Send("title", "content", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported auth_type")
 	assert.False(t, received, "request should not have been sent")
@@ -230,7 +230,7 @@ func TestWebhookSender_BasicAuthMissingUsername(t *testing.T) {
 	sender, err := NewWebhookSender(json.RawMessage(config))
 	assert.NoError(t, err)
 
-	err = sender.Send("title", "content")
+	err = sender.Send("title", "content", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "basic auth requires username")
 }

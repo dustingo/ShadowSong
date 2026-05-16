@@ -14,7 +14,7 @@ import (
 )
 
 type Sender interface {
-	Send(title, content string) error
+	Send(title, content string, data map[string]interface{}) error
 }
 
 var retryableHTTPStatusCodes = map[int]struct{}{
@@ -27,7 +27,7 @@ var retryableHTTPStatusCodes = map[int]struct{}{
 }
 
 // SendToChannel sends notification to the specified channel
-func SendToChannel(channel *models.Channel, title, content string) error {
+func SendToChannel(channel *models.Channel, title, content string, data map[string]interface{}) error {
 	var sender Sender
 	var err error
 
@@ -50,7 +50,7 @@ func SendToChannel(channel *models.Channel, title, content string) error {
 		return fmt.Errorf("channel %d (%s) sender init failed: %w", channel.ID, channel.Name, err)
 	}
 
-	if err := sender.Send(title, content); err != nil {
+	if err := sender.Send(title, content, data); err != nil {
 		return fmt.Errorf("channel %d (%s) send failed: %w", channel.ID, channel.Name, err)
 	}
 
@@ -164,7 +164,7 @@ type FeishuMessage struct {
 	} `json:"content"`
 }
 
-func (s *FeishuSender) Send(title, content string) error {
+func (s *FeishuSender) Send(title, content string, data map[string]interface{}) error {
 	msg := FeishuMessage{}
 	msg.MsgType = "text"
 	msg.Content.Text = fmt.Sprintf("**%s**\n%s", title, content)
@@ -233,7 +233,7 @@ type DingTalkMessage struct {
 	} `json:"text"`
 }
 
-func (s *DingTalkSender) Send(title, content string) error {
+func (s *DingTalkSender) Send(title, content string, data map[string]interface{}) error {
 	msg := DingTalkMessage{}
 	msg.MsgType = "text"
 	msg.Text.Content = fmt.Sprintf("%s\n%s", title, content)
@@ -283,7 +283,7 @@ type WeComMessage struct {
 	} `json:"text"`
 }
 
-func (s *WeComSender) Send(title, content string) error {
+func (s *WeComSender) Send(title, content string, data map[string]interface{}) error {
 	msg := WeComMessage{}
 	msg.MsgType = "text"
 	msg.Text.Content = fmt.Sprintf("%s\n%s", title, content)
@@ -360,7 +360,7 @@ func NewWebhookSender(config json.RawMessage) (Sender, error) {
 	}, nil
 }
 
-func (s *WebhookSender) Send(title, content string) error {
+func (s *WebhookSender) Send(title, content string, data map[string]interface{}) error {
 	var reqBody io.Reader
 
 	switch s.config.ContentType {

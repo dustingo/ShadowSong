@@ -198,7 +198,7 @@ func TestWebhookHandlerPublishToRedisTracePayload(t *testing.T) {
 func TestWebhookHandlerProcessAlertNotificationsTraceLogging(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		return fmt.Errorf("send exploded")
 	}
 
@@ -241,7 +241,7 @@ func TestWebhookHandlerProcessAlertNotificationsTraceLogging(t *testing.T) {
 func TestWebhookHandlerLogsLifecycleStages(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		return nil
 	}
 
@@ -330,7 +330,7 @@ func TestWebhookHandlerRedisPublishFailureLeavesLifecycleInspectable(t *testing.
 	handler.redisXAdd = func(_ context.Context, _ *redis.XAddArgs) *redis.StringCmd {
 		return redis.NewStringResult("", fmt.Errorf("redis unavailable"))
 	}
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		return nil
 	}
 
@@ -576,7 +576,7 @@ func TestMarshalRawAlertData_PrefersIndividualAlertObject(t *testing.T) {
 func TestWebhookHandlerProcessAlertNotificationsAsync_RecoversFromPanic(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		panic("boom")
 	}
 
@@ -633,7 +633,7 @@ func TestWebhookHandlerProcessAlertNotificationsAsync_RecoversFromPanic(t *testi
 func TestWebhookHandlerSendNotification_LogsAlertAndChannelContext(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		return fmt.Errorf("send exploded")
 	}
 
@@ -676,7 +676,7 @@ func TestWebhookHandlerSendNotification_ImmediateSuccessSingleAttempt(t *testing
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
 	attempts := 0
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		attempts++
 		return nil
 	}
@@ -741,7 +741,7 @@ func TestWebhookHandlerSendNotification_RetrySuccessAfterTransientFailures(t *te
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
 	attempts := 0
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		attempts++
 		if attempts < 3 {
 			return fmt.Errorf("channel %d (%s) send failed: webhook notification failed with status: 503", channel.ID, channel.Name)
@@ -812,7 +812,7 @@ func TestWebhookHandlerSendNotification_DatasourceLookupFailureFallsBackIntoRetr
 	attempts := 0
 	var titles []string
 	var contents []string
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		attempts++
 		titles = append(titles, title)
 		contents = append(contents, content)
@@ -901,7 +901,7 @@ func TestWebhookHandlerSendNotification_RenderFailureFallsBackIntoRetryBoundary(
 	attempts := 0
 	var titles []string
 	var contents []string
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		attempts++
 		titles = append(titles, title)
 		contents = append(contents, content)
@@ -966,7 +966,7 @@ func TestWebhookHandlerSendNotification_NonRetryableFailureStopsAfterFirstAttemp
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
 	attempts := 0
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		attempts++
 		return fmt.Errorf("channel %d (%s) sender init failed: webhook url is required", channel.ID, channel.Name)
 	}
@@ -1013,7 +1013,7 @@ func TestWebhookHandlerSendNotification_RetryExhaustPersistsTerminalFailureLedge
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
 	attempts := 0
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		attempts++
 		return fmt.Errorf("channel %d (%s) send failed: webhook notification failed with status: 503", channel.ID, channel.Name)
 	}
@@ -1098,7 +1098,7 @@ func TestWebhookHandlerSendNotification_RetryExhaustPersistsTerminalFailureLedge
 func TestWebhookHandlerProcessAlertNotifications_LogsMatchedChannelsAsStructuredField(t *testing.T) {
 	db := newWebhookTestDB(t)
 	handler, logBuffer := newWebhookTestHandler(db)
-	handler.sendToChannel = func(channel *models.Channel, title, content string) error {
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		return nil
 	}
 

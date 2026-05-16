@@ -42,7 +42,7 @@ type WebhookHandler struct {
 	deliveryService *delivery.Service
 	logger          *log.Logger
 	redisXAdd       func(ctx context.Context, args *redis.XAddArgs) *redis.StringCmd
-	sendToChannel   func(channel *models.Channel, title, content string) error
+	sendToChannel   func(channel *models.Channel, title, content string, data map[string]interface{}) error
 	runAsync        func(fn func())
 	sleep           func(time.Duration)
 }
@@ -778,7 +778,7 @@ func (h *WebhookHandler) notificationLogger() *log.Logger {
 	return log.New(io.Discard, "", 0)
 }
 
-func (h *WebhookHandler) notificationSender() func(channel *models.Channel, title, content string) error {
+func (h *WebhookHandler) notificationSender() func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 	if h.sendToChannel != nil {
 		return h.sendToChannel
 	}
@@ -1142,7 +1142,7 @@ func (h *WebhookHandler) sendChannelNotification(
 
 	for attempt := 1; attempt <= notificationMaxAttempts; attempt++ {
 		startedAt := time.Now()
-		err := sender(channel, title, content)
+		err := sender(channel, title, content, nil)
 		attemptFields := h.eventFields(h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), map[string]string{
 			"mode": mode,
 		})

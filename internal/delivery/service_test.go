@@ -476,7 +476,7 @@ type recoveryDeliverySeed struct {
 func newRecoveryTestService(db *gorm.DB) (*Service, *[]recoverySenderCall) {
 	var senderCalls []recoverySenderCall
 	service := NewService(db)
-	service.sendToChannel = func(channel *models.Channel, title, content string) error {
+	service.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 		senderCalls = append(senderCalls, recoverySenderCall{
 			channelID: channel.ID,
 			title:     title,

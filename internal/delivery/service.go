@@ -21,7 +21,7 @@ type Service struct {
 	db            *gorm.DB
 	matcher       *routing.Matcher
 	renderer      *template.Renderer
-	sendToChannel func(channel *models.Channel, title, content string) error
+	sendToChannel func(channel *models.Channel, title, content string, data map[string]interface{}) error
 	sleep         func(time.Duration)
 }
 
@@ -780,7 +780,7 @@ func (s *Service) executeRecoveredDelivery(ctx context.Context, tx *gorm.DB, inp
 
 	for attempt := 1; attempt <= 3; attempt++ {
 		startedAt := time.Now()
-		sendErr := s.sender()(input.channel, input.title, input.content)
+		sendErr := s.sender()(input.channel, input.title, input.content, nil)
 		_, recordErr := s.recordAttemptTx(ctx, tx, deliveryRecord.ID, RecordAttemptInput{
 			AttemptNumber: attempt,
 			Result:        notificationAttemptResult(sendErr),
@@ -982,7 +982,7 @@ func (s *Service) getDeliveryByIDTx(ctx context.Context, tx *gorm.DB, deliveryID
 	return &delivery, nil
 }
 
-func (s *Service) sender() func(channel *models.Channel, title, content string) error {
+func (s *Service) sender() func(channel *models.Channel, title, content string, data map[string]interface{}) error {
 	if s.sendToChannel != nil {
 		return s.sendToChannel
 	}

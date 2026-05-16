@@ -1140,9 +1140,13 @@ func (h *WebhookHandler) sendChannelNotification(
 		}), "failed to persist delivery envelope")
 	}
 
+	data := h.buildNotificationRenderContext(alert)
+	data["title"] = title
+	data["content"] = content
+
 	for attempt := 1; attempt <= notificationMaxAttempts; attempt++ {
 		startedAt := time.Now()
-		err := sender(channel, title, content, nil)
+		err := sender(channel, title, content, data)
 		attemptFields := h.eventFields(h.traceFieldsForAttempt(alert, channel, attempt, notificationMaxAttempts, err), map[string]string{
 			"mode": mode,
 		})

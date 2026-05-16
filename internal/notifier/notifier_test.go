@@ -398,3 +398,63 @@ func TestWebhookSender_FormUrlencodedWithTemplate(t *testing.T) {
 
 	assert.Equal(t, "title=AlertTitle&content=AlertContent", receivedBody)
 }
+
+func TestWebhookSender_FullPipeline(t *testing.T) {
+	var receivedBody string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		receivedBody = string(body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	// Simulate what the handler builds: data from buildNotificationRenderContext + title/content
+	data := map[string]interface{}{
+		"title":         "[P0] CPU过高",
+		"content":       "严重告警\n名称: CPU过高\n状态: firing",
+		"alert_id":      "alert-123",
+		"alert_name":    "CPU过高",
+		"severity":      "P0",
+		"severity_code": "P0",
+		"message":       "CPU使用率95%",
+		"source":        "prometheus",
+		"status":        "firing",
+		"labels": map[string]interface{}{
+			"team": "ops",
+			"env":  "prod",
+		},
+		"event": map[string]interface{}{
+			"host":   "server-01",
+			"metric": "cpu_usage",
+			"value":  "95",
+		},
+		"alert": map[string]interface{}{
+			"id":       "alert-123",
+			"name":     "CPU过高",
+			"severity": "P0",
+			"message":  "CPU使用率95%",
+			"source":   "prometheus",
+			"status":   "firing",
+			"labels": map[string]interface{}{
+				"team": "ops",
+				"env":  "prod",
+			},
+		},
+	}
+
+	config := fmt.Sprintf(`{"url":"%s","template":"{\"msg_type\":\"alert\",\"title\":\"{{.title}}\",\"level\":\"{{.severity}}\",\"host\":\"{{.event.host}}\",\"team\":\"{{.labels.team}}\"}"}`, ts.URL)
+	sender, err := NewWebhookSender(json.RawMessage(config))
+	assert.NoError(t, err)
+
+	err = sender.Send("[P0] CPU过高", "严重告警...", data)
+	assert.NoError(t, err)
+
+	var payload map[string]string
+	assert.NoError(t, json.Unmarshal([]byte(receivedBody), &payload))
+	assert.Equal(t, "alert", payload["msg_type"])
+	assert.Equal(t, "[P0] CPU过高", payload["title"])
+	assert.Equal(t, "P0", payload["level"])
+	assert.Equal(t, "server-01", payload["host"])
+	assert.Equal(t, "ops", payload["team"])
+}

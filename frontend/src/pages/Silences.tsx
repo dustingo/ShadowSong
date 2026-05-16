@@ -7,7 +7,7 @@ import { Tag } from 'primereact/tag'
 import { Dialog } from 'primereact/dialog'
 import { InputText } from 'primereact/inputtext'
 import { InputTextarea } from 'primereact/inputtextarea'
-import { Dropdown } from 'primereact/dropdown'
+import { MultiSelect } from 'primereact/multiselect'
 import { Calendar } from 'primereact/calendar'
 import { TabView, TabPanel } from 'primereact/tabview'
 import { confirmDialog } from 'primereact/confirmdialog'
@@ -372,12 +372,11 @@ export const Silences: React.FC = () => {
           </div>
           <div className="flex flex-column gap-2">
             <label htmlFor="severities" className="font-semibold">匹配级别</label>
-            <Dropdown
+            <MultiSelect
               id="severities"
               value={formSeverities}
               options={severityOptions}
               onChange={(e) => setFormSeverities(e.value)}
-              multiple
               placeholder="留空匹配所有级别"
               disabled={!canManageConfig}
             />

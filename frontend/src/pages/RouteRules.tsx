@@ -6,7 +6,7 @@ import { Button } from 'primereact/button'
 import { Tag } from 'primereact/tag'
 import { Dialog } from 'primereact/dialog'
 import { InputText } from 'primereact/inputtext'
-import { Dropdown } from 'primereact/dropdown'
+import { MultiSelect } from 'primereact/multiselect'
 import { InputSwitch } from 'primereact/inputswitch'
 import { InputNumber } from 'primereact/inputnumber'
 import { Badge } from 'primereact/badge'
@@ -350,12 +350,11 @@ export const RouteRules: React.FC = () => {
 
           <div className="field">
             <label htmlFor="severities" className="font-medium">匹配级别</label>
-            <Dropdown
+            <MultiSelect
               id="severities"
               value={formData.severities}
               options={severityOptions}
               onChange={(e) => setFormData({ ...formData, severities: e.value })}
-              multiple
               placeholder="选择级别"
               disabled={!canManageConfig}
             />
@@ -363,12 +362,11 @@ export const RouteRules: React.FC = () => {
 
           <div className="field">
             <label htmlFor="sources" className="font-medium">匹配来源</label>
-            <Dropdown
+            <MultiSelect
               id="sources"
               value={formData.sources}
               options={sourceOptions}
               onChange={(e) => setFormData({ ...formData, sources: e.value })}
-              multiple
               placeholder="选择数据源"
               disabled={!canManageConfig}
             />
@@ -376,12 +374,11 @@ export const RouteRules: React.FC = () => {
 
           <div className="field">
             <label htmlFor="channel_ids" className="font-medium">目标渠道</label>
-            <Dropdown
+            <MultiSelect
               id="channel_ids"
               value={formData.channel_ids}
               options={channelOptions}
               onChange={(e) => setFormData({ ...formData, channel_ids: e.value })}
-              multiple
               placeholder="选择推送渠道"
               disabled={!canManageConfig}
             />

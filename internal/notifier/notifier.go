@@ -304,10 +304,23 @@ func (s *WeComSender) Send(title, content string) error {
 // ============ Webhook Sender ============
 
 type WebhookConfig struct {
-	URL      string            `json:"url"`
-	Method   string            `json:"method"`
-	Headers  map[string]string `json:"headers"`
-	Template string            `json:"template"`
+	URL         string            `json:"url"`
+	Method      string            `json:"method"`
+	Headers     map[string]string `json:"headers"`
+	Template    string            `json:"template"`
+	ContentType string            `json:"content_type"`
+	AuthType    string            `json:"auth_type"`
+	AuthConfig  json.RawMessage   `json:"auth_config"`
+}
+
+type BasicAuthConfig struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type CustomAuthConfig struct {
+	HeaderName  string `json:"header_name"`
+	HeaderValue string `json:"header_value"`
 }
 
 type WebhookSender struct {
@@ -326,6 +339,21 @@ func NewWebhookSender(config json.RawMessage) (Sender, error) {
 	if wc.Method == "" {
 		wc.Method = "POST"
 	}
+	if wc.Method != "POST" && wc.Method != "PUT" {
+		return nil, fmt.Errorf("webhook method must be POST or PUT, got: %s", wc.Method)
+	}
+	if wc.ContentType == "" {
+		wc.ContentType = "application/json"
+	}
+	if wc.ContentType != "application/json" && wc.ContentType != "application/x-www-form-urlencoded" {
+		return nil, fmt.Errorf("webhook content_type must be application/json or application/x-www-form-urlencoded, got: %s", wc.ContentType)
+	}
+	if wc.AuthType == "" {
+		wc.AuthType = "none"
+	}
+	if wc.AuthType != "none" && wc.AuthType != "basic" && wc.AuthType != "custom" {
+		return nil, fmt.Errorf("webhook auth_type must be none, basic, or custom, got: %s", wc.AuthType)
+	}
 	return &WebhookSender{
 		config: wc,
 		client: &http.Client{Timeout: 10 * time.Second},
@@ -333,28 +361,39 @@ func NewWebhookSender(config json.RawMessage) (Sender, error) {
 }
 
 func (s *WebhookSender) Send(title, content string) error {
-	var body []byte
+	var reqBody io.Reader
 
-	// Use template if provided
-	if s.config.Template != "" {
-		body = []byte(s.config.Template)
-	} else {
-		// Default JSON format
-		payload := map[string]string{
-			"title":   title,
-			"content": content,
+	switch s.config.ContentType {
+	case "application/x-www-form-urlencoded":
+		reqBody = strings.NewReader(content)
+	default:
+		// JSON content type
+		var body []byte
+		if s.config.Template != "" {
+			body = []byte(s.config.Template)
+		} else {
+			payload := map[string]string{
+				"title":   title,
+				"content": content,
+			}
+			body, _ = json.Marshal(payload)
 		}
-		body, _ = json.Marshal(payload)
+		reqBody = bytes.NewReader(body)
 	}
 
-	req, err := http.NewRequest(s.config.Method, s.config.URL, bytes.NewReader(body))
+	req, err := http.NewRequest(s.config.Method, s.config.URL, reqBody)
 	if err != nil {
 		return fmt.Errorf("failed to create webhook request: %v", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", s.config.ContentType)
+
 	for k, v := range s.config.Headers {
 		req.Header.Set(k, v)
+	}
+
+	if err := s.applyAuth(req); err != nil {
+		return err
 	}
 
 	resp, err := s.client.Do(req)
@@ -367,4 +406,33 @@ func (s *WebhookSender) Send(title, content string) error {
 		return fmt.Errorf("webhook notification failed with status: %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func (s *WebhookSender) applyAuth(req *http.Request) error {
+	switch s.config.AuthType {
+	case "none":
+		return nil
+	case "basic":
+		var bac BasicAuthConfig
+		if err := json.Unmarshal(s.config.AuthConfig, &bac); err != nil {
+			return fmt.Errorf("failed to unmarshal basic auth config: %v", err)
+		}
+		if bac.Username == "" {
+			return fmt.Errorf("basic auth requires username")
+		}
+		req.SetBasicAuth(bac.Username, bac.Password)
+		return nil
+	case "custom":
+		var cac CustomAuthConfig
+		if err := json.Unmarshal(s.config.AuthConfig, &cac); err != nil {
+			return fmt.Errorf("failed to unmarshal custom auth config: %v", err)
+		}
+		if cac.HeaderName == "" {
+			return fmt.Errorf("custom auth requires header_name")
+		}
+		req.Header.Set(cac.HeaderName, cac.HeaderValue)
+		return nil
+	default:
+		return fmt.Errorf("unsupported auth_type: %s", s.config.AuthType)
+	}
 }

@@ -28,8 +28,16 @@ interface ChannelFormValues {
     secret?: string
     url?: string
     method?: string
+    content_type?: string
     headers?: string
     template?: string
+    auth_type?: string
+    auth_config?: {
+      username?: string
+      password?: string
+      header_name?: string
+      header_value?: string
+    }
   }
 }
 
@@ -73,16 +81,25 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
   }
 
   if (channel.type === 'webhook') {
+    const authConfig = config.auth_config ?? {}
     return {
       ...channel,
       config: {
         url: String(config.url ?? ''),
         method: String(config.method ?? 'POST'),
+        content_type: String(config.content_type ?? 'application/json'),
         headers:
           typeof config.headers === 'string'
             ? config.headers
             : JSON.stringify(config.headers ?? {}, null, 2),
         template: String(config.template ?? ''),
+        auth_type: String(config.auth_type ?? 'none'),
+        auth_config: {
+          username: String(authConfig.username ?? ''),
+          password: String(authConfig.password ?? ''),
+          header_name: String(authConfig.header_name ?? ''),
+          header_value: String(authConfig.header_value ?? ''),
+        },
       },
     }
   }
@@ -100,13 +117,26 @@ const buildChannelPayload = (values: ChannelFormValues) => {
       headers = JSON.parse(config.headers) as Record<string, string>
     }
 
+    const authConfig = config.auth_config ?? {}
+    const authPayload: Record<string, string> = {}
+    if (values.config.auth_type === 'basic') {
+      authPayload.username = String(authConfig.username ?? '')
+      authPayload.password = String(authConfig.password ?? '')
+    } else if (values.config.auth_type === 'custom') {
+      authPayload.header_name = String(authConfig.header_name ?? '')
+      authPayload.header_value = String(authConfig.header_value ?? '')
+    }
+
     return {
       ...values,
       config: {
         url: config.url ?? '',
         method: config.method ?? 'POST',
+        content_type: config.content_type ?? 'application/json',
         headers,
         template: config.template ?? '',
+        auth_type: config.auth_type ?? 'none',
+        auth_config: authPayload,
       },
     }
   }
@@ -167,6 +197,17 @@ export const Channels: React.FC = () => {
   const methodOptions = [
     { label: 'POST', value: 'POST' },
     { label: 'PUT', value: 'PUT' },
+  ]
+
+  const contentTypeOptions = [
+    { label: 'JSON (application/json)', value: 'application/json' },
+    { label: 'Form (application/x-www-form-urlencoded)', value: 'application/x-www-form-urlencoded' },
+  ]
+
+  const authTypeOptions = [
+    { label: '无认证', value: 'none' },
+    { label: 'Basic Auth', value: 'basic' },
+    { label: '自定义 Header', value: 'custom' },
   ]
 
   const handleCreate = () => {
@@ -482,6 +523,20 @@ export const Channels: React.FC = () => {
             />
           </div>
           <div className="flex flex-column gap-2">
+            <label className="text-sm">请求体格式</label>
+            <Dropdown
+              value={formValues.config.content_type || 'application/json'}
+              options={contentTypeOptions}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, content_type: e.value },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+          <div className="flex flex-column gap-2">
             <label className="text-sm">请求头（JSON）</label>
             <InputTextarea
               rows={2}
@@ -500,7 +555,11 @@ export const Channels: React.FC = () => {
             <label className="text-sm">请求体模板</label>
             <InputTextarea
               rows={3}
-              placeholder='{"text": "{{.message}}"}'
+              placeholder={
+                formValues.config.content_type === 'application/x-www-form-urlencoded'
+                  ? 'teams=ops&title={{.alert_name}}&app_content={{.message}}'
+                  : '{"text": "{{.message}}"}'
+              }
               value={formValues.config.template || ''}
               onChange={(e) =>
                 setFormValues({
@@ -511,6 +570,103 @@ export const Channels: React.FC = () => {
               disabled={!canManageConfig}
             />
           </div>
+          <Divider align="center">
+            <span className="text-sm">认证配置</span>
+          </Divider>
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">认证方式</label>
+            <Dropdown
+              value={formValues.config.auth_type || 'none'}
+              options={authTypeOptions}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: {
+                    ...formValues.config,
+                    auth_type: e.value,
+                    auth_config: {},
+                  },
+                })
+              }
+              disabled={!canManageConfig}
+            />
+          </div>
+          {formValues.config.auth_type === 'basic' && (
+            <>
+              <div className="flex flex-column gap-2">
+                <label className="text-sm">用户名</label>
+                <InputText
+                  placeholder="app_key"
+                  value={formValues.config.auth_config?.username || ''}
+                  onChange={(e) =>
+                    setFormValues({
+                      ...formValues,
+                      config: {
+                        ...formValues.config,
+                        auth_config: { ...formValues.config.auth_config, username: e.target.value },
+                      },
+                    })
+                  }
+                  disabled={!canManageConfig}
+                />
+              </div>
+              <div className="flex flex-column gap-2">
+                <label className="text-sm">密码</label>
+                <InputText
+                  placeholder="appsecret"
+                  value={formValues.config.auth_config?.password || ''}
+                  onChange={(e) =>
+                    setFormValues({
+                      ...formValues,
+                      config: {
+                        ...formValues.config,
+                        auth_config: { ...formValues.config.auth_config, password: e.target.value },
+                      },
+                    })
+                  }
+                  disabled={!canManageConfig}
+                />
+              </div>
+            </>
+          )}
+          {formValues.config.auth_type === 'custom' && (
+            <>
+              <div className="flex flex-column gap-2">
+                <label className="text-sm">Header 名称</label>
+                <InputText
+                  placeholder="Authorization"
+                  value={formValues.config.auth_config?.header_name || ''}
+                  onChange={(e) =>
+                    setFormValues({
+                      ...formValues,
+                      config: {
+                        ...formValues.config,
+                        auth_config: { ...formValues.config.auth_config, header_name: e.target.value },
+                      },
+                    })
+                  }
+                  disabled={!canManageConfig}
+                />
+              </div>
+              <div className="flex flex-column gap-2">
+                <label className="text-sm">Header 值</label>
+                <InputText
+                  placeholder="Bearer xxx"
+                  value={formValues.config.auth_config?.header_value || ''}
+                  onChange={(e) =>
+                    setFormValues({
+                      ...formValues,
+                      config: {
+                        ...formValues.config,
+                        auth_config: { ...formValues.config.auth_config, header_value: e.target.value },
+                      },
+                    })
+                  }
+                  disabled={!canManageConfig}
+                />
+              </div>
+            </>
+          )}
         </>
       )
     }

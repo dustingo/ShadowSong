@@ -642,9 +642,11 @@ func maskChannelConfig(chType string, config []byte) []byte {
 		return []byte(`{}`)
 	}
 	configStr := string(config)
-	if strings.Contains(configStr, "webhook_url") || strings.Contains(configStr, "secret") || strings.Contains(configStr, "sign_key") {
-		// Return masked config
-		return []byte(`{"masked": true}`)
+	sensitiveKeys := []string{"webhook_url", "secret", "sign_key", "password", "header_value"}
+	for _, key := range sensitiveKeys {
+		if strings.Contains(configStr, key) {
+			return []byte(`{"masked": true}`)
+		}
 	}
 	return config
 }

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -94,6 +95,45 @@ func (c *Channel) Validate() error {
 	}
 	if !validTypes[c.Type] {
 		return errors.New("invalid channel type")
+	}
+	if c.Type == "webhook" {
+		var cfg struct {
+			Method      string          `json:"method"`
+			ContentType string          `json:"content_type"`
+			AuthType    string          `json:"auth_type"`
+			AuthConfig  json.RawMessage `json:"auth_config"`
+		}
+		if err := json.Unmarshal(c.Config, &cfg); err == nil {
+			validMethods := map[string]bool{"": true, "POST": true, "PUT": true}
+			if !validMethods[cfg.Method] {
+				return errors.New("invalid webhook method, must be POST or PUT")
+			}
+			validContentTypes := map[string]bool{"": true, "application/json": true, "application/x-www-form-urlencoded": true}
+			if !validContentTypes[cfg.ContentType] {
+				return errors.New("invalid webhook content_type")
+			}
+			validAuthTypes := map[string]bool{"": true, "none": true, "basic": true, "custom": true}
+			if !validAuthTypes[cfg.AuthType] {
+				return errors.New("invalid webhook auth_type, must be none, basic, or custom")
+			}
+			if cfg.AuthType == "basic" {
+				var bc struct {
+					Username string `json:"username"`
+					Password string `json:"password"`
+				}
+				if err := json.Unmarshal(cfg.AuthConfig, &bc); err != nil || bc.Username == "" {
+					return errors.New("basic auth requires username in auth_config")
+				}
+			}
+			if cfg.AuthType == "custom" {
+				var cc struct {
+					HeaderName string `json:"header_name"`
+				}
+				if err := json.Unmarshal(cfg.AuthConfig, &cc); err != nil || cc.HeaderName == "" {
+					return errors.New("custom auth requires header_name in auth_config")
+				}
+			}
+		}
 	}
 	return nil
 }

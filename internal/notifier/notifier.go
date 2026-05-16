@@ -71,7 +71,8 @@ func IsRetryableSendError(err error) bool {
 
 	if strings.Contains(message, "failed to create webhook request") ||
 		strings.Contains(message, "failed to marshal") ||
-		strings.Contains(message, "failed to unmarshal") {
+		strings.Contains(message, "failed to unmarshal") ||
+		strings.Contains(message, "failed to render webhook template") {
 		return false
 	}
 

@@ -69,11 +69,28 @@ export interface DataSourcePreviewResponse {
   }
 }
 
+export interface WebhookAuthConfig {
+  username?: string
+  password?: string
+  header_name?: string
+  header_value?: string
+}
+
 export interface Channel {
   id: number
   name: string
   type: 'feishu' | 'dingtalk' | 'wecom' | 'webhook'
-  config: JsonObject
+  config: JsonObject & {
+    webhook_url?: string
+    secret?: string
+    url?: string
+    method?: string
+    content_type?: string
+    headers?: Record<string, string> | string
+    template?: string
+    auth_type?: string
+    auth_config?: WebhookAuthConfig
+  }
   enabled: boolean
   created_at: string
   updated_at: string

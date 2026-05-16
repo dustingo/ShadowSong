@@ -10,7 +10,7 @@ import { Dropdown } from 'primereact/dropdown'
 import { InputSwitch } from 'primereact/inputswitch'
 import { Tag } from 'primereact/tag'
 import { Divider } from 'primereact/divider'
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog'
+import { confirmDialog } from 'primereact/confirmdialog'
 import { PermissionNotice, useToast } from '../components'
 import { canUser, capabilityManageConfig, isReadOnlyConfigUser } from '../authz/capabilities'
 import { useConfigStore } from '../stores/configStore'
@@ -761,8 +761,6 @@ export const Channels: React.FC = () => {
           </div>
         </div>
       </Dialog>
-
-      <ConfirmDialog />
     </div>
   )
 }

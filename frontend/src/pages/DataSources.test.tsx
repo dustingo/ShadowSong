@@ -8,6 +8,16 @@ vi.mock('../components/CodeEditor', () => ({
   CodeEditor: ({ value }: { value?: string }) => <textarea readOnly value={value ?? ''} />,
 }))
 
+vi.mock('../components', () => ({
+  useToast: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showWarn: vi.fn(),
+    showInfo: vi.fn(),
+  }),
+  PermissionNotice: ({ title }: { title: string }) => <div>{title}</div>,
+}))
+
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
   return {

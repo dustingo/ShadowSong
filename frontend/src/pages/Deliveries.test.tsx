@@ -18,6 +18,16 @@ vi.mock('../api/client', () => ({
     error instanceof Error ? error.message : fallback,
 }))
 
+vi.mock('../components', () => ({
+  useToast: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showWarn: vi.fn(),
+    showInfo: vi.fn(),
+  }),
+  PermissionNotice: ({ title }: { title: string }) => <div>{title}</div>,
+}))
+
 const baseUser: User = {
   id: 1,
   username: 'viewer',

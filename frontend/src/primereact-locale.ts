@@ -28,7 +28,6 @@ addLocale('zh-CN', {
   choose: '选择',
   upload: '上传',
   cancel: '取消',
-  completed: '已完成',
   pending: '待处理',
   dayNames: ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'],
   dayNamesShort: ['日', '一', '二', '三', '四', '五', '六'],
@@ -63,9 +62,6 @@ addLocale('zh-CN', {
   passwordPrompt: '请输入密码',
   emptyMessage: '无可用选项',
   emptyFilterMessage: '未找到结果',
-  emptySearchMessage: '未找到结果',
-  selectionMessage: '已选择 {0} 项',
-  emptySelectionMessage: '无选中项',
   aria: {
     trueLabel: '是',
     falseLabel: '否',

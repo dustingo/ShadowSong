@@ -19,9 +19,10 @@ const (
 	AttemptResultSuccess = "success"
 	AttemptResultFailed  = "failed"
 
-	TriggerKindPipeline = "pipeline"
-	TriggerKindRetry    = "retry"
-	TriggerKindReplay   = "replay"
+	TriggerKindPipeline    = "pipeline"
+	TriggerKindRetry       = "retry"
+	TriggerKindReplay      = "replay"
+	TriggerKindEscalation  = "escalation"
 )
 
 var validDeliveryStatuses = map[string]struct{}{
@@ -41,9 +42,10 @@ var validAttemptResults = map[string]struct{}{
 }
 
 var validTriggerKinds = map[string]struct{}{
-	TriggerKindPipeline: {},
-	TriggerKindRetry:    {},
-	TriggerKindReplay:   {},
+	TriggerKindPipeline:   {},
+	TriggerKindRetry:      {},
+	TriggerKindReplay:     {},
+	TriggerKindEscalation: {},
 }
 
 // AlertSnapshot freezes the alert context used by a historical delivery.

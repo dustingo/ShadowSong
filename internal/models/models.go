@@ -148,9 +148,12 @@ type RouteRule struct {
 	LabelMatchers datatypes.JSON `json:"label_matchers"` // []LabelMatcher
 	ChannelIDs    datatypes.JSON `json:"channel_ids"`    // []uint
 	TimeRanges    datatypes.JSON `json:"time_ranges"`    // []TimeRange
-	Enabled       bool           `gorm:"default:true" json:"enabled"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	Enabled             bool           `gorm:"default:true" json:"enabled"`
+	EscalationEnabled   bool           `gorm:"default:false" json:"escalation_enabled"`
+	EscalationTimeout   int            `gorm:"default:30" json:"escalation_timeout"`
+	EscalationMaxRepeats int           `gorm:"default:3" json:"escalation_max_repeats"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
 }
 
 type LabelMatcher struct {

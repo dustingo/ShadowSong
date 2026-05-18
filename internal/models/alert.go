@@ -35,8 +35,10 @@ type Alert struct {
 	// 统计
 	TriggerCount int `json:"trigger_count"` // 去重计数
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	LastNotifiedAt *time.Time `gorm:"index" json:"last_notified_at"`
+	NotifyCount    int        `gorm:"default:0" json:"notify_count"`
 }
 
 // ValidSeverities defines the allowed severity levels
@@ -49,6 +51,10 @@ var ValidStatuses = []string{"pending", "firing", "acked", "silenced", "resolved
 func (a *Alert) BeforeCreate(tx *gorm.DB) error {
 	if a.ReceivedAt.IsZero() {
 		a.ReceivedAt = time.Now()
+	}
+	// Normalize TriggerTime to UTC for consistent storage across databases
+	if !a.TriggerTime.IsZero() {
+		a.TriggerTime = a.TriggerTime.UTC()
 	}
 	if a.Status == "" {
 		a.Status = "pending"

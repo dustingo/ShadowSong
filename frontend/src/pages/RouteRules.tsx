@@ -25,6 +25,9 @@ interface RouteRuleFormData {
   sources: string[]
   channel_ids: number[]
   enabled: boolean
+  escalation_enabled: boolean
+  escalation_timeout: number
+  escalation_max_repeats: number
 }
 
 const severityOptions = [
@@ -59,6 +62,9 @@ export const RouteRules: React.FC = () => {
     sources: [],
     channel_ids: [],
     enabled: true,
+    escalation_enabled: false,
+    escalation_timeout: 30,
+    escalation_max_repeats: 3,
   })
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false)
   const [ruleToDelete, setRuleToDelete] = useState<RouteRule | null>(null)
@@ -89,6 +95,9 @@ export const RouteRules: React.FC = () => {
       sources: [],
       channel_ids: [],
       enabled: true,
+      escalation_enabled: false,
+      escalation_timeout: 30,
+      escalation_max_repeats: 3,
     })
   }
 
@@ -115,6 +124,9 @@ export const RouteRules: React.FC = () => {
       sources: record.sources || [],
       channel_ids: record.channel_ids || [],
       enabled: record.enabled,
+      escalation_enabled: record.escalation_enabled ?? false,
+      escalation_timeout: record.escalation_timeout ?? 30,
+      escalation_max_repeats: record.escalation_max_repeats ?? 3,
     })
     setModalVisible(true)
   }
@@ -393,6 +405,54 @@ export const RouteRules: React.FC = () => {
               disabled={!canManageConfig}
             />
           </div>
+
+          <div className="field">
+            <div className="surface-border border-top-1 pt-3 mt-2">
+              <label className="font-semibold text-base" style={{ color: 'var(--text-primary)' }}>超时重通知</label>
+            </div>
+          </div>
+
+          <div className="field flex align-items-center gap-2">
+            <label htmlFor="escalation_enabled" className="font-medium mb-0">启用超时重通知</label>
+            <InputSwitch
+              id="escalation_enabled"
+              checked={formData.escalation_enabled}
+              onChange={(e) => setFormData({ ...formData, escalation_enabled: e.value })}
+              disabled={!canManageConfig}
+            />
+          </div>
+
+          {formData.escalation_enabled && (
+            <>
+              <div className="field">
+                <label htmlFor="escalation_timeout" className="font-medium">超时时间（分钟）</label>
+                <InputNumber
+                  id="escalation_timeout"
+                  value={formData.escalation_timeout}
+                  onValueChange={(e) => setFormData({ ...formData, escalation_timeout: e.value ?? 30 })}
+                  min={5}
+                  max={120}
+                  suffix=" 分钟"
+                  disabled={!canManageConfig}
+                />
+                <small style={{ color: 'var(--text-secondary)' }}>告警未确认时，经过此时间后重新发送通知（5-120 分钟）</small>
+              </div>
+
+              <div className="field">
+                <label htmlFor="escalation_max_repeats" className="font-medium">最大重复次数</label>
+                <InputNumber
+                  id="escalation_max_repeats"
+                  value={formData.escalation_max_repeats}
+                  onValueChange={(e) => setFormData({ ...formData, escalation_max_repeats: e.value ?? 3 })}
+                  min={1}
+                  max={10}
+                  suffix=" 次"
+                  disabled={!canManageConfig}
+                />
+                <small style={{ color: 'var(--text-secondary)' }}>达到最大次数后停止重通知（1-10 次）</small>
+              </div>
+            </>
+          )}
         </div>
       </Dialog>
 

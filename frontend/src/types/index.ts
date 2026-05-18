@@ -22,6 +22,8 @@ export interface Alert {
   acked_at?: string
   ack_comment?: string
   trigger_count: number
+  last_notified_at: string | null
+  notify_count: number
   created_at: string
   updated_at: string
 }
@@ -114,6 +116,9 @@ export interface RouteRule {
   channel_ids: number[]
   time_ranges: TimeRange[]
   enabled: boolean
+  escalation_enabled: boolean
+  escalation_timeout: number
+  escalation_max_repeats: number
   created_at: string
   updated_at: string
 }

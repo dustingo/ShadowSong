@@ -124,21 +124,45 @@ export const Alerts: React.FC = () => {
     <SeverityBadge severity={row.latest_alert.severity} />
   )
 
-  const alertNameBodyTemplate = (row: GroupedActiveAlert) => (
-    <div className="flex align-items-center gap-2">
-      <span>{row.latest_alert.alert_name}</span>
-      {row.count > 1 && (
-        <Tag
-          value={`共 ${row.count} 次`}
-          style={{
-            background: 'var(--warning-light-color)',
-            color: 'var(--warning-color)',
-            border: '1px solid var(--warning-color)',
-          }}
-        />
-      )}
-    </div>
-  )
+  const alertNameBodyTemplate = (row: GroupedActiveAlert) => {
+    const alert = row.latest_alert
+    const reachedEscalationLimit = alert.status === 'firing'
+      && alert.notify_count > 0
+      && alert.last_notified_at
+      && (() => {
+        // If last_notified_at is more than 2 hours ago and the alert is still
+        // firing, it likely reached the escalation limit (no more re-notifications).
+        const minutesSinceLastNotify = dayjs().diff(dayjs(alert.last_notified_at), 'minute')
+        return minutesSinceLastNotify > 120
+      })()
+
+    return (
+      <div className="flex align-items-center gap-2">
+        <span>{alert.alert_name}</span>
+        {row.count > 1 && (
+          <Tag
+            value={`共 ${row.count} 次`}
+            style={{
+              background: 'var(--warning-light-color)',
+              color: 'var(--warning-color)',
+              border: '1px solid var(--warning-color)',
+            }}
+          />
+        )}
+        {reachedEscalationLimit ? (
+          <Tag
+            value="已达通知上限"
+            severity="warning"
+          />
+        ) : alert.notify_count > 0 ? (
+          <Tag
+            value={`已通知 ${alert.notify_count} 次`}
+            severity="info"
+          />
+        ) : null}
+      </div>
+    )
+  }
 
   const sourceBodyTemplate = (row: GroupedActiveAlert) => (
     <Tag

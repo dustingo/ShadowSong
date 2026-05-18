@@ -159,9 +159,17 @@ export const Dashboard: React.FC = () => {
     return new Date(b.last_triggered_at).getTime() - new Date(a.last_triggered_at).getTime()
   })
 
+  // Count firing alerts that have been notified but not yet acked
+  const pendingAckCount = groupedActiveAlerts.filter((g) =>
+    g.latest_alert.status === 'firing'
+    && !g.latest_alert.acked_at
+    && g.latest_alert.notify_count > 0
+  ).length
+
   const statsCards = [
     { label: '活跃告警', value: stats?.firing || 0, color: 'var(--danger-color)', icon: 'pi pi-bell' },
     { label: 'P0 告警', value: stats?.by_severity?.P0 || 0, color: 'var(--danger-color)', icon: 'pi pi-exclamation-triangle' },
+    { label: '待确认告警', value: pendingAckCount, color: 'var(--info-color, #3B82F6)', icon: 'pi pi-clock' },
     { label: '已确认', value: stats?.acked || 0, color: 'var(--success-color)', icon: 'pi pi-check-circle' },
     { label: '已静默', value: stats?.silenced || 0, color: 'var(--warning-color)', icon: 'pi pi-volume-off' },
   ]

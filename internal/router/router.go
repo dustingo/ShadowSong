@@ -174,18 +174,6 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			silences.POST("/from-alert/:alertId", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateSilenceFromAlert)
 		}
 
-		// OnDuty routes (protected)
-		onduty := v1.Group("/onduty")
-		onduty.Use(middleware.JWTAuth(jwtAuth, db))
-		{
-			onduty.GET("", configHandler.ListOnDuty)
-			onduty.GET("/current", configHandler.CurrentOnDuty)
-			onduty.GET("/:id", configHandler.GetOnDuty)
-			onduty.POST("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateOnDuty)
-			onduty.PUT("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateOnDuty)
-			onduty.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteOnDuty)
-		}
-
 		// Delivery routes (protected)
 		deliveries := v1.Group("/deliveries")
 		deliveries.Use(middleware.JWTAuth(jwtAuth, db))

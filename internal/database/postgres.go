@@ -52,7 +52,6 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		&models.RouteRule{},
 		&models.SilenceRule{},
 		&models.AuditLog{},
-		&models.OnDuty{},
 		&models.NotificationDelivery{},
 		&models.NotificationDeliveryAttempt{},
 		&models.NotificationDeliveryRecovery{},

@@ -187,7 +187,6 @@ func TestRouterCapabilityProtectedRoutes(t *testing.T) {
 		{name: "operator denied config writes", method: http.MethodPost, path: "/api/v1/datasources", body: `{"name":"ops-ds","display_name":"Ops DS","input_template":"{{ . }}","output_template":"{{ . }}"}`, token: operatorToken, expectedStatus: http.StatusForbidden, expectedBody: `{"error":"insufficient permissions"}`},
 		{name: "viewer denied config writes", method: http.MethodPost, path: "/api/v1/datasources", body: `{"name":"viewer-ds","display_name":"Viewer DS","input_template":"{{ . }}","output_template":"{{ . }}"}`, token: viewerToken, expectedStatus: http.StatusForbidden, expectedBody: `{"error":"insufficient permissions"}`},
 		{name: "admin can create datasource", method: http.MethodPost, path: "/api/v1/datasources", body: `{"name":"admin-ds","display_name":"Admin DS","input_template":"{{ . }}","output_template":"{{ . }}"}`, token: adminToken, expectedStatus: http.StatusOK},
-		{name: "operator denied on-duty writes", method: http.MethodPost, path: "/api/v1/onduty", body: `{"user_id":"u1","user_name":"ops","channel_id":1,"start_time":"2026-04-12T00:00:00Z","end_time":"2026-04-12T08:00:00Z"}`, token: operatorToken, expectedStatus: http.StatusForbidden, expectedBody: `{"error":"insufficient permissions"}`},
 	}
 
 	for _, tt := range tests {
@@ -320,7 +319,6 @@ func newRouterTestDB(t *testing.T) *gorm.DB {
 		&models.Channel{},
 		&models.RouteRule{},
 		&models.SilenceRule{},
-		&models.OnDuty{},
 	))
 	require.NoError(t, db.Exec("DELETE FROM users").Error)
 	require.NoError(t, db.Exec("DELETE FROM alerts").Error)
@@ -329,7 +327,6 @@ func newRouterTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, db.Exec("DELETE FROM channels").Error)
 	require.NoError(t, db.Exec("DELETE FROM route_rules").Error)
 	require.NoError(t, db.Exec("DELETE FROM silence_rules").Error)
-	require.NoError(t, db.Exec("DELETE FROM on_duties").Error)
 
 	return db
 }

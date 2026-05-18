@@ -242,30 +242,3 @@ type AuditLog struct {
 	CreatedAt     time.Time `gorm:"index" json:"created_at"`
 }
 
-// OnDuty represents an on-duty schedule
-type OnDuty struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	UserID    string    `gorm:"size:64;not null" json:"user_id"`
-	UserName  string    `gorm:"size:64;not null" json:"user_name"`
-	ChannelID uint      `gorm:"not null" json:"channel_id"`
-	StartTime time.Time `gorm:"index" json:"start_time"`
-	EndTime   time.Time `gorm:"index" json:"end_time"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func (o *OnDuty) Validate() error {
-	if o.UserName == "" {
-		return errors.New("user_name is required")
-	}
-	if o.ChannelID == 0 {
-		return errors.New("channel_id is required")
-	}
-	if o.StartTime.IsZero() {
-		return errors.New("start_time is required")
-	}
-	if o.EndTime.IsZero() {
-		return errors.New("end_time is required")
-	}
-	return nil
-}

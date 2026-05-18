@@ -143,6 +143,85 @@ func TestActiveAlerts_GroupedFalseReturnsFlat(t *testing.T) {
 	assert.Len(t, alerts, 2)
 }
 
+func setupAlertDeliveryTestDB(t *testing.T) *gorm.DB {
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&models.Alert{}, &models.NotificationDelivery{}, &models.NotificationDeliveryAttempt{}))
+	return db
+}
+
+func TestAlertDeliveries_ReturnsDeliveriesWithAttempts(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupAlertDeliveryTestDB(t)
+
+	alertID := "alert-del-1"
+
+	// Create a notification delivery
+	delivery := models.NotificationDelivery{
+		AlertID:        alertID,
+		TraceID:        "trace-1",
+		ChannelID:      1,
+		DeliveryStatus: models.DeliveryStatusDelivered,
+		DeliveryMode:   models.DeliveryModeDefault,
+		AlertSnapshot:  datatypes.JSON(`{"alert_id":"alert-del-1"}`),
+		ChannelSnapshot: datatypes.JSON(`{"id":1,"name":"test-channel","type":"webhook"}`),
+		RenderedPayloadSnapshot: datatypes.JSON(`{"title":"Test","content":"body"}`),
+	}
+	require.NoError(t, db.Create(&delivery).Error)
+
+	// Create an attempt for the delivery
+	attempt := models.NotificationDeliveryAttempt{
+		DeliveryID:    delivery.ID,
+		AttemptNumber: 1,
+		Result:        models.AttemptResultSuccess,
+		Retryable:     false,
+		DurationMS:    150,
+		TriggerKind:   models.TriggerKindPipeline,
+	}
+	require.NoError(t, db.Create(&attempt).Error)
+
+	handler := NewAlertHandler(db)
+
+	r := gin.New()
+	r.GET("/alerts/:id/deliveries", handler.AlertDeliveries)
+
+	req := httptest.NewRequest("GET", "/alerts/alert-del-1/deliveries", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var deliveries []models.NotificationDelivery
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &deliveries))
+	require.Len(t, deliveries, 1)
+	assert.Equal(t, alertID, deliveries[0].AlertID)
+	assert.Equal(t, models.DeliveryStatusDelivered, deliveries[0].DeliveryStatus)
+	require.Len(t, deliveries[0].Attempts, 1)
+	assert.Equal(t, 1, deliveries[0].Attempts[0].AttemptNumber)
+	assert.Equal(t, models.AttemptResultSuccess, deliveries[0].Attempts[0].Result)
+}
+
+func TestAlertDeliveries_EmptyResult(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db := setupAlertDeliveryTestDB(t)
+
+	handler := NewAlertHandler(db)
+
+	r := gin.New()
+	r.GET("/alerts/:id/deliveries", handler.AlertDeliveries)
+
+	req := httptest.NewRequest("GET", "/alerts/nonexistent-alert/deliveries", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var deliveries []models.NotificationDelivery
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &deliveries))
+	assert.Len(t, deliveries, 0)
+}
+
 func TestActiveAlerts_EmptyResult(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := setupAlertTestDB(t)

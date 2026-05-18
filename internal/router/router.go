@@ -118,6 +118,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			alerts.GET("", alertHandler.List)
 			alerts.GET("/stats", alertHandler.Stats)
 			alerts.GET("/active", alertHandler.Active)
+			alerts.GET("/:id/deliveries", alertHandler.AlertDeliveries)
 			alerts.GET("/:id", alertHandler.Get)
 			alerts.POST("/:id/ack", middleware.RequireCapability(authz.CapabilityProcessAlerts), alertHandler.Ack)
 			alerts.POST("/:id/quick-silence", middleware.RequireCapability(authz.CapabilityProcessAlerts), alertHandler.QuickSilence)

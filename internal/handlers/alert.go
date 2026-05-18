@@ -287,6 +287,23 @@ func groupAlertsByFingerprint(alerts []models.Alert) []GroupedActiveAlert {
 	return result
 }
 
+// AlertDeliveries returns the notification delivery records for a specific alert.
+func (h *AlertHandler) AlertDeliveries(c *gin.Context) {
+	alertID := c.Param("id")
+	var deliveries []models.NotificationDelivery
+	err := h.db.Where("alert_id = ?", alertID).
+		Preload("Attempts", func(db *gorm.DB) *gorm.DB {
+			return db.Order("attempt_number ASC")
+		}).
+		Order("created_at DESC").
+		Find(&deliveries).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, deliveries)
+}
+
 // applyLabelSelector parses a label selector string and applies JSON-based filtering.
 // Format: "key1=value1,key2=~regex2" (~ prefix means regex match on value).
 func applyLabelSelector(query *gorm.DB, selector string) *gorm.DB {

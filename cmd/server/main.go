@@ -3,9 +3,12 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/game-ops/ai-alert-system/internal/config"
 	"github.com/game-ops/ai-alert-system/internal/database"
+	"github.com/game-ops/ai-alert-system/internal/delivery"
+	"github.com/game-ops/ai-alert-system/internal/escalation"
 	"github.com/game-ops/ai-alert-system/internal/router"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -42,6 +45,11 @@ func main() {
 
 	// Setup router
 	r := router.Setup(db, redisClient, cfg)
+
+	// Start escalation background checker
+	deliverySvc := delivery.NewService(db)
+	escalationChecker := escalation.NewChecker(db, deliverySvc)
+	go escalationChecker.Run(1*time.Minute, make(chan struct{}))
 
 	// Start server
 	port := os.Getenv("SERVER_PORT")

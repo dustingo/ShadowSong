@@ -180,14 +180,14 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 
 			// 如果配置了去重时间窗口，只查找窗口内的
 			if dedupWindow > 0 {
-				windowStart := time.Now().Add(-dedupWindow)
+				windowStart := time.Now().UTC().Add(-dedupWindow)
 				query = query.Where("trigger_time >= ?", windowStart)
 			}
 
 			err = query.First(&existing).Error
 			if err == nil {
 				// 已存在，更新 trigger count
-				now := time.Now()
+				now := time.Now().UTC()
 				existing.TriggerCount++
 				existing.TriggerTime = now
 				existing.LastRepeatAt = &now
@@ -216,7 +216,7 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 		}
 
 		// 8. 保存新告警
-		now := time.Now()
+		now := time.Now().UTC()
 		alert.TriggerTime = now
 		alert.ReceivedAt = now
 		if dedupEnabled && dedupWindow > 0 {
@@ -349,10 +349,10 @@ func (h *WebhookHandler) renderAlert(data map[string]interface{}, tmplStr string
 		alert.Severity = h.mapSeverity(alert.Severity)
 	}
 	if alert.TriggerTime.IsZero() {
-		alert.TriggerTime = time.Now()
+		alert.TriggerTime = time.Now().UTC()
 	}
 	if alert.ReceivedAt.IsZero() {
-		alert.ReceivedAt = time.Now()
+		alert.ReceivedAt = time.Now().UTC()
 	}
 
 	// 保存原始数据
@@ -447,25 +447,25 @@ func (h *WebhookHandler) mapStatus(v interface{}) string {
 	return "pending"
 }
 
-// parseTime 解析时间字符串或时间戳
+// parseTime 解析时间字符串或时间戳，统一返回 UTC 格式
 func (h *WebhookHandler) parseTime(v interface{}) string {
 	if v == nil {
-		return time.Now().Format(time.RFC3339)
+		return time.Now().UTC().Format(time.RFC3339)
 	}
 
 	// 处理数字类型时间戳（毫秒）
 	switch t := v.(type) {
 	case float64:
-		return time.Unix(0, int64(t)*int64(time.Millisecond)).Format(time.RFC3339)
+		return time.Unix(0, int64(t)*int64(time.Millisecond)).UTC().Format(time.RFC3339)
 	case int64:
-		return time.Unix(0, t*int64(time.Millisecond)).Format(time.RFC3339)
+		return time.Unix(0, t*int64(time.Millisecond)).UTC().Format(time.RFC3339)
 	case int:
-		return time.Unix(0, int64(t)*int64(time.Millisecond)).Format(time.RFC3339)
+		return time.Unix(0, int64(t)*int64(time.Millisecond)).UTC().Format(time.RFC3339)
 	}
 
 	s, ok := v.(string)
 	if !ok {
-		return time.Now().Format(time.RFC3339)
+		return time.Now().UTC().Format(time.RFC3339)
 	}
 
 	// 尝试解析多种时间格式
@@ -480,7 +480,7 @@ func (h *WebhookHandler) parseTime(v interface{}) string {
 
 	for _, format := range formats {
 		if t, err := time.Parse(format, s); err == nil {
-			return t.Format(time.RFC3339)
+			return t.UTC().Format(time.RFC3339)
 		}
 	}
 
@@ -513,8 +513,8 @@ func (h *WebhookHandler) parseNonJsonAlert(str, source string) models.Alert {
 		Status:      "pending",
 		Message:     str,
 		Severity:    "P2",
-		TriggerTime: time.Now(),
-		ReceivedAt:  time.Now(),
+		TriggerTime: time.Now().UTC(),
+		ReceivedAt:  time.Now().UTC(),
 	}
 
 	// 尝试从文本中提取信息
@@ -558,8 +558,8 @@ func (h *WebhookHandler) createFallbackAlert(source string, rawBody []byte, err 
 		Severity:    "P1",
 		Message:     fmt.Sprintf("Template rendering failed: %v. Raw data: %s", err, msg),
 		Status:      "pending",
-		TriggerTime: time.Now(),
-		ReceivedAt:  time.Now(),
+		TriggerTime: time.Now().UTC(),
+		ReceivedAt:  time.Now().UTC(),
 		Raw:         rawBody,
 		Labels:      []byte("{}"),
 	}
@@ -1154,6 +1154,13 @@ func (h *WebhookHandler) sendChannelNotification(
 		h.logAlertEvent("send_attempt", attemptFields, "notification attempt recorded")
 
 		if err == nil {
+			// Set LastNotifiedAt and NotifyCount on first notification
+			if alert.NotifyCount == 0 {
+				now := time.Now()
+				alert.LastNotifiedAt = &now
+				alert.NotifyCount = 1
+				h.db.Save(alert)
+			}
 			h.markNotificationDelivered(deliveryRecord, attempt)
 			h.logAlertEvent("send_notification", attemptFields, "notification sent")
 			return

@@ -73,23 +73,34 @@ type hourCount struct {
 }
 
 // getStatusCounts retrieves alert counts grouped by status.
+// Firing count uses DISTINCT fingerprint to avoid inflating from repeated alerts.
+// Other statuses count individual rows since each acked/silenced alert is distinct.
 func getStatusCounts(db *gorm.DB, stats *AlertStats) error {
-	var results []statusCount
-
-	// Query all status counts in a single GROUP BY query
+	// Firing count uses DISTINCT fingerprint
+	var firingResult []statusCount
 	if err := db.Model(&models.Alert{}).
-		Select("status as status, count(*) as count").
-		Group("status").
-		Scan(&results).Error; err != nil {
+		Select("'firing' as status, count(DISTINCT fingerprint) as count").
+		Where("status = ?", "firing").
+		Scan(&firingResult).Error; err != nil {
 		return err
 	}
+	for _, r := range firingResult {
+		stats.Firing = r.Count
+		stats.Total += r.Count
+	}
 
-	// Process results
-	for _, r := range results {
+	// Other statuses count individual rows (each acked/silenced alert is distinct)
+	var otherResults []statusCount
+	if err := db.Model(&models.Alert{}).
+		Select("status as status, count(*) as count").
+		Where("status != ?", "firing").
+		Group("status").
+		Scan(&otherResults).Error; err != nil {
+		return err
+	}
+	for _, r := range otherResults {
 		stats.Total += r.Count
 		switch r.Status {
-		case "firing":
-			stats.Firing = r.Count
 		case "acked":
 			stats.Acked = r.Count
 		case "silenced":
@@ -101,12 +112,13 @@ func getStatusCounts(db *gorm.DB, stats *AlertStats) error {
 }
 
 // getSeverityCounts retrieves alert counts grouped by severity (firing alerts only).
+// Uses DISTINCT fingerprint to avoid inflating counts from repeated alerts.
 func getSeverityCounts(db *gorm.DB, stats *AlertStats) error {
 	var results []severityCount
 
-	// Query severity counts for firing alerts in a single GROUP BY query
+	// Query severity counts for firing alerts using DISTINCT fingerprint
 	if err := db.Model(&models.Alert{}).
-		Select("severity as severity, count(*) as count").
+		Select("severity as severity, count(DISTINCT fingerprint) as count").
 		Where("status = ?", "firing").
 		Group("severity").
 		Scan(&results).Error; err != nil {

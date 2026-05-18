@@ -189,6 +189,75 @@ func TestGetAlertStats_TrendWithMixedTimezones(t *testing.T) {
 	assert.True(t, found, "current UTC hour should be present in trend")
 }
 
+func TestGetAlertStats_FiringCountUsesDistinctFingerprint(t *testing.T) {
+	db := setupTestDB(t)
+	now := time.Now()
+
+	// Create 3 alerts with the same fingerprint — should count as 1 firing
+	for i, id := range []string{"alert-a", "alert-b", "alert-c"} {
+		alert := models.Alert{
+			AlertID:     id,
+			Source:      "test-source",
+			AlertName:   "TestAlert",
+			Severity:    "P0",
+			Message:     "Test message",
+			Labels:      datatypes.JSON(`{"test": "label"}`),
+			Fingerprint: "fp-same",
+			TriggerTime: now.Add(time.Duration(i) * time.Minute),
+			ReceivedAt:  time.Now(),
+			Status:      "firing",
+		}
+		require.NoError(t, db.Create(&alert).Error)
+	}
+
+	// Create 1 alert with different fingerprint
+	require.NoError(t, createTestAlert(db, "alert-d", "P1", "firing", now))
+
+	stats, err := GetAlertStats(db)
+	require.NoError(t, err)
+
+	// Firing count should be 2 (2 distinct fingerprints), not 4
+	assert.Equal(t, 2, stats.Firing)
+	// Total should also reflect distinct firing count: 2 firing + 0 acked + 0 silenced
+	assert.Equal(t, 2, stats.Total)
+	// Severity counts should also use distinct fingerprint
+	assert.Equal(t, 1, stats.BySeverity["P0"]) // distinct P0 fingerprints
+	assert.Equal(t, 1, stats.BySeverity["P1"]) // distinct P1 fingerprints
+}
+
+func TestGetAlertStats_AckedAndSilencedCountIndividualRows(t *testing.T) {
+	db := setupTestDB(t)
+	now := time.Now()
+
+	// Create 2 acked alerts with the same fingerprint — should count as 2 acked
+	for i, id := range []string{"acked-a", "acked-b"} {
+		alert := models.Alert{
+			AlertID:     id,
+			Source:      "test-source",
+			AlertName:   "TestAlert",
+			Severity:    "P0",
+			Message:     "Test message",
+			Labels:      datatypes.JSON(`{"test": "label"}`),
+			Fingerprint: "fp-acked-same",
+			TriggerTime: now.Add(time.Duration(i) * time.Minute),
+			ReceivedAt:  time.Now(),
+			Status:      "acked",
+		}
+		require.NoError(t, db.Create(&alert).Error)
+	}
+
+	// Create 1 firing alert
+	require.NoError(t, createTestAlert(db, "firing-1", "P1", "firing", now))
+
+	stats, err := GetAlertStats(db)
+	require.NoError(t, err)
+
+	// Acked should count individual rows (2), not distinct fingerprints (1)
+	assert.Equal(t, 2, stats.Acked)
+	assert.Equal(t, 1, stats.Firing)
+	assert.Equal(t, 3, stats.Total)
+}
+
 func TestParseHourString(t *testing.T) {
 	tests := []struct {
 		name     string

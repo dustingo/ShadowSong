@@ -19,6 +19,15 @@ type AlertHandler struct {
 	db *gorm.DB
 }
 
+// GroupedActiveAlert represents a group of alerts with the same fingerprint.
+type GroupedActiveAlert struct {
+	Fingerprint      string       `json:"fingerprint"`
+	LatestAlert      models.Alert `json:"latest_alert"`
+	Count            int          `json:"count"`
+	FirstTriggeredAt time.Time    `json:"first_triggered_at"`
+	LastTriggeredAt  time.Time    `json:"last_triggered_at"`
+}
+
 func NewAlertHandler(db *gorm.DB) *AlertHandler {
 	return &AlertHandler{db: db}
 }
@@ -208,7 +217,7 @@ func (h *AlertHandler) Stats(c *gin.Context) {
 			Time  string `json:"time"`
 			Count int64  `json:"count"`
 		}{
-			Time:  t.Time.Format("15:04"),
+			Time:  t.Time.Local().Format("15:04"),
 			Count: int64(t.Count),
 		})
 	}
@@ -216,7 +225,7 @@ func (h *AlertHandler) Stats(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// Get active alerts
+// Get active alerts. Supports ?grouped=true to group by fingerprint.
 func (h *AlertHandler) Active(c *gin.Context) {
 	var alerts []models.Alert
 	if err := h.db.Where("status = ?", "firing").
@@ -225,7 +234,57 @@ func (h *AlertHandler) Active(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	if c.Query("grouped") == "true" {
+		grouped := groupAlertsByFingerprint(alerts)
+		c.JSON(http.StatusOK, grouped)
+		return
+	}
+
 	c.JSON(http.StatusOK, alerts)
+}
+
+// groupAlertsByFingerprint groups alerts by fingerprint and returns GroupedActiveAlert slices.
+// For each group, the alert with the most recent trigger_time is selected as the latest alert.
+func groupAlertsByFingerprint(alerts []models.Alert) []GroupedActiveAlert {
+	groups := make(map[string][]models.Alert)
+	// Preserve insertion order for deterministic output
+	var order []string
+
+	for _, a := range alerts {
+		fp := a.Fingerprint
+		if _, exists := groups[fp]; !exists {
+			order = append(order, fp)
+		}
+		groups[fp] = append(groups[fp], a)
+	}
+
+	result := make([]GroupedActiveAlert, 0, len(groups))
+	for _, fp := range order {
+		alertGroup := groups[fp]
+		var latest models.Alert
+		var firstTriggered, lastTriggered time.Time
+
+		for i, a := range alertGroup {
+			if i == 0 || a.TriggerTime.After(lastTriggered) {
+				latest = a
+				lastTriggered = a.TriggerTime
+			}
+			if i == 0 || a.TriggerTime.Before(firstTriggered) {
+				firstTriggered = a.TriggerTime
+			}
+		}
+
+		result = append(result, GroupedActiveAlert{
+			Fingerprint:      fp,
+			LatestAlert:      latest,
+			Count:            len(alertGroup),
+			FirstTriggeredAt: firstTriggered,
+			LastTriggeredAt:  lastTriggered,
+		})
+	}
+
+	return result
 }
 
 // applyLabelSelector parses a label selector string and applies JSON-based filtering.

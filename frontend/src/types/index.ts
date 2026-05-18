@@ -26,6 +26,14 @@ export interface Alert {
   updated_at: string
 }
 
+export interface GroupedActiveAlert {
+  fingerprint: string
+  latest_alert: Alert
+  count: number
+  first_triggered_at: string
+  last_triggered_at: string
+}
+
 export interface DataSource {
   id: number
   name: string

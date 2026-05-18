@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type {
   Alert,
+  GroupedActiveAlert,
   DataSource,
   DataSourcePreviewRequest,
   DataSourcePreviewResponse,
@@ -104,6 +105,8 @@ export const alertApi = {
   }>('/alerts/stats'),
 
   active: () => apiClient.get<Alert[]>('/alerts/active'),
+
+  activeGrouped: () => apiClient.get<GroupedActiveAlert[]>('/alerts/active?grouped=true'),
 }
 
 // ============ DataSource API ============

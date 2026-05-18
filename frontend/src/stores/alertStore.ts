@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Alert } from '../types'
+import type { Alert, GroupedActiveAlert } from '../types'
 import { alertApi } from '../api/client'
 
 interface AlertFilters {
@@ -23,6 +23,8 @@ interface AlertStats {
 interface AlertState {
   alerts: Alert[]
   activeAlerts: Alert[]
+  groupedActiveAlerts: GroupedActiveAlert[]
+  groupedActiveLoading: boolean
   stats: AlertStats | null
   filters: AlertFilters
   loading: boolean
@@ -32,6 +34,7 @@ interface AlertState {
   wsConnected: boolean
   fetchAlerts: (page?: number, pageSize?: number) => Promise<void>
   fetchActiveAlerts: () => Promise<void>
+  fetchGroupedActiveAlerts: () => void
   fetchStats: () => Promise<void>
   setFilters: (filters: AlertFilters) => void
   ackAlert: (id: string, comment: string) => Promise<void>
@@ -44,6 +47,8 @@ interface AlertState {
 export const useAlertStore = create<AlertState>((set, get) => ({
   alerts: [],
   activeAlerts: [],
+  groupedActiveAlerts: [],
+  groupedActiveLoading: false,
   stats: null,
   filters: {},
   loading: false,
@@ -80,6 +85,16 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     } catch (error) {
       console.error('Failed to fetch active alerts:', error)
     }
+  },
+
+  fetchGroupedActiveAlerts: () => {
+    set({ groupedActiveLoading: true })
+    alertApi.activeGrouped()
+      .then((res) => {
+        const data = (res as unknown as { data: GroupedActiveAlert[] }).data ?? res as unknown as GroupedActiveAlert[]
+        set({ groupedActiveAlerts: data, groupedActiveLoading: false })
+      })
+      .catch(() => set({ groupedActiveLoading: false }))
   },
 
   fetchStats: async () => {

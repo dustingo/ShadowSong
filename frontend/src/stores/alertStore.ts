@@ -90,10 +90,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   fetchGroupedActiveAlerts: () => {
     set({ groupedActiveLoading: true })
     alertApi.activeGrouped()
-      .then((res) => {
-        const data = (res as unknown as { data: GroupedActiveAlert[] }).data ?? res as unknown as GroupedActiveAlert[]
-        set({ groupedActiveAlerts: data, groupedActiveLoading: false })
-      })
+      .then((res) => set({ groupedActiveAlerts: res as unknown as GroupedActiveAlert[], groupedActiveLoading: false }))
       .catch(() => set({ groupedActiveLoading: false }))
   },
 

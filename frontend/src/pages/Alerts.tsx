@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Card } from 'primereact/card'
 import { DataTable } from 'primereact/datatable'
 import { Column } from 'primereact/column'
@@ -7,15 +7,16 @@ import { Dialog } from 'primereact/dialog'
 import { InputTextarea } from 'primereact/inputtextarea'
 import { InputNumber } from 'primereact/inputnumber'
 import { Tag } from 'primereact/tag'
+import { ProgressSpinner } from 'primereact/progressspinner'
 import { useNavigate } from 'react-router-dom'
 import { useAlertStore } from '../stores/alertStore'
 import { SeverityBadge } from '../components/SeverityBadge'
 import { PermissionNotice, useToast } from '../components'
 import { canProcessAlerts as canCurrentUserProcessAlerts } from '../authz/capabilities'
 import { useUserStore } from '../stores/userStore'
-import { getApiErrorMessage } from '../api/client'
+import { alertApi, getApiErrorMessage } from '../api/client'
 import dayjs from 'dayjs'
-import type { Alert, GroupedActiveAlert } from '../types'
+import type { Alert, Delivery, GroupedActiveAlert } from '../types'
 
 export const Alerts: React.FC = () => {
   const navigate = useNavigate()
@@ -37,6 +38,36 @@ export const Alerts: React.FC = () => {
   const [silenceDuration, setSilenceDuration] = useState(3600)
 
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+
+  const handleRowToggle = (e: { data: GroupedActiveAlert[] }) => {
+    const newExpanded: Record<string, boolean> = {}
+    e.data.forEach((row) => {
+      newExpanded[row.fingerprint] = true
+    })
+    // Find newly expanded rows and fetch their deliveries
+    e.data.forEach((row) => {
+      if (!expandedRows[row.fingerprint]) {
+        fetchDeliveries(row.latest_alert.alert_id)
+      }
+    })
+    setExpandedRows(newExpanded)
+  }
+
+  const [alertDeliveries, setAlertDeliveries] = useState<Record<string, Delivery[]>>({})
+  const [deliveriesLoading, setDeliveriesLoading] = useState<Record<string, boolean>>({})
+
+  const fetchDeliveries = useCallback(async (alertId: string) => {
+    if (alertDeliveries[alertId] || deliveriesLoading[alertId]) return
+    setDeliveriesLoading(prev => ({ ...prev, [alertId]: true }))
+    try {
+      const data = await alertApi.deliveries(alertId)
+      setAlertDeliveries(prev => ({ ...prev, [alertId]: data }))
+    } catch {
+      // silently fail — the section will simply not appear
+    } finally {
+      setDeliveriesLoading(prev => ({ ...prev, [alertId]: false }))
+    }
+  }, [alertDeliveries, deliveriesLoading])
 
   const canProcessAlerts = canCurrentUserProcessAlerts(user)
 
@@ -167,8 +198,24 @@ export const Alerts: React.FC = () => {
     )
   }
 
+  const triggerKindLabels: Record<string, string> = {
+    pipeline: '首次通知',
+    retry: '重试',
+    replay: '重放',
+    escalation: '升级通知',
+  }
+
+  const deliveryStatusConfig: Record<string, { label: string; bgColor: string; color: string }> = {
+    delivered: { label: '成功', bgColor: 'var(--success-light-color)', color: 'var(--success-color)' },
+    failed: { label: '失败', bgColor: 'var(--danger-light-color)', color: 'var(--danger-color)' },
+    pending: { label: '处理中', bgColor: 'var(--warning-light-color)', color: 'var(--warning-color)' },
+  }
+
   const rowExpansionTemplate = (row: GroupedActiveAlert) => {
     const alert = row.latest_alert
+    const deliveries = alertDeliveries[alert.alert_id]
+    const loading = deliveriesLoading[alert.alert_id]
+
     return (
       <div className="p-3" style={{ background: 'var(--surface-hover)', borderRadius: '8px' }}>
         <p className="m-0 mb-2" style={{ color: 'var(--text-primary)' }}>
@@ -187,6 +234,93 @@ export const Alerts: React.FC = () => {
               }}
             />
           ))}
+        </div>
+
+        {/* Delivery records section */}
+        <div className="mt-3">
+          <strong style={{ color: 'var(--text-primary)' }}>投递记录</strong>
+          {loading ? (
+            <div className="flex justify-content-center p-3">
+              <ProgressSpinner style={{ width: '24px', height: '24px' }} />
+            </div>
+          ) : deliveries && deliveries.length > 0 ? (
+            <DataTable
+              value={deliveries}
+              dataKey="id"
+              size="small"
+              stripedRows
+              className="mt-2"
+              style={{ fontSize: '0.875rem' }}
+            >
+              <Column
+                header="渠道"
+                style={{ width: '140px' }}
+                body={(d: Delivery) => (
+                  <span>{d.channel_snapshot?.name || `#${d.channel_id}`}</span>
+                )}
+              />
+              <Column
+                header="状态"
+                style={{ width: '90px' }}
+                body={(d: Delivery) => {
+                  const cfg = deliveryStatusConfig[d.delivery_status] || {
+                    label: d.delivery_status,
+                    bgColor: 'var(--surface-hover)',
+                    color: 'var(--text-secondary)',
+                  }
+                  return (
+                    <Tag
+                      value={cfg.label}
+                      style={{
+                        background: cfg.bgColor,
+                        color: cfg.color,
+                        border: `1px solid ${cfg.color}`,
+                      }}
+                    />
+                  )
+                }}
+              />
+              <Column
+                header="尝试次数"
+                style={{ width: '80px' }}
+                field="attempt_count"
+              />
+              <Column
+                header="通知时间"
+                style={{ width: '160px' }}
+                body={(d: Delivery) => (
+                  <span>{dayjs(d.created_at).format('YYYY-MM-DD HH:mm:ss')}</span>
+                )}
+              />
+              <Column
+                header="触发类型"
+                style={{ width: '100px' }}
+                body={(d: Delivery) => {
+                  const kind = d.attempts?.length > 0
+                    ? d.attempts[d.attempts.length - 1].trigger_kind
+                    : (d.final_failure_summary?.trigger_kind || '')
+                  const label = triggerKindLabels[kind] || kind
+                  return <span>{label}</span>
+                }}
+              />
+              <Column
+                header="错误信息"
+                body={(d: Delivery) =>
+                  d.delivery_status === 'failed' && d.final_failure_summary ? (
+                    <span style={{ color: 'var(--danger-color)' }}>
+                      {d.final_failure_summary.error_message}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-disabled)' }}>-</span>
+                  )
+                }
+              />
+            </DataTable>
+          ) : deliveries && deliveries.length === 0 ? (
+            <div className="mt-2 text-sm" style={{ color: 'var(--text-disabled)' }}>
+              暂无投递记录
+            </div>
+          ) : null}
         </div>
       </div>
     )
@@ -207,7 +341,7 @@ export const Alerts: React.FC = () => {
           dataKey="fingerprint"
           loading={groupedActiveLoading}
           expandedRows={expandedRows}
-          onRowToggle={(e) => setExpandedRows(e.data as Record<string, boolean>)}
+          onRowToggle={handleRowToggle}
           rowExpansionTemplate={rowExpansionTemplate}
         >
           <Column expander style={{ width: '40px' }} />

@@ -570,7 +570,7 @@ func validateStartDeliveryInput(input StartDeliveryInput) error {
 
 func validTriggerKind(triggerKind string) (string, bool) {
 	switch triggerKind {
-	case models.TriggerKindPipeline, models.TriggerKindRetry, models.TriggerKindReplay:
+	case models.TriggerKindPipeline, models.TriggerKindRetry, models.TriggerKindReplay, models.TriggerKindEscalation:
 		return triggerKind, true
 	default:
 		return "", false

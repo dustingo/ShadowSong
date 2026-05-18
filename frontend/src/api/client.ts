@@ -107,6 +107,8 @@ export const alertApi = {
   active: () => apiClient.get<Alert[]>('/alerts/active'),
 
   activeGrouped: () => apiClient.get<GroupedActiveAlert[]>('/alerts/active?grouped=true'),
+
+  deliveries: (id: string) => apiClient.get(`/alerts/${id}/deliveries`).then(r => r.data as Delivery[]),
 }
 
 // ============ DataSource API ============

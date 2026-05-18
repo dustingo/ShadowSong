@@ -4,21 +4,22 @@ import { Button } from 'primereact/button'
 import { Message } from 'primereact/message'
 import { ProgressSpinner } from 'primereact/progressspinner'
 import { Chart } from 'primereact/chart'
+import { Tag } from 'primereact/tag'
 import { useAlertStore } from '../stores/alertStore'
 import { useUserStore } from '../stores/userStore'
 import { AlertCard } from '../components/AlertCard'
 import { StatisticCard, useToast } from '../components'
-import type { Alert as AlertItem } from '../types'
+import type { Alert as AlertItem, GroupedActiveAlert } from '../types'
 
 export const Dashboard: React.FC = () => {
   const token = useUserStore((state) => state.token)
   const toast = useToast()
   const {
-    activeAlerts,
+    groupedActiveAlerts,
+    groupedActiveLoading,
     stats,
-    loading,
     wsConnected,
-    fetchActiveAlerts,
+    fetchGroupedActiveAlerts,
     fetchStats,
     setWsConnected,
     ackAlert,
@@ -46,7 +47,7 @@ export const Dashboard: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
-    fetchActiveAlerts()
+    fetchGroupedActiveAlerts()
     fetchStats()
 
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -105,7 +106,7 @@ export const Dashboard: React.FC = () => {
     connectWS()
 
     const interval = setInterval(() => {
-      fetchActiveAlerts()
+      fetchGroupedActiveAlerts()
       fetchStats()
     }, 10000)
 
@@ -119,7 +120,7 @@ export const Dashboard: React.FC = () => {
       }
       clearInterval(interval)
     }
-  }, [fetchActiveAlerts, fetchStats, setWsConnected, token])
+  }, [fetchGroupedActiveAlerts, fetchStats, setWsConnected, token])
 
   const chartData = {
     labels: (stats?.trend || []).map((t) => t.time),
@@ -152,10 +153,10 @@ export const Dashboard: React.FC = () => {
     },
   }
 
-  const sortedAlerts = [...activeAlerts].sort((a, b) => {
-    if (a.severity === 'P0' && b.severity !== 'P0') return -1
-    if (b.severity === 'P0' && a.severity !== 'P0') return 1
-    return new Date(b.trigger_time).getTime() - new Date(a.trigger_time).getTime()
+  const sortedGroupedAlerts = [...groupedActiveAlerts].sort((a, b) => {
+    if (a.latest_alert.severity === 'P0' && b.latest_alert.severity !== 'P0') return -1
+    if (b.latest_alert.severity === 'P0' && a.latest_alert.severity !== 'P0') return 1
+    return new Date(b.last_triggered_at).getTime() - new Date(a.last_triggered_at).getTime()
   })
 
   const statsCards = [
@@ -194,7 +195,7 @@ export const Dashboard: React.FC = () => {
       <Card className="shadow-sm">
         <div className="flex align-items-center justify-content-between mb-3">
           <span className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-            活跃告警 ({activeAlerts.length})
+            活跃告警 ({groupedActiveAlerts.length})
           </span>
           <Button
             label="查看全部"
@@ -203,22 +204,35 @@ export const Dashboard: React.FC = () => {
             onClick={() => window.location.href = '/alerts'}
           />
         </div>
-        {loading ? (
+        {groupedActiveLoading ? (
           <div className="flex justify-content-center p-4">
             <ProgressSpinner />
           </div>
-        ) : sortedAlerts.length === 0 ? (
+        ) : sortedGroupedAlerts.length === 0 ? (
           <Message severity="success" text="暂无活跃告警，系统运行正常" />
         ) : (
           <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-            {sortedAlerts.map((alert) => (
-              <AlertCard
-                key={alert.alert_id}
-                alert={alert}
-                showActions={true}
-                onAck={handleAck}
-                onQuickSilence={handleQuickSilence}
-              />
+            {sortedGroupedAlerts.map((grouped) => (
+              <div key={grouped.fingerprint} className="mb-3">
+                <AlertCard
+                  alert={grouped.latest_alert}
+                  showActions={true}
+                  onAck={handleAck}
+                  onQuickSilence={handleQuickSilence}
+                />
+                {grouped.count > 1 && (
+                  <div className="mt-1 ml-4">
+                    <Tag
+                      value={`共 ${grouped.count} 次`}
+                      style={{
+                        background: 'var(--warning-light-color)',
+                        color: 'var(--warning-color)',
+                        border: '1px solid var(--warning-color)',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

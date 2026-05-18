@@ -73,10 +73,7 @@ const actionLabelMap: Record<string, string> = {
   'config.silence.update': '更新静默',
   'config.silence.delete': '删除静默',
   'config.silence.create_from_alert': '从告警创建静默',
-  'config.onduty.create': '创建值班',
-  'config.onduty.update': '更新值班',
-  'config.onduty.delete': '删除值班',
-  'delivery.retry': '重试投递',
+    'delivery.retry': '重试投递',
   'delivery.replay': '重放投递',
 }
 
@@ -87,8 +84,7 @@ const targetTypeLabelMap: Record<string, string> = {
   channel: '渠道',
   route_rule: '路由规则',
   silence_rule: '静默规则',
-  onduty: '值班',
-  delivery_recovery: '投递恢复',
+    delivery_recovery: '投递恢复',
 }
 
 export const Users: React.FC = () => {

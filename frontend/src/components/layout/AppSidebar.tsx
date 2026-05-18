@@ -18,7 +18,6 @@ const baseMenuItems: MenuItem[] = [
   { key: '/channels', icon: 'pi pi-telegram', label: '推送渠道' },
   { key: '/routes', icon: 'pi pi-sitemap', label: '路由规则' },
   { key: '/silences', icon: 'pi pi-volume-off', label: '静默管理' },
-  { key: '/onduty', icon: 'pi pi-calendar', label: '值班管理' },
 ]
 
 const userManagementItem: MenuItem = { key: '/users', icon: 'pi pi-users', label: '用户管理' }

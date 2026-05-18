@@ -136,17 +136,6 @@ export interface SilenceRule {
   updated_at: string
 }
 
-export interface OnDuty {
-  id: number
-  user_id: string
-  user_name: string
-  channel_id: number
-  start_time: string
-  end_time: string
-  created_at: string
-  updated_at: string
-}
-
 export interface User {
   id: number
   username: string

@@ -12,7 +12,6 @@ import type {
   DeliveryRecoveryResult,
   RouteRule,
   SilenceRule,
-  OnDuty,
 } from '../types'
 
 export const getApiErrorMessage = (error: unknown, fallback: string): string => {
@@ -186,24 +185,6 @@ export const silenceRuleApi = {
 
   createFromAlert: (alertId: string, data: { duration: number }) =>
     apiClient.post<SilenceRule>(`/silences/from-alert/${alertId}`, data),
-}
-
-// ============ OnDuty API ============
-
-export const onDutyApi = {
-  list: () => apiClient.get<OnDuty[]>('/onduty'),
-
-  get: (id: number) => apiClient.get<OnDuty>(`/onduty/${id}`),
-
-  create: (data: Partial<OnDuty>) =>
-    apiClient.post<OnDuty>('/onduty', data),
-
-  update: (id: number, data: Partial<OnDuty>) =>
-    apiClient.put<OnDuty>(`/onduty/${id}`, data),
-
-  delete: (id: number) => apiClient.delete(`/onduty/${id}`),
-
-  current: () => apiClient.get<OnDuty[]>('/onduty/current'),
 }
 
 // ============ Delivery API ============

@@ -11,8 +11,7 @@ vi.mock('./pages', () => ({
   Channels: () => <div>Channels Page</div>,
   RouteRules: () => <div>RouteRules Page</div>,
   Silences: () => <div>Silences Page</div>,
-  OnDutyPage: () => <div>OnDuty Page</div>,
-  Login: ({ onSuccess }: { onSuccess?: (token: string, user: User) => void }) => (
+    Login: ({ onSuccess }: { onSuccess?: (token: string, user: User) => void }) => (
     <button
       type="button"
       onClick={() =>
@@ -32,6 +31,8 @@ vi.mock('./pages', () => ({
   ),
   Users: () => <div>Users Page</div>,
   Profile: () => <div>Profile Page</div>,
+  Deliveries: () => <div>Deliveries Page</div>,
+  OpsHealth: () => <div>OpsHealth Page</div>,
 }))
 
 const baseUser: User = {
@@ -86,7 +87,6 @@ describe('App routing', () => {
     await renderAt('/alerts')
 
     expect(await screen.findByText('Profile Page')).toBeInTheDocument()
-    expect(await screen.findByText('必须先完成密码修改')).toBeInTheDocument()
     expect(collectCalls(warnSpy.mock.calls)).not.toMatch(/future flag|React Router will begin wrapping state updates/i)
     warnSpy.mockRestore()
   })

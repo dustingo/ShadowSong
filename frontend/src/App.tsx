@@ -8,7 +8,6 @@ import {
   Channels,
   RouteRules,
   Silences,
-  OnDutyPage,
   Login,
   Users,
   Profile,
@@ -95,7 +94,6 @@ export default function App() {
         <Route path="/channels" element={<RequireAuth requiredCapability={capabilityViewConfig}><Channels /></RequireAuth>} />
         <Route path="/routes" element={<RequireAuth requiredCapability={capabilityViewConfig}><RouteRules /></RequireAuth>} />
         <Route path="/silences" element={<RequireAuth requiredCapability={capabilityViewConfig}><Silences /></RequireAuth>} />
-        <Route path="/onduty" element={<RequireAuth requiredCapability={capabilityViewConfig}><OnDutyPage /></RequireAuth>} />
         <Route path="/users" element={<RequireAuth requiredCapability={capabilityManageUsers}><Users /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/color-demo" element={<ColorDemo />} />

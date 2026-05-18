@@ -6,9 +6,8 @@ import type {
   Channel,
   RouteRule,
   SilenceRule,
-  OnDuty,
 } from '../types'
-import { dataSourceApi, channelApi, routeRuleApi, silenceRuleApi, onDutyApi } from '../api/client'
+import { dataSourceApi, channelApi, routeRuleApi, silenceRuleApi } from '../api/client'
 
 interface ConfigState {
   dataSources: DataSource[]
@@ -19,9 +18,6 @@ interface ConfigState {
   routeRulesLoading: boolean
   silenceRules: SilenceRule[]
   silenceRulesLoading: boolean
-  onDutyList: OnDuty[]
-  currentOnDuty: OnDuty[]
-  onDutyLoading: boolean
   fetchDataSources: () => Promise<void>
   createDataSource: (data: Partial<DataSource>) => Promise<void>
   updateDataSource: (id: number, data: Partial<DataSource>) => Promise<void>
@@ -44,10 +40,6 @@ interface ConfigState {
   updateSilenceRule: (id: number, data: Partial<SilenceRule>) => Promise<void>
   deleteSilenceRule: (id: number) => Promise<void>
   createSilenceFromAlert: (alertId: string, duration: number) => Promise<void>
-  fetchOnDuty: () => Promise<void>
-  createOnDuty: (data: Partial<OnDuty>) => Promise<void>
-  updateOnDuty: (id: number, data: Partial<OnDuty>) => Promise<void>
-  deleteOnDuty: (id: number) => Promise<void>
 }
 
 export const useConfigStore = create<ConfigState>((set, get) => ({
@@ -59,9 +51,6 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   routeRulesLoading: false,
   silenceRules: [],
   silenceRulesLoading: false,
-  onDutyList: [],
-  currentOnDuty: [],
-  onDutyLoading: false,
 
   fetchDataSources: async () => {
     set({ dataSourcesLoading: true })
@@ -191,34 +180,5 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   createSilenceFromAlert: async (alertId, duration) => {
     await silenceRuleApi.createFromAlert(alertId, { duration })
     get().fetchSilenceRules({ status: 'active' })
-  },
-
-  fetchOnDuty: async () => {
-    set({ onDutyLoading: true })
-    try {
-      const [list, current] = await Promise.all([
-        onDutyApi.list() as unknown as Promise<OnDuty[]>,
-        onDutyApi.current() as unknown as Promise<OnDuty[]>,
-      ])
-      set({ onDutyList: await list, currentOnDuty: await current, onDutyLoading: false })
-    } catch (error) {
-      set({ onDutyLoading: false })
-      throw error
-    }
-  },
-
-  createOnDuty: async (data) => {
-    await onDutyApi.create(data)
-    get().fetchOnDuty()
-  },
-
-  updateOnDuty: async (id, data) => {
-    await onDutyApi.update(id, data)
-    get().fetchOnDuty()
-  },
-
-  deleteOnDuty: async (id) => {
-    await onDutyApi.delete(id)
-    get().fetchOnDuty()
   },
 }))

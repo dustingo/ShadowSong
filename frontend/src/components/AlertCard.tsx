@@ -54,6 +54,12 @@ export const AlertCard: React.FC<AlertCardProps> = ({
                 }}
               />
             )}
+            {alert.notify_count > 0 && (
+              <Tag
+                value={`已通知 ${alert.notify_count} 次`}
+                severity="info"
+              />
+            )}
           </div>
           <p className="m-0" style={{ color: 'var(--text-secondary)' }}>{alert.message}</p>
           <div className="flex gap-4 text-sm" style={{ color: 'var(--text-disabled)' }}>

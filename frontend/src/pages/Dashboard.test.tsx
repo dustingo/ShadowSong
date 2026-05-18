@@ -1,124 +1,163 @@
 import React from 'react'
 import { act, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { Dashboard } from './Dashboard'
 import { useUserStore } from '../stores/userStore'
-import type { Alert, User } from '../types'
-
-vi.mock('echarts-for-react', () => ({
-  default: () => <div data-testid="trend-chart" />,
-}))
-
-vi.mock('../components/AlertCard', () => ({
-  AlertCard: ({ alert }: { alert: Alert }) => <div>{alert.alert_name}</div>,
-}))
+import type { Alert, GroupedActiveAlert, User } from '../types'
 
 const alertStoreState = vi.hoisted(() => ({
-  activeAlerts: [] as Alert[],
-  stats: {
-    total: 1,
-    firing: 1,
-    acked: 0,
-    silenced: 0,
-    by_severity: { P0: 0, P1: 1, P2: 0, P3: 0 },
-    trend: [],
-  },
-  loading: false,
-  wsConnected: false,
-  fetchActiveAlerts: vi.fn(),
+  groupedActiveAlerts: [] as GroupedActiveAlert[],
+  groupedActiveLoading: false,
+  stats: { firing: 1, acked: 0, silenced: 0, by_severity: { P0: 0, P1: 1 }, trend: [] },
+  wsConnected: true,
+  fetchGroupedActiveAlerts: vi.fn(),
   fetchStats: vi.fn(),
   setWsConnected: vi.fn(),
   ackAlert: vi.fn(),
   quickSilence: vi.fn(),
-  addAlert: vi.fn(),
-  updateAlert: vi.fn(),
 }))
 
 vi.mock('../stores/alertStore', () => ({
   useAlertStore: () => alertStoreState,
 }))
 
-const wsInstances: MockWebSocket[] = []
+vi.mock('../components', () => ({
+  useToast: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showWarn: vi.fn(),
+    showInfo: vi.fn(),
+  }),
+  StatisticCard: ({ label, value }: { label: string; value: number }) => (
+    <div data-testid="stat-card">
+      {label}: {value}
+    </div>
+  ),
+  PermissionNotice: ({ title }: { title: string }) => <div>{title}</div>,
+}))
 
-class MockWebSocket {
-  static OPEN = 1
-  static CLOSED = 3
-
-  readyState = MockWebSocket.OPEN
-  onopen: (() => void) | null = null
-  onmessage: ((event: { data: string }) => void) | null = null
-  onclose: (() => void) | null = null
-  onerror: (() => void) | null = null
-
-  constructor(public url: string) {
-    wsInstances.push(this)
-  }
-
-  close() {
-    this.readyState = MockWebSocket.CLOSED
-  }
-}
+vi.mock('../components/AlertCard', () => ({
+  AlertCard: ({ alert, showActions }: { alert: Alert; showActions: boolean }) => (
+    <div data-testid="alert-card">
+      {alert.alert_name} - {showActions ? 'actions' : 'no-actions'}
+    </div>
+  ),
+}))
 
 const baseUser: User = {
   id: 1,
   username: 'tester',
   name: 'Tester',
-  role: 'operator',
-  created_at: '2026-04-20T00:00:00Z',
-  updated_at: '2026-04-20T00:00:00Z',
+  role: 'viewer',
+  created_at: '2026-04-12T00:00:00Z',
+  updated_at: '2026-04-12T00:00:00Z',
   force_password_reset: false,
 }
 
-describe('Dashboard websocket auth', () => {
-  const originalWebSocket = globalThis.WebSocket
+const firingAlert: Alert = {
+  alert_id: 'a-1',
+  source: 'prometheus',
+  alert_name: 'LatencyHigh',
+  severity: 'P1',
+  message: 'latency high',
+  labels: { env: 'prod' },
+  fingerprint: 'fp',
+  trigger_time: '2026-04-12T00:00:00Z',
+  received_at: '2026-04-12T00:00:00Z',
+  status: 'firing',
+  raw: {},
+  trigger_count: 3,
+  last_notified_at: null,
+  notify_count: 0,
+  created_at: '2026-04-12T00:00:00Z',
+  updated_at: '2026-04-12T00:00:00Z',
+}
 
+const groupedAlert: GroupedActiveAlert = {
+  fingerprint: 'fp',
+  latest_alert: firingAlert,
+  count: 5,
+  first_triggered_at: '2026-04-12T00:00:00Z',
+  last_triggered_at: '2026-04-12T01:00:00Z',
+}
+
+const renderDashboard = async () => {
+  const view = render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>
+  )
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  return view
+}
+
+describe('Dashboard', () => {
   beforeEach(() => {
-    wsInstances.length = 0
-    alertStoreState.fetchActiveAlerts.mockClear()
+    alertStoreState.fetchGroupedActiveAlerts.mockClear()
     alertStoreState.fetchStats.mockClear()
-    alertStoreState.setWsConnected.mockClear()
-    useUserStore.setState({ user: null, token: null })
-    vi.spyOn(window, 'setInterval').mockReturnValue(1 as unknown as ReturnType<typeof setInterval>)
-    vi.spyOn(window, 'clearInterval').mockImplementation(() => {})
-    globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket
+    alertStoreState.groupedActiveAlerts = [groupedAlert]
+    useUserStore.setState({ user: baseUser, token: 'token' })
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
-    globalThis.WebSocket = originalWebSocket
+  it('renders stats cards', async () => {
+    await renderDashboard()
+
+    expect(await screen.findByText('活跃告警: 1')).toBeInTheDocument()
+    expect(await screen.findByText('P0 告警: 0')).toBeInTheDocument()
+    expect(await screen.findByText('待确认告警: 0')).toBeInTheDocument()
   })
 
-  it('connects to /ws/alerts with the persisted token and marks websocket connected', async () => {
-    useUserStore.setState({ user: baseUser, token: 'signed-token' })
+  it('computes pending ack count from notified but un-acked firing alerts', async () => {
+    const notifiedAlert: Alert = {
+      ...firingAlert,
+      alert_id: 'a-2',
+      alert_name: 'NotifiedAlert',
+      notify_count: 2,
+      last_notified_at: '2026-04-12T00:30:00Z',
+    }
+    const ackedAlert: Alert = {
+      ...firingAlert,
+      alert_id: 'a-3',
+      alert_name: 'AckedAlert',
+      status: 'acked',
+      acked_at: '2026-04-12T01:00:00Z',
+      notify_count: 1,
+      last_notified_at: '2026-04-12T00:30:00Z',
+    }
+    const notNotifiedAlert: Alert = {
+      ...firingAlert,
+      alert_id: 'a-4',
+      alert_name: 'NotNotifiedAlert',
+      notify_count: 0,
+      last_notified_at: null,
+    }
 
-    render(<Dashboard />)
+    alertStoreState.groupedActiveAlerts = [
+      { fingerprint: 'fp-2', latest_alert: notifiedAlert, count: 1, first_triggered_at: '2026-04-12T00:00:00Z', last_triggered_at: '2026-04-12T01:00:00Z' },
+      { fingerprint: 'fp-3', latest_alert: ackedAlert, count: 1, first_triggered_at: '2026-04-12T00:00:00Z', last_triggered_at: '2026-04-12T01:00:00Z' },
+      { fingerprint: 'fp-4', latest_alert: notNotifiedAlert, count: 1, first_triggered_at: '2026-04-12T00:00:00Z', last_triggered_at: '2026-04-12T01:00:00Z' },
+    ]
 
-    await act(async () => {
-      await Promise.resolve()
-    })
+    await renderDashboard()
 
-    expect(wsInstances).toHaveLength(1)
-    expect(wsInstances[0].url).toContain('/ws/alerts?token=signed-token')
-
-    act(() => {
-      wsInstances[0].onopen?.()
-    })
-
-    expect(alertStoreState.setWsConnected).toHaveBeenCalledWith(true)
-    expect(alertStoreState.fetchActiveAlerts).toHaveBeenCalled()
-    expect(alertStoreState.fetchStats).toHaveBeenCalled()
+    // Only notifiedAlert qualifies: firing + un-acked + notify_count > 0
+    expect(await screen.findByText('待确认告警: 1')).toBeInTheDocument()
   })
 
-  it('skips websocket creation when no token exists and leaves polling fallback intact', async () => {
-    render(<Dashboard />)
+  it('renders grouped active alerts with occurrence count', async () => {
+    await renderDashboard()
 
-    await act(async () => {
-      await Promise.resolve()
-    })
+    expect(await screen.findByText('LatencyHigh - actions')).toBeInTheDocument()
+    expect(await screen.findByText('共 5 次')).toBeInTheDocument()
+  })
 
-    expect(wsInstances).toHaveLength(0)
-    expect(alertStoreState.setWsConnected).toHaveBeenCalledWith(false)
-    expect(alertStoreState.fetchActiveAlerts).toHaveBeenCalled()
-    expect(alertStoreState.fetchStats).toHaveBeenCalled()
-    expect(screen.getByText('实时连接已断开')).toBeInTheDocument()
+  it('shows empty state when no active alerts', async () => {
+    alertStoreState.groupedActiveAlerts = []
+
+    await renderDashboard()
+
+    expect(await screen.findByText('暂无活跃告警，系统运行正常')).toBeInTheDocument()
   })
 })

@@ -184,9 +184,9 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Stats cards */}
-      <div className="grid">
+      <div className="flex gap-3">
         {statsCards.map((stat, index) => (
-          <div key={index} className="col-12 md:col-6 lg:col-3">
+          <div key={index} className="flex-1">
             <StatisticCard {...stat} />
           </div>
         ))}

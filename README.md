@@ -16,7 +16,7 @@
 ---
 
 <p align="center">
-  <img src="docs/index.png" alt="ShadowSong Dashboard" width="100%">
+  <img src="image/index.png" alt="ShadowSong Dashboard" width="100%">
 </p>
 
 ---

@@ -899,9 +899,26 @@ func (h *WebhookHandler) processAlertNotificationsAsync(alerts []models.Alert) {
 	var currentAlert *models.Alert
 	var currentChannel *models.Channel
 
+	// Collect trace_ids from the alert batch so they're available even if
+	// panic occurs before beforeSend updates currentAlert (e.g. during route rule loading).
+	var batchTraceIDs []string
+	for _, a := range alerts {
+		if a.TraceID != "" {
+			batchTraceIDs = append(batchTraceIDs, a.TraceID)
+		}
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
-			h.logNotification("async_panic", currentAlert, currentChannel, "recovered panic=%v stack=%s", r, string(debug.Stack()))
+			if currentAlert != nil {
+				h.logNotification("async_panic", currentAlert, currentChannel, "recovered panic=%v stack=%s", r, string(debug.Stack()))
+			} else {
+				fields := map[string]string{
+					"batch_trace_ids": strings.Join(batchTraceIDs, ","),
+					"batch_alerts":    fmt.Sprintf("%d", len(alerts)),
+				}
+				h.logAlertEvent("async_panic", fields, "recovered panic=%v stack=%s (no alert context - panic before notification dispatch)", r, string(debug.Stack()))
+			}
 		}
 	}()
 
@@ -1303,31 +1320,36 @@ func (h *WebhookHandler) renderNotification(alert *models.Alert, tmplStr string)
 	return title, content, err
 }
 
-func (h *WebhookHandler) renderNotificationPreview(alert *models.Alert, tmplStr string) (string, string, map[string]interface{}, error) {
-	data := h.buildNotificationRenderContext(alert)
+func (h *WebhookHandler) renderNotificationPreview(alert *models.Alert, tmplStr string) (title string, content string, data map[string]interface{}, err error) {
+	data = h.buildNotificationRenderContext(alert)
 
-	tmpl, err := template.New("output").Funcs(h.templateFuncMap()).Parse(tmplStr)
-	if err != nil {
-		return "", "", data, err
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("template execute panic: %v", r)
+		}
+	}()
+
+	tmpl, parseErr := template.New("output").Funcs(h.templateFuncMap()).Parse(tmplStr)
+	if parseErr != nil {
+		return "", "", data, parseErr
 	}
 
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, data)
-	if err != nil {
-		return "", "", data, err
+	if execErr := tmpl.Execute(&buf, data); execErr != nil {
+		return "", "", data, execErr
 	}
 
 	resultStr := buf.String()
 
 	// 尝试解析为 JSON
 	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
+	if jsonErr := json.Unmarshal([]byte(resultStr), &result); jsonErr != nil {
 		// 不是 JSON，直接返回
 		return "告警通知", resultStr, data, nil
 	}
 
-	title := strings.TrimSpace(fmt.Sprintf("%v", result["title"]))
-	content := strings.TrimSpace(fmt.Sprintf("%v", result["content"]))
+	title = strings.TrimSpace(fmt.Sprintf("%v", result["title"]))
+	content = strings.TrimSpace(fmt.Sprintf("%v", result["content"]))
 	if title == "" {
 		title = "告警通知"
 	}

@@ -25,7 +25,15 @@ func NewRenderer() *Renderer {
 
 // Render renders a template string with the given data.
 // Templates are cached for performance.
-func (r *Renderer) Render(tmplStr string, data map[string]interface{}) (string, error) {
+// If template.Execute panics (e.g. nil field accessed as method), the panic is
+// recovered and returned as an error, preventing goroutine crash and alert loss.
+func (r *Renderer) Render(tmplStr string, data map[string]interface{}) (result string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("template execute panic: %v", r)
+		}
+	}()
+
 	// Check cache first
  cached, ok := r.cache.Load(tmplStr)
 	if ok {

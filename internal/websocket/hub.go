@@ -204,7 +204,10 @@ func (c *Client) Done() <-chan struct{} {
 // readPump pumps messages from the WebSocket connection to the hub.
 // It runs in a single goroutine per connection.
 func (c *Client) readPump() {
-	defer c.Close()
+	defer func() {
+		c.Close()
+		c.hub.Unregister(c)
+	}()
 
 	c.conn.SetReadDeadline(time.Now().Add(c.pongWait))
 	c.conn.SetPongHandler(func(string) error {

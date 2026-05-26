@@ -115,6 +115,11 @@ func (h *ConfigHandler) UpdateDataSource(c *gin.Context) {
 	ds.GroupEnabled = input.GroupEnabled
 	ds.GroupWindow = input.GroupWindow
 
+	if err := ds.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	if err := h.db.Save(&ds).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

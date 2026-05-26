@@ -3,6 +3,9 @@ package models
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	htmltemplate "html/template"
+	texttemplate "text/template"
 	"time"
 
 	"gorm.io/datatypes"
@@ -48,8 +51,14 @@ func (d *DataSource) Validate() error {
 	if d.InputTemplate == "" {
 		return errors.New("input_template is required")
 	}
+	if _, err := texttemplate.New("input_template").Parse(d.InputTemplate); err != nil {
+		return fmt.Errorf("input_template syntax error: %s", err.Error())
+	}
 	if d.OutputTemplate == "" {
 		return errors.New("output_template is required")
+	}
+	if _, err := htmltemplate.New("output_template").Parse(d.OutputTemplate); err != nil {
+		return fmt.Errorf("output_template syntax error: %s", err.Error())
 	}
 	return nil
 }

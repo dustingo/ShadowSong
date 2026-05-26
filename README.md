@@ -1,176 +1,103 @@
-# 游戏运维告警系统
+<div align="center">
 
-面向游戏运维场景的告警管理平台，统一接收、处理、聚合、展示和分发来自多个数据源的告警信息。支持多通道通知投递、路由规则匹配、静默管理、值班调度，以及完整的 RBAC 权限控制。
+# ShadowSong
 
-## 技术栈
+**Multi-Source Alert Management Platform**
 
-### 后端
-- Go 1.25.0 + Gin
-- PostgreSQL 14+ (GORM)
-- Redis 7+
-- JWT 认证 + RBAC 授权
+统一接收 · 智能路由 · 多通道投递 · 全链路追踪
 
-### 前端
-- React 18 + TypeScript
-- PrimeReact 10.x + PrimeFlex
-- Zustand 状态管理
-- ECharts / Chart.js 图表
-- Monaco Editor 模板编辑
-- Vite + pnpm
+[![Go](https://img.shields.io/badge/Go-1.25-00ADD8?style=flat-square&logo=go)](https://go.dev/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://react.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-4169E1?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-## 功能概览
+</div>
 
-| 模块 | 说明 |
-|------|------|
-| 告警管理 | 告警列表、按级别/来源/状态/时间/Labels 筛选、确认、静默 |
-| 实时推送 | WebSocket 实时告警推送 |
-| 数据源 | 多数据源接入、input/output 模板、模板预览 |
-| 通知通道 | 飞书/钉钉/企微/Webhook 通道配置与健康度监控 |
-| 路由规则 | 基于级别/来源/Labels 的路由匹配，优先级排序 |
-| 静默规则 | 时间窗口静默，支持从告警快速创建 |
-| 值班管理 | 值班排班与通道绑定 |
-| 投递追踪 | 通知投递记录、重试/重放、恢复审计 |
-| 用户管理 | 用户 CRUD、角色(admin/operator/viewer)、审计日志 |
-| 运维监控 | 告警统计趋势、通道健康度、系统指标 |
+---
 
-## 快速开始
+<p align="center">
+  <img src="docs/index.png" alt="ShadowSong Dashboard" width="100%">
+</p>
 
-### 前置要求
+---
 
-- Go 1.25.0
-- Node.js 18+ & pnpm
-- Docker & Docker Compose
+## Why ShadowSong?
 
-### 安装依赖
+监控系统各有各的告警通道 — Prometheus 走 Alertmanager、Zabbix 发邮件、Grafana 推 Slack。ShadowSong 把它们统一接入，按规则路由到正确的团队和通道，并记录每条告警从接达到投递的完整生命周期。
 
-```bash
-make deps          # 后端依赖
-make frontend-install  # 前端依赖
+## Features
+
+| | |
+|---|---|
+| **Multi-Source Ingest** | Webhook 接收 + 双阶段模板管道，适配任意 JSON 告警源 |
+| **Smart Routing** | 基于级别 / 来源 / Labels 的规则匹配，优先级排序，多通道扇出 |
+| **Channel Fan-Out** | 飞书 · 钉钉 · 企微（内置）+ 通用 Webhook（Basic Auth / Custom Header） |
+| **Delivery Tracking** | 逐条投递记录、重试 / 重放、升级链、完整审计日志 |
+| **Dedup & Group** | 指纹去重 + Labels 分组聚合，减少告警噪音 |
+| **Real-Time Push** | WebSocket 告警实时更新到 Dashboard |
+| **Silence Management** | 时间窗口静默，从告警一键创建 |
+| **RBAC** | admin / operator / viewer 三角色，5 项权限能力，全操作审计 |
+
+## Template Pipeline
+
+```
+Webhook JSON ──▶ input_template ──▶ Alert (normalized)
+                                         │
+                  output_template ──▶ Notification ──▶ Channel
 ```
 
-### 启动开发环境
+Available variables: `.alert_name` · `.severity` · `.message` · `.source` · `.labels` · `.event.*` · `.trigger_time`
 
-1. 启动 PostgreSQL 和 Redis：
+Helper functions: `default` · `lookup` · `toJson` · `get`
+
+Severity mapping: `critical` → P0 · `warning` / `error` → P1 · `info` → P2 · `debug` → P3
+
+## Quick Start
+
+> **Prerequisites:** Go 1.25+, Node.js 18+, pnpm 10+, Docker
+
 ```bash
+# 1. Start PostgreSQL & Redis
 make docker-up
-```
 
-2. 配置环境变量（仓库已提供 `.env` 基线，按需调整）：
+# 2. Set JWT_SECRET in .env (≥ 32 chars for production)
 
-- `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`
-- `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` / `REDIS_DB`
-- `SERVER_PORT` / `SERVER_MODE`
-- `JWT_SECRET` / `TOKEN_EXPIRY`
-
-3. 启动后端服务：
-```bash
+# 3. Start backend
 make run
-```
 
-4. 启动前端开发服务器（新终端）：
-```bash
+# 4. Start frontend
 make frontend-dev
 ```
 
-### 访问应用
+Open http://localhost:5173
 
-- 后端 API: http://localhost:8080
-- 前端界面: http://localhost:5173
-- 健康检查: http://localhost:8080/health
+## RBAC
 
-## 项目结构
+| Role | View Alerts | Process Alerts | View Config | Manage Config | Manage Users |
+|------|:---:|:---:|:---:|:---:|:---:|
+| **admin** | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **operator** | ✓ | ✓ | ✓ | — | — |
+| **viewer** | ✓ | — | ✓ | — | — |
 
-```
-.
-├── cmd/
-│   ├── server/           # 应用入口
-│   └── roleaudit/        # RBAC 审计工具
-├── internal/
-│   ├── auth/             # JWT 认证
-│   ├── authz/            # RBAC 授权 (5 capabilities, 3 roles)
-│   ├── config/           # 配置管理
-│   ├── database/         # PostgreSQL + Redis 连接
-│   ├── delivery/         # 通知投递服务
-│   ├── handlers/         # HTTP 处理器
-│   ├── middleware/        # 认证/授权/限流中间件
-│   ├── models/           # GORM 数据模型
-│   ├── notifier/         # 通知推送
-│   ├── router/           # 路由注册
-│   ├── routing/          # 路由规则匹配引擎
-│   ├── stats/            # 统计查询
-│   ├── template/         # Go 模板渲染
-│   ├── utils/            # 工具函数
-│   └── websocket/        # WebSocket 实时推送
-├── frontend/             # 前端项目
-│   └── src/
-│       ├── api/          # Axios HTTP 客户端
-│       ├── authz/        # 前端权限检查
-│       ├── components/   # 通用组件
-│       ├── pages/        # 页面组件
-│       ├── stores/       # Zustand 状态管理
-│       └── theme/        # 主题配置
-├── scripts/              # 验证脚本
-├── docs/                 # 文档
-└── docker-compose.yml    # Docker 配置
-```
+## Tech Stack
 
-## API 路由
+| Backend | Frontend |
+|---------|----------|
+| Go · Gin · GORM | React 18 · TypeScript |
+| PostgreSQL · Redis | PrimeReact · PrimeFlex |
+| JWT · RBAC | Zustand · ECharts · Monaco Editor |
+| | Vite · pnpm |
 
-所有接口位于 `/api/v1` 下，需 JWT 认证（公开接口除外）：
-
-| 分组 | 路由 | 说明 |
-|------|------|------|
-| Auth | `POST /auth/login` `POST /auth/logout` `POST /auth/refresh` | 认证（公开） |
-| Alerts | `GET /alerts` `GET /alerts/stats` `GET /alerts/active` `POST /alerts/:id/ack` `POST /alerts/:id/quick-silence` | 告警管理 |
-| DataSources | `GET/POST /datasources` `POST /datasources/preview` `PATCH /datasources/:id/toggle` | 数据源 |
-| Channels | `GET/POST /channels` `POST /channels/:id/test` `GET /channels/:id/health` | 通知通道 |
-| Routes | `GET/POST /routes` `POST /routes/reorder` | 路由规则 |
-| Silences | `GET/POST /silences` `POST /silences/from-alert/:alertId` | 静默规则 |
-| OnDuty | `GET/POST /onduty` `GET /onduty/current` | 值班管理 |
-| Deliveries | `GET /deliveries` `POST /deliveries/:id/retry` `POST /deliveries/:id/replay` | 投递追踪 |
-| Users | `GET/POST /users` `PATCH /users/me/profile` `GET /users/audit-logs` | 用户管理 |
-| Webhook | `POST /webhook/:source_name` | 告警接入（公开，限流） |
-| WebSocket | `GET /ws/alerts` | 实时推送 |
-| Metrics | `GET /metrics` | 系统指标 |
-
-## 模板链路
-
-数据源模板分两段执行：
-
-1. **input_template** — 接收 webhook JSON，映射为内部告警字段
-2. **output_template** — 将标准化告警渲染为通知内容
-
-可用字段：`.alert_name` `.message` `.status` `.source` `.labels` `.severity` `.severity_raw` `.event.xxx`
-
-严重级别映射：`critical` → P0, `warning`/`error` → P1, `info` → P2, `debug` → P3
-
-## RBAC 权限
-
-| 角色 | view_alerts | process_alerts | view_config | manage_config | manage_users |
-|------|:-----------:|:--------------:|:-----------:|:-------------:|:------------:|
-| admin | ✓ | ✓ | ✓ | ✓ | ✓ |
-| operator | ✓ | ✓ | ✓ | — | — |
-| viewer | ✓ | — | ✓ | — | — |
-
-## 开发命令
+## Development
 
 ```bash
-make help              # 显示所有可用命令
-make build             # 编译应用
-make run               # 运行应用
-make test              # 运行测试
-make docker-up         # 启动 Docker 服务
-make docker-down       # 停止 Docker 服务
-make frontend-dev      # 启动前端开发服务器
-make frontend-build    # 构建前端生产版本
+make help              # All available commands
+make test              # Run all tests
+make lint              # Lint backend
+make frontend-lint     # Lint frontend
+make frontend-test     # Run frontend tests
 ```
 
-## 工程质量门禁
+## License
 
-- GitHub Actions 工作流：`.github/workflows/quality-gates.yml`
-- 后端：`go test ./...`
-- 前端：`pnpm lint`、`pnpm test -- --run`、`pnpm build`
-
-## 许可证
-
-MIT
+[MIT](LICENSE)

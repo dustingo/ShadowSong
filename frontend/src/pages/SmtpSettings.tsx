@@ -6,8 +6,8 @@ import { InputSwitch } from 'primereact/inputswitch'
 import { Card } from 'primereact/card'
 import { Dialog } from 'primereact/dialog'
 import { useConfigStore } from '../stores/configStore'
-import { useToast } from '../hooks/useToast'
-import { getApiErrorMessage } from '../utils/api'
+import { useToast } from '../components'
+import { getApiErrorMessage } from '../api/client'
 import type { SmtpConfig } from '../types'
 
 const defaultConfig: SmtpConfig = {

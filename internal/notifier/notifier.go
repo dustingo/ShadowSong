@@ -43,6 +43,8 @@ func SendToChannel(channel *models.Channel, title, content string, data map[stri
 		sender, err = NewWeComSender(configBytes)
 	case "webhook":
 		sender, err = NewWebhookSender(configBytes)
+	case "email":
+		sender, err = NewEmailSender(configBytes)
 	default:
 		return fmt.Errorf("channel %d (%s) unsupported type: %s", channel.ID, channel.Name, channel.Type)
 	}

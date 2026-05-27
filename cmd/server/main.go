@@ -9,6 +9,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/database"
 	"github.com/game-ops/ai-alert-system/internal/delivery"
 	"github.com/game-ops/ai-alert-system/internal/escalation"
+	"github.com/game-ops/ai-alert-system/internal/notifier"
 	"github.com/game-ops/ai-alert-system/internal/router"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -33,6 +34,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+
+	// Initialize notifier DB reference for email sender
+	notifier.SetDB(db)
 
 	// Initialize Redis
 	redisClient, err := database.InitRedis(cfg)

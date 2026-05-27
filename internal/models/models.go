@@ -101,6 +101,7 @@ func (c *Channel) Validate() error {
 		"dingtalk": true,
 		"wecom":    true,
 		"webhook":  true,
+		"email":    true,
 	}
 	if !validTypes[c.Type] {
 		return errors.New("invalid channel type")
@@ -144,6 +145,10 @@ func (c *Channel) Validate() error {
 			}
 		}
 	}
+	if c.Type == "email" {
+		// email channel config is minimal; from_name is optional
+		// SMTP connection and recipients are validated at send time
+	}
 	return nil
 }
 
@@ -156,6 +161,7 @@ type RouteRule struct {
 	Sources       datatypes.JSON `json:"sources"`        // []string
 	LabelMatchers datatypes.JSON `json:"label_matchers"` // []LabelMatcher
 	ChannelIDs    datatypes.JSON `json:"channel_ids"`    // []uint
+	Recipients    datatypes.JSON `json:"recipients"`     // []string — email addresses for email channels
 	TimeRanges    datatypes.JSON `json:"time_ranges"`    // []TimeRange
 	Enabled             bool           `gorm:"default:true" json:"enabled"`
 	EscalationEnabled   bool           `gorm:"default:false" json:"escalation_enabled"`
@@ -187,6 +193,9 @@ func (r *RouteRule) BeforeCreate(tx *gorm.DB) error {
 	}
 	if r.ChannelIDs == nil {
 		r.ChannelIDs = datatypes.JSON("[]")
+	}
+	if r.Recipients == nil {
+		r.Recipients = datatypes.JSON("[]")
 	}
 	if r.TimeRanges == nil {
 		r.TimeRanges = datatypes.JSON("[]")
@@ -252,5 +261,35 @@ type AuditLog struct {
 	Result        string    `gorm:"size:32;index;not null" json:"result"`
 	Detail        string    `gorm:"type:text" json:"detail"`
 	CreatedAt     time.Time `gorm:"index" json:"created_at"`
+}
+
+// SmtpConfig represents global SMTP server configuration
+type SmtpConfig struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Host      string    `gorm:"size:128;not null" json:"host"`
+	Port      int       `gorm:"not null;default:465" json:"port"`
+	Username  string    `gorm:"size:128;not null" json:"username"`
+	Password  string    `gorm:"size:256" json:"password"`
+	FromAddr  string    `gorm:"size:128;not null" json:"from_addr"`
+	FromName  string    `gorm:"size:64" json:"from_name"`
+	TLS       bool      `gorm:"default:true" json:"tls"`
+	Enabled   bool      `gorm:"default:true" json:"enabled"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (s *SmtpConfig) Validate() error {
+	if s.Host == "" {
+		return errors.New("host is required")
+	}
+	if s.Port == 0 {
+		return errors.New("port is required")
+	}
+	if s.Username == "" {
+		return errors.New("username is required")
+	}
+	if s.FromAddr == "" {
+		return errors.New("from_addr is required")
+	}
+	return nil
 }
 

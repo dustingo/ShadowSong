@@ -55,6 +55,7 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 		&models.NotificationDelivery{},
 		&models.NotificationDeliveryAttempt{},
 		&models.NotificationDeliveryRecovery{},
+		&models.SmtpConfig{},
 	}
 
 	for _, table := range tables {

@@ -192,6 +192,7 @@ export const Channels: React.FC = () => {
     { value: 'dingtalk', label: '钉钉', icon: 'pi pi-comment' },
     { value: 'wecom', label: '企业微信', icon: 'pi pi-briefcase' },
     { value: 'webhook', label: '自定义 Webhook', icon: 'pi pi-link' },
+    { value: 'email', label: '邮件', icon: 'pi pi-envelope' },
   ]
 
   const methodOptions = [
@@ -276,9 +277,27 @@ export const Channels: React.FC = () => {
       toast.showWarn('当前角色无权执行该操作')
       return
     }
+    if (record.type === 'email') {
+      setTestDialogChannel(record)
+      setTestDialogVisible(true)
+      return
+    }
     try {
       await testChannel(record.id)
       toast.showSuccess('测试消息已发送')
+    } catch (error) {
+      toast.showError(getApiErrorMessage(error, '发送失败'))
+    }
+  }
+
+  const handleTestWithEmail = async () => {
+    if (!testDialogChannel) return
+    try {
+      const recipients = testRecipients.split(',').map(s => s.trim()).filter(Boolean)
+      await testChannel(testDialogChannel.id, recipients)
+      toast.showSuccess('测试邮件已发送')
+      setTestDialogVisible(false)
+      setTestRecipients('')
     } catch (error) {
       toast.showError(getApiErrorMessage(error, '发送失败'))
     }
@@ -671,6 +690,26 @@ export const Channels: React.FC = () => {
       )
     }
 
+    if (type === 'email') {
+      return (
+        <div className="flex flex-column gap-2">
+          <label className="text-sm">发件人名称（可选）</label>
+          <InputText
+            placeholder="告警系统"
+            value={formValues.config.from_name || ''}
+            onChange={(e) =>
+              setFormValues({
+                ...formValues,
+                config: { ...formValues.config, from_name: e.target.value },
+              })
+            }
+            disabled={!canManageConfig}
+          />
+          <small className="text-color-secondary">留空则使用 SMTP 全局配置中的发件人名称</small>
+        </div>
+      )
+    }
+
     return null
   }
 
@@ -757,6 +796,30 @@ export const Channels: React.FC = () => {
               checked={formValues.enabled}
               onChange={(e) => setFormValues({ ...formValues, enabled: e.value })}
               disabled={!canManageConfig}
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        header="发送测试邮件"
+        visible={testDialogVisible}
+        onHide={() => { setTestDialogVisible(false); setTestRecipients('') }}
+        style={{ width: '400px' }}
+        footer={
+          <div>
+            <Button label="取消" icon="pi pi-times" className="p-button-text" onClick={() => { setTestDialogVisible(false); setTestRecipients('') }} />
+            <Button label="发送" icon="pi pi-send" onClick={handleTestWithEmail} disabled={!testRecipients.trim()} />
+          </div>
+        }
+      >
+        <div className="flex flex-column gap-3">
+          <div className="flex flex-column gap-2">
+            <label className="text-sm">收件人邮箱</label>
+            <InputText
+              placeholder="多个邮箱用逗号分隔，如: a@example.com, b@example.com"
+              value={testRecipients}
+              onChange={(e) => setTestRecipients(e.target.value)}
             />
           </div>
         </div>

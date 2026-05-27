@@ -89,7 +89,7 @@ export interface WebhookAuthConfig {
 export interface Channel {
   id: number
   name: string
-  type: 'feishu' | 'dingtalk' | 'wecom' | 'webhook'
+  type: 'feishu' | 'dingtalk' | 'wecom' | 'webhook' | 'email'
   config: JsonObject & {
     webhook_url?: string
     secret?: string
@@ -100,9 +100,23 @@ export interface Channel {
     template?: string
     auth_type?: string
     auth_config?: WebhookAuthConfig
+    from_name?: string
   }
   enabled: boolean
   created_at: string
+  updated_at: string
+}
+
+export interface SmtpConfig {
+  id?: number
+  host: string
+  port: number
+  username: string
+  password: string
+  from_addr: string
+  from_name: string
+  tls: boolean
+  enabled: boolean
   updated_at: string
 }
 
@@ -114,6 +128,7 @@ export interface RouteRule {
   sources: string[]
   label_matchers: LabelMatcher[]
   channel_ids: number[]
+  recipients: string[]
   time_ranges: TimeRange[]
   enabled: boolean
   escalation_enabled: boolean

@@ -12,6 +12,7 @@ import type {
   DeliveryRecoveryRequest,
   DeliveryRecoveryResult,
   RouteRule,
+  SmtpConfig,
   SilenceRule,
 } from '../types'
 
@@ -151,7 +152,16 @@ export const channelApi = {
   toggle: (id: number, enabled: boolean) =>
     apiClient.patch(`/channels/${id}/toggle`, { enabled }),
 
-  test: (id: number) => apiClient.post(`/channels/${id}/test`),
+  test: (id: number, recipients?: string[]) =>
+    apiClient.post(`/channels/${id}/test`, recipients?.length ? { recipients } : {}),
+}
+
+// ============ SMTP Config API ============
+
+export const smtpConfigApi = {
+  get: () => apiClient.get<SmtpConfig>('/smtp-config'),
+  update: (data: Partial<SmtpConfig>) => apiClient.put<SmtpConfig>('/smtp-config', data),
+  test: (recipients: string[]) => apiClient.post('/smtp-config/test', { recipients }),
 }
 
 // ============ RouteRule API ============

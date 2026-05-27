@@ -1161,6 +1161,14 @@ func (h *WebhookHandler) sendChannelNotification(
 	data["title"] = title
 	data["content"] = content
 
+	// Inject recipients from route rule for email channels
+	if routeRule != nil && channel.Type == "email" {
+		var recipients []string
+		if err := json.Unmarshal(routeRule.Recipients, &recipients); err == nil && len(recipients) > 0 {
+			data["recipients"] = recipients
+		}
+	}
+
 	for attempt := 1; attempt <= notificationMaxAttempts; attempt++ {
 		startedAt := time.Now()
 		err := sender(channel, title, content, data)

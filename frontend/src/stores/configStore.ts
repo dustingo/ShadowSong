@@ -6,8 +6,9 @@ import type {
   Channel,
   RouteRule,
   SilenceRule,
+  SmtpConfig,
 } from '../types'
-import { dataSourceApi, channelApi, routeRuleApi, silenceRuleApi } from '../api/client'
+import { dataSourceApi, channelApi, routeRuleApi, silenceRuleApi, smtpConfigApi } from '../api/client'
 
 interface ConfigState {
   dataSources: DataSource[]
@@ -29,7 +30,12 @@ interface ConfigState {
   updateChannel: (id: number, data: Partial<Channel>) => Promise<void>
   deleteChannel: (id: number) => Promise<void>
   toggleChannel: (id: number, enabled: boolean) => Promise<void>
-  testChannel: (id: number) => Promise<void>
+  testChannel: (id: number, recipients?: string[]) => Promise<void>
+  smtpConfig: SmtpConfig | null
+  smtpConfigLoading: boolean
+  fetchSmtpConfig: () => Promise<void>
+  updateSmtpConfig: (data: Partial<SmtpConfig>) => Promise<void>
+  testSmtpConfig: (recipients: string[]) => Promise<string>
   fetchRouteRules: () => Promise<void>
   createRouteRule: (data: Partial<RouteRule>) => Promise<void>
   updateRouteRule: (id: number, data: Partial<RouteRule>) => Promise<void>
@@ -116,8 +122,31 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     get().fetchChannels()
   },
 
-  testChannel: async (id) => {
-    await channelApi.test(id)
+  testChannel: async (id, recipients) => {
+    await channelApi.test(id, recipients)
+  },
+
+  smtpConfig: null,
+  smtpConfigLoading: false,
+
+  fetchSmtpConfig: async () => {
+    set({ smtpConfigLoading: true })
+    try {
+      const data = await smtpConfigApi.get() as unknown as SmtpConfig
+      set({ smtpConfig: data, smtpConfigLoading: false })
+    } catch {
+      set({ smtpConfigLoading: false })
+    }
+  },
+
+  updateSmtpConfig: async (data) => {
+    await smtpConfigApi.update(data)
+    get().fetchSmtpConfig()
+  },
+
+  testSmtpConfig: async (recipients) => {
+    const res = await smtpConfigApi.test(recipients) as unknown as { message: string }
+    return res.message
   },
 
   fetchRouteRules: async () => {

@@ -780,7 +780,17 @@ func (s *Service) executeRecoveredDelivery(ctx context.Context, tx *gorm.DB, inp
 
 	for attempt := 1; attempt <= 3; attempt++ {
 		startedAt := time.Now()
-		sendErr := s.sender()(input.channel, input.title, input.content, nil)
+
+		// Build notification data with recipients for email channels
+		data := map[string]interface{}{}
+		if input.channel.Type == "email" && input.routeRule != nil {
+			var recipients []string
+			if err := json.Unmarshal(input.routeRule.Recipients, &recipients); err == nil && len(recipients) > 0 {
+				data["recipients"] = recipients
+			}
+		}
+
+		sendErr := s.sender()(input.channel, input.title, input.content, data)
 		_, recordErr := s.recordAttemptTx(ctx, tx, deliveryRecord.ID, RecordAttemptInput{
 			AttemptNumber: attempt,
 			Result:        notificationAttemptResult(sendErr),

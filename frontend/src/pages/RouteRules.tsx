@@ -24,6 +24,7 @@ interface RouteRuleFormData {
   severities: string[]
   sources: string[]
   channel_ids: number[]
+  recipients: string[]
   enabled: boolean
   escalation_enabled: boolean
   escalation_timeout: number
@@ -61,6 +62,7 @@ export const RouteRules: React.FC = () => {
     severities: [],
     sources: [],
     channel_ids: [],
+    recipients: [],
     enabled: true,
     escalation_enabled: false,
     escalation_timeout: 30,
@@ -94,6 +96,7 @@ export const RouteRules: React.FC = () => {
       severities: [],
       sources: [],
       channel_ids: [],
+      recipients: [],
       enabled: true,
       escalation_enabled: false,
       escalation_timeout: 30,
@@ -123,6 +126,7 @@ export const RouteRules: React.FC = () => {
       severities: record.severities || [],
       sources: record.sources || [],
       channel_ids: record.channel_ids || [],
+      recipients: record.recipients || [],
       enabled: record.enabled,
       escalation_enabled: record.escalation_enabled ?? false,
       escalation_timeout: record.escalation_timeout ?? 30,
@@ -290,21 +294,21 @@ export const RouteRules: React.FC = () => {
     </div>
   )
 
+  const cardHeader = canManageConfig ? (
+    <div className="flex justify-content-end mb-3">
+      <Button icon="pi pi-plus" label="新建规则" onClick={handleCreate} />
+    </div>
+  ) : undefined
+
   return (
     <div>
       <Card
         title="路由规则管理"
+        header={cardHeader}
         pt={{
           title: { className: 'text-xl font-semibold' },
         }}
       >
-        <template title="header">
-          {canManageConfig && (
-            <div className="flex justify-content-end mb-3">
-              <Button icon="pi pi-plus" label="新建规则" onClick={handleCreate} />
-            </div>
-          )}
-        </template>
         {readOnly && (
           <PermissionNotice
             title="当前角色可查看配置，但不能修改"
@@ -395,6 +399,23 @@ export const RouteRules: React.FC = () => {
               disabled={!canManageConfig}
             />
           </div>
+
+          {formData.channel_ids.some(id => channels.find(c => c.id === id)?.type === 'email') && (
+            <div className="field">
+              <label htmlFor="recipients" className="font-medium">邮件收件人</label>
+              <InputText
+                id="recipients"
+                value={formData.recipients.join(', ')}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  recipients: e.target.value.split(',').map(s => s.trim()).filter(Boolean),
+                })}
+                placeholder="多个邮箱用逗号分隔，如: a@example.com, b@example.com"
+                disabled={!canManageConfig}
+              />
+              <small style={{ color: 'var(--text-secondary)' }}>仅在目标渠道包含邮件类型时生效</small>
+            </div>
+          )}
 
           <div className="field flex align-items-center gap-2">
             <label htmlFor="enabled" className="font-medium mb-0">启用</label>

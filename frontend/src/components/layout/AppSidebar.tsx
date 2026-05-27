@@ -16,6 +16,7 @@ const baseMenuItems: MenuItem[] = [
   { key: '/ops-health', icon: 'pi pi-chart-bar', label: '运维健康' },
   { key: '/datasources', icon: 'pi pi-database', label: '数据源' },
   { key: '/channels', icon: 'pi pi-telegram', label: '推送渠道' },
+  { key: '/smtp-settings', icon: 'pi pi-envelope', label: '邮件配置' },
   { key: '/routes', icon: 'pi pi-sitemap', label: '路由规则' },
   { key: '/silences', icon: 'pi pi-volume-off', label: '静默管理' },
 ]

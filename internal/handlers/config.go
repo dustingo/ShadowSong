@@ -358,10 +358,21 @@ func (h *ConfigHandler) TestChannel(c *gin.Context) {
 		return
 	}
 
+	// Parse optional request body for email recipients
+	var body struct {
+		Recipients []string `json:"recipients"`
+	}
+	c.ShouldBindJSON(&body)
+
 	testTitle := "测试通知"
 	testContent := "这是一条来自游戏运维告警系统的测试消息。"
 
-	if err := notifier.SendToChannel(&ch, testTitle, testContent, nil); err != nil {
+	data := map[string]interface{}{}
+	if len(body.Recipients) > 0 {
+		data["recipients"] = body.Recipients
+	}
+
+	if err := notifier.SendToChannel(&ch, testTitle, testContent, data); err != nil {
 		_ = recordAudit(h.db, c, "config.channel.test", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultDenied, err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -369,6 +380,99 @@ func (h *ConfigHandler) TestChannel(c *gin.Context) {
 
 	_ = recordAudit(h.db, c, "config.channel.test", "channel", strconv.FormatUint(uint64(ch.ID), 10), auditResultAllowed, "test notification sent")
 	c.JSON(http.StatusOK, gin.H{"message": "test notification sent successfully"})
+}
+
+// ============ SmtpConfig ============
+
+func (h *ConfigHandler) GetSmtpConfig(c *gin.Context) {
+	var cfg models.SmtpConfig
+	err := h.db.Where("id = 1").First(&cfg).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusOK, gin.H{})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	cfg.Password = "****"
+	c.JSON(http.StatusOK, cfg)
+}
+
+func (h *ConfigHandler) UpdateSmtpConfig(c *gin.Context) {
+	var cfg models.SmtpConfig
+	err := h.db.Where("id = 1").First(&cfg).Error
+	isNew := err == gorm.ErrRecordNotFound
+
+	var input models.SmtpConfig
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := input.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if isNew {
+		input.ID = 1
+		if err := h.db.Create(&input).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		_ = recordAudit(h.db, c, "config.smtp.update", "smtp_config", "1", auditResultAllowed, "created SMTP config")
+		input.Password = "****"
+		c.JSON(http.StatusOK, input)
+		return
+	}
+
+	cfg.Host = input.Host
+	cfg.Port = input.Port
+	cfg.Username = input.Username
+	cfg.FromAddr = input.FromAddr
+	cfg.FromName = input.FromName
+	cfg.TLS = input.TLS
+	cfg.Enabled = input.Enabled
+
+	// Only update password if not masked
+	if input.Password != "" && input.Password != "****" {
+		cfg.Password = input.Password
+	}
+
+	if err := h.db.Save(&cfg).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	_ = recordAudit(h.db, c, "config.smtp.update", "smtp_config", "1", auditResultAllowed, "updated SMTP config")
+	cfg.Password = "****"
+	c.JSON(http.StatusOK, cfg)
+}
+
+func (h *ConfigHandler) TestSmtpConfig(c *gin.Context) {
+	var input struct {
+		Recipients []string `json:"recipients" binding:"required,min=1"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "recipients is required"})
+		return
+	}
+
+	ch := &models.Channel{
+		Type:   "email",
+		Config: datatypes.JSON(`{"from_name":"告警系统"}`),
+	}
+
+	data := map[string]interface{}{
+		"recipients": input.Recipients,
+	}
+
+	if err := notifier.SendToChannel(ch, "测试通知", "这是一条来自游戏运维告警系统的测试消息。", data); err != nil {
+		_ = recordAudit(h.db, c, "config.smtp.test", "smtp_config", "1", auditResultDenied, err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	_ = recordAudit(h.db, c, "config.smtp.test", "smtp_config", "1", auditResultAllowed, "SMTP test email sent")
+	c.JSON(http.StatusOK, gin.H{"message": "test email sent successfully"})
 }
 
 // ============ RouteRule ============

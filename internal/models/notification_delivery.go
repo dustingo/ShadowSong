@@ -12,6 +12,7 @@ const (
 	DeliveryStatusPending   = "pending"
 	DeliveryStatusDelivered = "delivered"
 	DeliveryStatusFailed    = "failed"
+	DeliveryStatusThrottled = "throttled"
 
 	DeliveryModeRendered = "rendered"
 	DeliveryModeDefault  = "default"
@@ -29,6 +30,7 @@ var validDeliveryStatuses = map[string]struct{}{
 	DeliveryStatusPending:   {},
 	DeliveryStatusDelivered: {},
 	DeliveryStatusFailed:    {},
+	DeliveryStatusThrottled: {},
 }
 
 var validDeliveryModes = map[string]struct{}{

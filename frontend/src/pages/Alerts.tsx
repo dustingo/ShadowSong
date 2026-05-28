@@ -11,6 +11,7 @@ import { Dropdown } from 'primereact/dropdown'
 import { Calendar } from 'primereact/calendar'
 import { Tag } from 'primereact/tag'
 import { ProgressSpinner } from 'primereact/progressspinner'
+import { TabView, TabPanel } from 'primereact/tabview'
 import { useNavigate } from 'react-router-dom'
 import { useAlertStore } from '../stores/alertStore'
 import { SeverityBadge } from '../components/SeverityBadge'
@@ -49,6 +50,22 @@ export const Alerts: React.FC = () => {
   const [silenceDuration, setSilenceDuration] = useState(3600)
 
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+
+  const [activeTabIndex, setActiveTabIndex] = useState(0)
+
+  const statusTabs = [
+    { label: '全部', status: undefined },
+    { label: '活跃', status: 'firing' },
+    { label: '已确认', status: 'acked' },
+    { label: '已静默', status: 'silenced' },
+    { label: '已恢复', status: 'resolved' },
+  ]
+
+  const handleTabChange = (e: { index: number }) => {
+    setActiveTabIndex(e.index)
+    const tab = statusTabs[e.index]
+    setFilters({ ...filters, status: tab.status })
+  }
 
   const handleRowToggle = (e: { data: GroupedActiveAlert[] }) => {
     const newExpanded: Record<string, boolean> = {}
@@ -523,6 +540,13 @@ export const Alerts: React.FC = () => {
           </DataTable>
         </Card>
       )}
+
+      {/* Status Tabs */}
+      <TabView activeIndex={activeTabIndex} onTabChange={handleTabChange}>
+        {statusTabs.map((tab) => (
+          <TabPanel key={tab.label} header={tab.label} />
+        ))}
+      </TabView>
 
       {/* Filters */}
       <Card className="shadow-sm">

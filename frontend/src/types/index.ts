@@ -101,6 +101,7 @@ export interface Channel {
     auth_type?: string
     auth_config?: WebhookAuthConfig
     from_name?: string
+    rate_limit?: number
   }
   enabled: boolean
   created_at: string
@@ -299,3 +300,4 @@ export interface AuditLogListResponse {
   page: number
   page_size: number
 }
+

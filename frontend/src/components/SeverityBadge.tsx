@@ -32,3 +32,24 @@ export const SeverityBadge: React.FC<SeverityBadgeProps> = ({ severity }) => {
     />
   )
 }
+
+interface StatusBadgeProps {
+  status: string
+}
+
+const statusConfig: Record<string, { label: string; severity: 'danger' | 'warning' | 'secondary' | 'success' | 'info' }> = {
+  firing: { label: '告警中', severity: 'danger' },
+  acked: { label: '已确认', severity: 'warning' },
+  silenced: { label: '已静默', severity: 'secondary' },
+  resolved: { label: '已恢复', severity: 'success' },
+  pending: { label: '待处理', severity: 'info' },
+  deduplicated: { label: '已去重', severity: 'secondary' },
+}
+
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
+  const config = statusConfig[status]
+  if (!config) {
+    return <Tag value={status} severity="secondary" />
+  }
+  return <Tag value={config.label} severity={config.severity} />
+}

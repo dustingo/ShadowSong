@@ -155,6 +155,7 @@ const statusStyleMap: Record<string, { bgColor: string; color: string }> = {
   delivered: { bgColor: 'var(--success-light-color)', color: 'var(--success-color)' },
   failed: { bgColor: 'var(--danger-light-color)', color: 'var(--danger-color)' },
   pending: { bgColor: 'var(--warning-light-color)', color: 'var(--warning-color)' },
+  throttled: { bgColor: 'var(--info-light-color)', color: 'var(--info-color)' },
 }
 
 export const Deliveries: React.FC = () => {
@@ -300,6 +301,7 @@ export const Deliveries: React.FC = () => {
     { label: '成功', value: 'delivered' },
     { label: '失败', value: 'failed' },
     { label: '处理中', value: 'pending' },
+    { label: '已限流', value: 'throttled' },
   ]
 
   // Column body templates

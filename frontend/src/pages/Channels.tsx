@@ -8,6 +8,7 @@ import { InputText } from 'primereact/inputtext'
 import { InputTextarea } from 'primereact/inputtextarea'
 import { Dropdown } from 'primereact/dropdown'
 import { InputSwitch } from 'primereact/inputswitch'
+import { InputNumber } from 'primereact/inputnumber'
 import { Tag } from 'primereact/tag'
 import { Divider } from 'primereact/divider'
 import { confirmDialog } from 'primereact/confirmdialog'
@@ -39,6 +40,7 @@ interface ChannelFormValues {
       header_value?: string
     }
     from_name?: string
+    rate_limit?: number
   }
 }
 
@@ -58,6 +60,7 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
       config: {
         webhook_url: String(config.webhook_url ?? ''),
         secret: String(config.secret ?? ''),
+        rate_limit: Number(config.rate_limit ?? 0),
       },
     }
   }
@@ -68,6 +71,7 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
       config: {
         webhook_url: String(config.webhook_url ?? ''),
         secret: String(config.secret ?? ''),
+        rate_limit: Number(config.rate_limit ?? 0),
       },
     }
   }
@@ -77,6 +81,7 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
       ...channel,
       config: {
         webhook_url: String(config.webhook_url ?? ''),
+        rate_limit: Number(config.rate_limit ?? 0),
       },
     }
   }
@@ -101,11 +106,12 @@ const formatChannelConfigForForm = (channel: Channel): ChannelFormValues => {
           header_name: String(authConfig.header_name ?? ''),
           header_value: String(authConfig.header_value ?? ''),
         },
+        rate_limit: Number(config.rate_limit ?? 0),
       },
     }
   }
 
-  return { ...channel, config: {} }
+  return { ...channel, config: { rate_limit: Number(config.rate_limit ?? 0) } }
 }
 
 const buildChannelPayload = (values: ChannelFormValues) => {
@@ -138,6 +144,7 @@ const buildChannelPayload = (values: ChannelFormValues) => {
         template: config.template ?? '',
         auth_type: config.auth_type ?? 'none',
         auth_config: authPayload,
+        rate_limit: config.rate_limit ?? 0,
       },
     }
   }
@@ -148,6 +155,7 @@ const buildChannelPayload = (values: ChannelFormValues) => {
       config: {
         webhook_url: String(config.webhook_url ?? ''),
         secret: String(config.secret ?? ''),
+        rate_limit: config.rate_limit ?? 0,
       },
     }
   }
@@ -157,6 +165,7 @@ const buildChannelPayload = (values: ChannelFormValues) => {
       ...values,
       config: {
         webhook_url: String(config.webhook_url ?? ''),
+        rate_limit: config.rate_limit ?? 0,
       },
     }
   }
@@ -792,6 +801,25 @@ export const Channels: React.FC = () => {
 
           {renderConfigFields()}
 
+          <Divider align="center">
+            <span className="text-sm">频率限制</span>
+          </Divider>
+
+          <div className="field">
+            <label htmlFor="rate_limit">发送频率限制（每分钟，0=不限）</label>
+            <InputNumber
+              id="rate_limit"
+              value={formValues.config?.rate_limit ?? 0}
+              min={0}
+              onChange={(e) =>
+                setFormValues({
+                  ...formValues,
+                  config: { ...formValues.config, rate_limit: e.value ?? 0 },
+                })
+              }
+            />
+          </div>
+
           <Divider />
 
           <div className="flex align-items-center gap-2">
@@ -831,3 +859,5 @@ export const Channels: React.FC = () => {
     </div>
   )
 }
+
+

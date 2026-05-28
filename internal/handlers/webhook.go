@@ -38,6 +38,7 @@ const (
 
 type WebhookHandler struct {
 	db              *gorm.DB
+	throttle        *notifier.ChannelThrottle
 	redisClient     *redis.Client
 	deliveryService *delivery.Service
 	logger          *log.Logger
@@ -50,6 +51,7 @@ type WebhookHandler struct {
 func NewWebhookHandler(db *gorm.DB, redisClient *redis.Client) *WebhookHandler {
 	handler := &WebhookHandler{
 		db:              db,
+		throttle:        notifier.NewChannelThrottle(),
 		redisClient:     redisClient,
 		deliveryService: delivery.NewService(db),
 		logger:          log.New(os.Stdout, "notification ", log.LstdFlags),
@@ -1148,6 +1150,13 @@ func (h *WebhookHandler) sendChannelNotification(
 	content string,
 	mode string,
 ) {
+
+	// Throttle check
+	if !h.throttle.Allow(channel.ID, channel.RateLimit) {
+		h.logAlertEvent("throttled", h.traceFieldsForNotification(alert, channel), "notification throttled by rate limit")
+		h.recordThrottledDelivery(alert, channel, routeRule, title, content, mode)
+		return
+	}
 	sender := h.notificationSender()
 	deliveryRecord, deliveryErr := h.startNotificationDelivery(alert, channel, routeRule, title, content, mode)
 	if deliveryErr != nil {
@@ -1228,6 +1237,33 @@ func (h *WebhookHandler) startNotificationDelivery(
 		RenderedTitle: title,
 		RenderedBody:  content,
 	})
+}
+
+func (h *WebhookHandler) recordThrottledDelivery(
+	alert *models.Alert,
+	channel *models.Channel,
+	routeRule *models.RouteRule,
+	title, content, mode string,
+) {
+	deliverySvc := h.deliveryService
+	if deliverySvc == nil {
+		return
+	}
+	deliveryRecord, err := deliverySvc.StartDelivery(context.Background(), delivery.StartDeliveryInput{
+		Alert:         alert,
+		Channel:       channel,
+		RouteRule:     routeRule,
+		DeliveryMode:  mode,
+		TriggerKind:   models.TriggerKindPipeline,
+		RenderedTitle: title,
+		RenderedBody:  content,
+	})
+	if err != nil {
+		h.logger.Printf("throttled delivery record failed: %v", err)
+		return
+	}
+	deliveryRecord.DeliveryStatus = models.DeliveryStatusThrottled
+	h.db.Save(deliveryRecord)
 }
 
 func (h *WebhookHandler) recordNotificationAttempt(

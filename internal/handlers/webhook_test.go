@@ -1246,6 +1246,7 @@ func newWebhookTestHandler(db *gorm.DB) (*WebhookHandler, *bytes.Buffer) {
 	return &WebhookHandler{
 		db:              db,
 		deliveryService: delivery.NewService(db),
+		throttle:        notifier.NewChannelThrottle(),
 		logger:          log.New(buffer, "", 0),
 		redisXAdd: func(_ context.Context, _ *redis.XAddArgs) *redis.StringCmd {
 			return redis.NewStringResult("1-0", nil)
@@ -1566,4 +1567,50 @@ func TestWebhookHandlerAliyunSubscriptionTemplate(t *testing.T) {
 	assert.Equal(t, "ecs-production-01", labels["instance"])
 	assert.Equal(t, "cn-hangzhou", labels["region"])
 	assert.Equal(t, "云服务器ECS", labels["service_type"])
+}
+
+func TestSendChannelNotificationThrottled(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, _ := newWebhookTestHandler(db)
+
+	channel := models.Channel{
+		Name:      "test-throttle",
+		Type:      "webhook",
+		Config:    datatypes.JSON(`{"url":"http://localhost:1","method":"POST"}`),
+		Enabled:   true,
+		RateLimit: 1,
+	}
+	require.NoError(t, db.Create(&channel).Error)
+
+	alert := models.Alert{
+		AlertID:     "throttle-alert-1",
+		Source:      "test",
+		AlertName:   "TestAlert",
+		Severity:    "P1",
+		Message:     "test",
+		Fingerprint: "fp-throttle",
+		Status:      "firing",
+		TriggerTime: time.Now(),
+		ReceivedAt:  time.Now(),
+	}
+	require.NoError(t, db.Create(&alert).Error)
+
+	handler.sendToChannel = func(channel *models.Channel, title, content string, data map[string]interface{}) error {
+		return nil
+	}
+
+	// First send goes through
+	handler.sendChannelNotification(&alert, &channel, nil, "t", "c", models.DeliveryModeDefault)
+	// Second send should be throttled
+	handler.sendChannelNotification(&alert, &channel, nil, "t", "c", models.DeliveryModeDefault)
+
+	var deliveries []models.NotificationDelivery
+	db.Where("alert_id = ?", "throttle-alert-1").Find(&deliveries)
+	require.Len(t, deliveries, 2)
+
+	statuses := make(map[string]int)
+	for _, d := range deliveries {
+		statuses[d.DeliveryStatus]++
+	}
+	assert.Equal(t, 1, statuses[models.DeliveryStatusThrottled])
 }

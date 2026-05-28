@@ -151,7 +151,6 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     get().fetchStats()
     return result
   },
-  },
 
   quickSilence: async (id, duration) => {
     await alertApi.quickSilence(id, { duration })

@@ -22,6 +22,7 @@ type Checker struct {
 	matcher       *routing.Matcher
 	renderer      *template.Renderer
 	sendToChannel func(channel *models.Channel, title, content string, data map[string]interface{}) error
+	throttle       *notifier.ChannelThrottle
 	sleep         func(time.Duration)
 }
 
@@ -33,6 +34,7 @@ func NewChecker(db *gorm.DB, deliverySvc *delivery.Service) *Checker {
 		matcher:       routing.NewMatcher(&gormAdapter{db: db}),
 		renderer:      template.NewRenderer(),
 		sendToChannel: notifier.SendToChannel,
+		throttle:       notifier.NewChannelThrottle(),
 		sleep:         time.Sleep,
 	}
 }
@@ -158,6 +160,10 @@ func (c *Checker) sendEscalationNotification(alert *models.Alert, channel *model
 
 	// Send with retry (same pattern as webhook.go sendChannelNotification)
 	for attempt := 1; attempt <= 3; attempt++ {
+		if !c.throttle.Allow(channel.ID, channel.RateLimit) {
+			log.Printf("escalation: throttled channel %d (%s)", channel.ID, channel.Name)
+			return
+		}
 		sendErr := c.sendToChannel(channel, title, content, data)
 		result := models.AttemptResultSuccess
 		errMsg := ""

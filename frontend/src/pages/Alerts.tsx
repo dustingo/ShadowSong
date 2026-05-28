@@ -76,7 +76,7 @@ export const Alerts: React.FC = () => {
       const result = await batchAck(ids, '批量确认')
       toast.showSuccess(已确认  条告警)
       setSelectedAlerts([])
-    } catch {
+    } catch (error) {
       toast.showError('批量确认失败')
     }
   }
@@ -87,7 +87,7 @@ export const Alerts: React.FC = () => {
       const result = await batchSilence(ids, 3600)
       toast.showSuccess(已静默  条告警)
       setSelectedAlerts([])
-    } catch {
+    } catch (error) {
       toast.showError('批量静默失败')
     }
   }
@@ -115,7 +115,7 @@ export const Alerts: React.FC = () => {
     try {
       const data = await alertApi.deliveries(alertId)
       setAlertDeliveries(prev => ({ ...prev, [alertId]: data }))
-    } catch {
+    } catch (error) {
       // silently fail
     } finally {
       setDeliveriesLoading(prev => ({ ...prev, [alertId]: false }))

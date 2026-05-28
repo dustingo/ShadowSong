@@ -150,6 +150,7 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			channels.DELETE("/:id", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.DeleteChannel)
 			channels.PATCH("/:id/toggle", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.ToggleChannel)
 			channels.POST("/:id/test", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.TestChannel)
+		channels.POST("/:id/preview", middleware.RequireCapability(authz.CapabilityViewConfig), configHandler.PreviewChannel)
 				channels.GET("/:id/health", middleware.RequireCapability(authz.CapabilityViewConfig), channelHealthHandler.GetChannelHealth)
 		}
 

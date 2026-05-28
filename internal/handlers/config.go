@@ -11,6 +11,8 @@ import (
 
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/game-ops/ai-alert-system/internal/template"
+	"github.com/game-ops/ai-alert-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -698,4 +700,74 @@ func sortedKeysFromValue(input interface{}) []string {
 		return []string{}
 	}
 	return sortedKeys(m)
+}
+
+func (h *ConfigHandler) PreviewChannel(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid channel id"})
+		return
+	}
+
+	var ch models.Channel
+	if err := h.db.First(&ch, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "channel not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	var sampleAlert models.Alert
+	err = h.db.Where("status = ?", "firing").Order("trigger_time DESC").First(&sampleAlert).Error
+	if err != nil {
+		sampleAlert = models.Alert{
+			AlertID:     "preview-sample",
+			Source:      "preview",
+			AlertName:   "SampleAlert",
+			Severity:    "P1",
+			Message:     "This is a sample alert for template preview",
+			Status:      "firing",
+			TriggerTime: time.Now(),
+			Labels:      []byte(`{"host":"game-server-01","zone":"east-1"}`),
+		}
+	}
+
+	renderer := template.NewRenderer()
+	title := fmt.Sprintf("[%s] %s", sampleAlert.Severity, sampleAlert.AlertName)
+	content := sampleAlert.Message
+
+	var ds models.DataSource
+	if err := h.db.Where("name = ?", sampleAlert.Source).First(&ds).Error; err == nil && ds.OutputTemplate != "" {
+		data := map[string]interface{}{
+			"alert_id":   sampleAlert.AlertID,
+			"alert_name": sampleAlert.AlertName,
+			"severity":   sampleAlert.Severity,
+			"message":    sampleAlert.Message,
+			"source":     sampleAlert.Source,
+			"status":     sampleAlert.Status,
+			"labels":     utils.DecodeJSONMap(sampleAlert.Labels),
+		}
+		rendered, renderErr := renderer.Render(ds.OutputTemplate, data)
+		if renderErr == nil {
+			var result map[string]interface{}
+			if json.Unmarshal([]byte(rendered), &result) == nil {
+				if t, ok := result["title"].(string); ok && t != "" {
+					title = t
+				}
+				if c, ok := result["content"].(string); ok && c != "" {
+					content = c
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"title":        title,
+		"content":      content,
+		"channel_type": ch.Type,
+		"channel_name": ch.Name,
+		"alert_source": sampleAlert.Source,
+	})
 }

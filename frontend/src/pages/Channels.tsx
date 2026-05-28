@@ -191,6 +191,8 @@ export const Channels: React.FC = () => {
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null)
   const [formValues, setFormValues] = useState<ChannelFormValues>(initialFormValues)
   const [testDialogVisible, setTestDialogVisible] = useState(false)
+  const [previewVisible, setPreviewVisible] = useState(false)
+  const [previewData, setPreviewData] = useState<{ title: string; content: string } | null>(null)
   const [testDialogChannel, setTestDialogChannel] = useState<Channel | null>(null)
   const [testRecipients, setTestRecipients] = useState('')
   const canManageConfig = canUser(user, capabilityManageConfig)
@@ -314,6 +316,16 @@ export const Channels: React.FC = () => {
     } catch (error) {
       toast.showError(getApiErrorMessage(error, '发送失败'))
     }
+
+  const handlePreview = async (record: Channel) => {
+    try {
+      const data = await channelApi.preview(record.id)
+      setPreviewData({ title: data.title, content: data.content })
+      setPreviewVisible(true)
+    } catch {
+      toast.showError('预览失败')
+    }
+  }
   }
 
   const handleSubmit = async () => {
@@ -401,6 +413,12 @@ export const Channels: React.FC = () => {
           icon="pi pi-send"
           style={{ color: 'var(--primary-color)' }}
           onClick={() => handleTest(row)}
+          <Button
+            icon="pi pi-eye"
+            className="p-button-text p-button-info"
+            tooltip="预览通知"
+            onClick={() => handlePreview(row)}
+          />
         />
         <Button
           label={row.enabled ? '禁用' : '启用'}
@@ -854,6 +872,22 @@ export const Channels: React.FC = () => {
               onChange={(e) => setTestRecipients(e.target.value)}
             />
           </div>
+
+      <Dialog
+        header="通知预览"
+        visible={previewVisible}
+        style={{ width: '50vw' }}
+        onHide={() => setPreviewVisible(false)}
+      >
+        {previewData && (
+          <div>
+            <h4>标题</h4>
+            <pre style={{ background: "#f5f5f5", padding: "1rem", borderRadius: "4px" }}>{previewData.title}</pre>
+            <h4>内容</h4>
+            <pre style={{ background: "#f5f5f5", padding: "1rem", borderRadius: "4px", whiteSpace: "pre-wrap" }}>{previewData.content}</pre>
+          </div>
+        )}
+      </Dialog>
         </div>
       </Dialog>
     </div>

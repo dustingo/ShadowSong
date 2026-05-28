@@ -52,7 +52,7 @@ const setAuthState = (user: User | null, token = 'token') => {
   })
 }
 
-const waitForAntd = async () => {
+const waitForUI = async () => {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
@@ -61,7 +61,7 @@ const waitForAntd = async () => {
 const renderAt = async (path: string) => {
   window.history.pushState({}, '', path)
   const view = render(<App />)
-  await waitForAntd()
+  await waitForUI()
   return view
 }
 

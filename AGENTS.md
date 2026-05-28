@@ -38,7 +38,7 @@
 - GORM `v1.31.1` - ORM, schema migration, model persistence in `go.mod` and `internal/database/postgres.go`
 - React `^18.2.0` - frontend SPA in `frontend/package.json` and `frontend/src/App.tsx`
 - React Router DOM `^6.21.1` - client-side routing in `frontend/package.json` and `frontend/src/App.tsx`
-- Ant Design `^5.12.8` - component library in `frontend/package.json` and `frontend/src/`
+- PrimeReact `^10.9.7` - component library in `frontend/package.json` and `frontend/src/`
 - Zustand `^4.4.7` - frontend client state stores in `frontend/package.json` and `frontend/src/stores/`
 - Testify `v1.11.1` - Go assertions/helpers declared in `go.mod`
 - Go built-in `go test` runner - invoked by `Makefile`
@@ -130,15 +130,15 @@
 - Infrastructure and service packages return wrapped errors with `fmt.Errorf(... %w ...)`, as in `internal/database/postgres.go`, `internal/database/redis.go`, and `internal/notifier/notifier.go`.
 - Startup failures are treated as fatal in `cmd/server/main.go` and `internal/config/config.go`; use `log.Fatalf` or `os.Exit(1)` only for unrecoverable boot-time misconfiguration.
 - Frontend shared stores either rethrow request errors after resetting loading state, as in `frontend/src/stores/alertStore.ts` and `frontend/src/stores/configStore.ts`, or log non-critical background refresh failures with `console.error`.
-- Frontend pages convert API failures into Ant Design toast feedback with `message.error(...)` and success paths into `message.success(...)`, as in `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/Login.tsx`, and `frontend/src/pages/Channels.tsx`.
+- Frontend pages convert API failures into PrimeReact toast feedback with `toast.showError(...)` and success paths into `toast.showSuccess(...)`, as in `frontend/src/pages/Alerts.tsx`, `frontend/src/pages/Dashboard.tsx`, and `frontend/src/pages/Channels.tsx`.
 ## Validation
 - Prefer model-owned validation methods for domain rules. `Validate()` exists on `Alert` in `internal/models/alert.go` and on `DataSource`, `Channel`, `RouteRule`, `SilenceRule`, and `OnDuty` in `internal/models/models.go`.
 - Use GORM hooks such as `BeforeCreate` and `BeforeUpdate` to apply defaults and enforce validation before persistence, as in `internal/models/alert.go`, `internal/models/models.go`, and `internal/models/user.go`.
 - Use Gin binding tags for required request payload fields on request-specific structs, such as `binding:"required"` on `LoginRequest` in `internal/handlers/user.go` and webhook/template preview request structs in `internal/handlers/webhook.go`.
 - Some update endpoints intentionally accept partial payloads without strict validation, for example `internal/handlers/config.go` and `internal/handlers/user.go`. Follow the existing partial-update pattern when modifying those endpoints.
-- Prefer Ant Design `Form.Item` rules for required UI validation, as in `frontend/src/pages/Login.tsx`, `frontend/src/pages/OnDuty.tsx`, `frontend/src/pages/RouteRules.tsx`, and `frontend/src/pages/Silences.tsx`.
+- Prefer inline validation with conditional checks for required UI fields, as in `frontend/src/pages/Login.tsx`, `frontend/src/pages/RouteRules.tsx`, and `frontend/src/pages/Silences.tsx`.
 - Keep form field names aligned to backend JSON contracts using snake_case names such as `alert_name_pattern`, `channel_id`, and `user_name` in `frontend/src/pages/Silences.tsx` and `frontend/src/pages/OnDuty.tsx`.
-- The frontend does not use a shared schema validator such as Zod or Yup. Validation is currently split between AntD forms, ad hoc transformation logic in pages like `frontend/src/pages/DataSources.tsx`, and backend model validation.
+- The frontend does not use a shared schema validator such as Zod or Yup. Validation is currently split between inline component-level checks, ad hoc transformation logic in pages like `frontend/src/pages/DataSources.tsx`, and backend model validation.
 ## Logging
 - Use `log` or `slog` for process-level boot and infrastructure messages in `cmd/server/main.go`, `internal/database/postgres.go`, `internal/database/redis.go`, and `internal/config/config.go`.
 - WebSocket and webhook flows print operational diagnostics directly in `internal/handlers/websocket.go` and `internal/handlers/webhook.go`.
@@ -194,10 +194,10 @@
 - Contains: GORM connection setup and migration, Redis client creation, JWT issue/validation, per-channel notification senders.
 - Depends on: env-derived config from `internal/config/config.go`
 - Used by: `cmd/server/main.go`, `internal/router/router.go`, `internal/handlers/*.go`
-- Purpose: Mount the SPA, provide Ant Design locale, define the authenticated layout, and map routes to pages.
+- Purpose: Mount the SPA, provide PrimeReact locale, define the authenticated layout, and map routes to pages.
 - Location: `frontend/src/main.tsx`, `frontend/src/App.tsx`
 - Contains: React root, `ConfigProvider`, `BrowserRouter`, `RequireAuth`, side menu, header.
-- Depends on: Ant Design, React Router, Zustand user store, page exports.
+- Depends on: PrimeReact, React Router, Zustand user store, page exports.
 - Used by: browser entrypoint `frontend/index.html`
 - Purpose: Centralize HTTP access and client-side state transitions.
 - Location: `frontend/src/api/client.ts`, `frontend/src/api/auth.ts`, `frontend/src/stores/alertStore.ts`, `frontend/src/stores/configStore.ts`, `frontend/src/stores/userStore.ts`
@@ -236,7 +236,7 @@
 - Responsibilities: Load env/config, initialize PostgreSQL and Redis, set Gin mode, assemble router, and listen on `SERVER_PORT`.
 - Location: `frontend/src/main.tsx`
 - Triggers: `pnpm dev`, `pnpm build`, loading `frontend/index.html`
-- Responsibilities: Create the React root and install Ant Design locale configuration.
+- Responsibilities: Create the React root and install PrimeReact locale configuration.
 - Location: `frontend/src/App.tsx`
 - Triggers: Imported by `frontend/src/main.tsx`
 - Responsibilities: Define page routing, auth guards, top-level layout, and navigation chrome.

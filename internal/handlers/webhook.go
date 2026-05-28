@@ -174,6 +174,14 @@ func (h *WebhookHandler) HandleWebhook(c *gin.Context) {
 		// 6. 生成指纹
 		alert.Fingerprint = h.generateFingerprint(alert, ds.GroupByLabels)
 
+		// 6.5 Handle resolved events
+		if alert.Status == "resolved" {
+			if h.handleResolvedAlert(alert, traceID) {
+				results = append(results, alert)
+				continue
+			}
+		}
+
 		// 7. 去重逻辑
 		if dedupEnabled {
 			// 查找是否存在相同指纹且在去重窗口内的告警
@@ -606,6 +614,40 @@ func (h *WebhookHandler) generateFingerprint(alert models.Alert, groupByLabels [
 	// 计算 SHA256
 	hash := sha256.Sum256([]byte(fingerprint))
 	return hex.EncodeToString(hash[:])
+}
+
+// handleResolvedAlert handles incoming resolved events by finding matching active alerts
+func (h *WebhookHandler) handleResolvedAlert(alert models.Alert, traceID string) bool {
+	var existing models.Alert
+	err := h.db.Where("fingerprint = ? AND status IN ?", alert.Fingerprint, []string{"firing", "acked", "silenced"}).
+		Order("trigger_time DESC").
+		First(&existing).Error
+
+	if err != nil {
+		h.logTraceStage("resolved_discarded", map[string]string{
+			"trace_id":    traceID,
+			"fingerprint": alert.Fingerprint,
+		}, "no active alert found for resolved event")
+		return true
+	}
+
+	existing.Status = "resolved"
+	if err := h.db.Save(&existing).Error; err != nil {
+		h.logger.Printf("failed to mark alert resolved: alert_id=%s error=%v", existing.AlertID, err)
+		return true
+	}
+
+	h.logTraceStage("resolved", map[string]string{
+		"trace_id":    traceID,
+		"alert_id":    existing.AlertID,
+		"fingerprint": existing.Fingerprint,
+	}, "alert marked as resolved")
+
+	h.asyncRunner()(func() {
+		h.processAlertNotificationsAsync([]models.Alert{existing})
+	})
+
+	return true
 }
 
 // publishToRedis 写入 Redis Stream

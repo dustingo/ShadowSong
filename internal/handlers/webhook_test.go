@@ -1614,3 +1614,95 @@ func TestSendChannelNotificationThrottled(t *testing.T) {
 	}
 	assert.Equal(t, 1, statuses[models.DeliveryStatusThrottled])
 }
+
+func TestHandleResolvedAlertUpdatesFiringAlert(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, _ := newWebhookTestHandler(db)
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:              "resolved-source",
+		DisplayName:       "Resolved Source",
+		APIKey:            "key",
+		DeduplicateWindow: 3600,
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"source": "resolved-source",
+			"status": "{{.event_type}}"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		GroupByLabels:  datatypes.JSON(`["alert_name","severity","source"]`),
+		Enabled:        true,
+	}).Error)
+
+	require.NoError(t, db.Create(&models.Alert{
+		AlertID:     "existing-firing",
+		Source:      "resolved-source",
+		AlertName:   "CPUHigh",
+		Severity:    "P1",
+		Message:     "cpu high",
+		Fingerprint: "resolved-source|CPUHigh|P1",
+		Status:      "firing",
+		TriggerTime: time.Now().Add(-5 * time.Minute),
+		ReceivedAt:  time.Now().Add(-5 * time.Minute),
+	}).Error)
+
+	payload := []map[string]interface{}{
+		{
+			"external_id": "existing-firing",
+			"alert_name":  "CPUHigh",
+			"severity":    "P1",
+			"message":     "cpu high",
+			"event_type":  "resolved",
+		},
+	}
+
+	recorder := performWebhookRequest(t, handler, "resolved-source", "key", payload)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var alert models.Alert
+	require.NoError(t, db.First(&alert, "alert_id = ?", "existing-firing").Error)
+	assert.Equal(t, "resolved", alert.Status)
+}
+
+func TestHandleResolvedAlertNoMatchCreatesNothing(t *testing.T) {
+	db := newWebhookTestDB(t)
+	handler, _ := newWebhookTestHandler(db)
+
+	require.NoError(t, db.Create(&models.DataSource{
+		Name:              "resolved-no-match",
+		DisplayName:       "Resolved No Match",
+		APIKey:            "key",
+		DeduplicateWindow: 3600,
+		InputTemplate: `{
+			"alert_id": "{{.external_id}}",
+			"alert_name": "{{.alert_name}}",
+			"severity": "{{.severity}}",
+			"message": "{{.message}}",
+			"source": "resolved-no-match",
+			"status": "{{.event_type}}"
+		}`,
+		OutputTemplate: `{"title":"{{.alert_name}}","content":"{{.message}}"}`,
+		GroupByLabels:  datatypes.JSON(`["alert_name","severity","source"]`),
+		Enabled:        true,
+	}).Error)
+
+	payload := []map[string]interface{}{
+		{
+			"external_id": "never-existed",
+			"alert_name":  "DiskFull",
+			"severity":    "P0",
+			"message":     "disk full",
+			"event_type":  "resolved",
+		},
+	}
+
+	recorder := performWebhookRequest(t, handler, "resolved-no-match", "key", payload)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var count int64
+	db.Model(&models.Alert{}).Where("alert_id = ?", "never-existed").Count(&count)
+	assert.Equal(t, int64(0), count)
+}

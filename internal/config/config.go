@@ -35,6 +35,7 @@ type ServerConfig struct {
 	Port           string
 	Mode           string
 	AllowedOrigins []string
+	RetentionDays  int
 }
 
 type SecurityConfig struct {
@@ -60,6 +61,7 @@ func Load() *Config {
 			Port:           getEnv("SERVER_PORT", "8080"),
 			Mode:           getEnv("SERVER_MODE", "debug"),
 			AllowedOrigins: getEnvAsCSV("ALLOWED_ORIGINS", []string{"http://localhost:*", "http://127.0.0.1:*"}),
+		RetentionDays:  getEnvAsInt("ALERT_RETENTION_DAYS", 30),
 		},
 		Security: SecurityConfig{
 			JWTSecret:   jwtSecret,

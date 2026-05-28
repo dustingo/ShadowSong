@@ -10,6 +10,7 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/delivery"
 	"github.com/game-ops/ai-alert-system/internal/escalation"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
+	"github.com/game-ops/ai-alert-system/internal/retention"
 	"github.com/game-ops/ai-alert-system/internal/router"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -54,6 +55,13 @@ func main() {
 	deliverySvc := delivery.NewService(db)
 	escalationChecker := escalation.NewChecker(db, deliverySvc)
 	go escalationChecker.Run(1*time.Minute, make(chan struct{}))
+
+	// Start data retention cleanup
+	if cfg.Server.RetentionDays > 0 {
+		retentionStop := make(chan struct{})
+		go retention.Run(db, cfg.Server.RetentionDays, 1*time.Hour, retentionStop)
+		log.Printf("Data retention enabled: %d days", cfg.Server.RetentionDays)
+	}
 
 	// Start server
 	port := os.Getenv("SERVER_PORT")

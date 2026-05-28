@@ -70,6 +70,7 @@ type Channel struct {
 	Type      string         `gorm:"size:32;not null" json:"type"` // feishu, dingtalk, wecom, webhook
 	Config    datatypes.JSON `gorm:"type:jsonb" json:"config"`
 	Enabled   bool           `gorm:"default:true" json:"enabled"`
+	RateLimit int            `gorm:"default:0" json:"rate_limit"` // max notifications per minute, 0 = unlimited
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 }

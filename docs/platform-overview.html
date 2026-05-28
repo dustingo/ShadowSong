@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>告警平台功能全景图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
+  h1 { text-align: center; font-size: 24px; margin-bottom: 32px; color: #f1f5f9; }
+  h2 { font-size: 16px; margin-bottom: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  /* Flow diagram */
+  .flow { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 40px; flex-wrap: wrap; }
+  .flow-node { padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; min-width: 100px; }
+  .flow-arrow { font-size: 20px; color: #475569; }
+
+  .node-source { background: #1e3a5f; border: 2px solid #3b82f6; color: #93c5fd; }
+  .node-core { background: #1e293b; border: 2px solid #64748b; color: #cbd5e1; }
+  .node-channel { background: #1a3332; border: 2px solid #14b8a6; color: #5eead4; }
+  .node-end { background: #2d1a3e; border: 2px solid #a855f7; color: #c4b5fd; }
+
+  /* Grid layout */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+  .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+  .card.full { grid-column: 1 / -1; }
+
+  .card h3 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card h3 .icon { font-size: 18px; }
+  .card ul { list-style: none; }
+  .card li { padding: 6px 0; font-size: 13px; color: #94a3b8; display: flex; align-items: flex-start; gap: 8px; }
+  .card li .dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+
+  .dot-green { background: #22c55e; }
+  .dot-yellow { background: #eab308; }
+  .dot-red { background: #ef4444; }
+  .dot-gray { background: #64748b; }
+
+  /* Priority matrix */
+  .matrix { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 8px; }
+  .matrix th { font-size: 12px; color: #64748b; padding: 8px; text-align: center; font-weight: 500; }
+  .matrix td { padding: 10px; text-align: center; font-size: 13px; border-top: 1px solid #1e293b; }
+  .matrix tr:hover td { background: #1e293b; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-p0 { background: #7f1d1d; color: #fca5a5; }
+  .badge-p1 { background: #713f12; color: #fde047; }
+  .badge-p2 { background: #1e3a5f; color: #93c5fd; }
+  .badge-cut { background: #3f3f46; color: #a1a1aa; text-decoration: line-through; }
+
+  /* Dependency arrows */
+  .deps { margin-top: 32px; }
+  .dep-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 13px; }
+  .dep-from, .dep-to { padding: 4px 12px; border-radius: 6px; background: #334155; font-weight: 600; font-size: 12px; }
+  .dep-arrow { color: #64748b; }
+  .dep-label { color: #94a3b8; font-style: italic; }
+
+  .legend { display: flex; gap: 20px; justify-content: center; margin-top: 24px; font-size: 12px; color: #64748b; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>告警平台功能全景图</h1>
+
+<!-- Current Alert Flow -->
+<h2>当前告警流转链路</h2>
+<div class="flow">
+  <div class="flow-node node-source">数据源<br><small>Prometheus / 自定义</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node node-core">告警创建<br><small>去重 ✅</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node node-core">路由匹配<br><small>级别+来源→渠道</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node node-channel">渠道投递<br><small>Webhook/钉钉/企微</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node node-end">投递记录<br><small>状态+重试 ✅</small></div>
+</div>
+
+<!-- Feature Inventory -->
+<div class="grid">
+  <div class="card">
+    <h3><span class="icon">✅</span> 已完成功能</h3>
+    <ul>
+      <li><span class="dot dot-green"></span>告警 CRUD + 状态流转 (firing/acked/silenced)</li>
+      <li><span class="dot dot-green"></span>告警去重 (fingerprint)</li>
+      <li><span class="dot dot-green"></span>路由规则 (级别+来源→渠道匹配)</li>
+      <li><span class="dot dot-green"></span>静默规则 (手动创建)</li>
+      <li><span class="dot dot-green"></span>多渠道投递 (Webhook/钉钉/企微)</li>
+      <li><span class="dot dot-green"></span>投递记录 + 重试机制</li>
+      <li><span class="dot dot-green"></span>Webhook 模板渲染</li>
+      <li><span class="dot dot-green"></span>大盘统计 (趋势图/级别分布)</li>
+      <li><span class="dot dot-green"></span>用户认证 + 角色权限</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="icon">⚠️</span> 半成品 / 问题</h3>
+    <ul>
+      <li><span class="dot dot-yellow"></span>值班管理 — 数据录入完整，但与告警流程断路</li>
+      <li><span class="dot dot-yellow"></span>静默规则 — 仅手动创建，不支持 label pattern</li>
+      <li><span class="dot dot-yellow"></span>通知模板 — 仅 Webhook 支持，钉钉/企微硬编码</li>
+      <li><span class="dot dot-yellow"></span>投递记录 — 后端有数据，前端无展示页面</li>
+      <li><span class="dot dot-yellow"></span>告警确认 — 仅状态切换，无超时/升级机制</li>
+    </ul>
+  </div>
+
+  <div class="card full">
+    <h3><span class="icon">🎯</span> 建议功能优先级矩阵</h3>
+    <table class="matrix">
+      <tr>
+        <th>功能</th>
+        <th>解决什么痛点</th>
+        <th>实现复杂度</th>
+        <th>用户感知度</th>
+        <th>建议优先级</th>
+      </tr>
+      <tr>
+        <td><strong>告警聚合/降噪</strong></td>
+        <td>告警风暴时列表刷屏，无法快速定位</td>
+        <td>中</td>
+        <td>极高</td>
+        <td><span class="badge badge-p0">P0 必做</span></td>
+      </tr>
+      <tr>
+        <td><strong>确认与升级机制</strong></td>
+        <td>告警 acked 后无人跟进，不了了之</td>
+        <td>中</td>
+        <td>高</td>
+        <td><span class="badge badge-p1">P1 重要</span></td>
+      </tr>
+      <tr>
+        <td><strong>投递可观测性</strong></td>
+        <td>通知到底发没发出去？不知道</td>
+        <td>低</td>
+        <td>高</td>
+        <td><span class="badge badge-p1">P1 重要</span></td>
+      </tr>
+      <tr>
+        <td><strong>通知模板统一</strong></td>
+        <td>钉钉/企微消息格式不可定制</td>
+        <td>中</td>
+        <td>中</td>
+        <td><span class="badge badge-p2">P2 改善</span></td>
+      </tr>
+      <tr>
+        <td><strong>操作审计日志</strong></td>
+        <td>谁操作了什么，无据可查</td>
+        <td>低</td>
+        <td>中</td>
+        <td><span class="badge badge-p2">P2 改善</span></td>
+      </tr>
+      <tr>
+        <td><strong>告警依赖/关联</strong></td>
+        <td>根因和下游混在一起</td>
+        <td>高</td>
+        <td>中</td>
+        <td><span class="badge badge-p2">P2 改善</span></td>
+      </tr>
+      <tr>
+        <td><strong>SLA 响应时间</strong></td>
+        <td>MTTA/MTTR 无量化</td>
+        <td>低</td>
+        <td>低</td>
+        <td><span class="badge badge-p2">P2 改善</span></td>
+      </tr>
+      <tr>
+        <td><s>值班管理</s></td>
+        <td colspan="3">与现有渠道模型冲突，孤岛功能</td>
+        <td><span class="badge badge-cut">砍掉</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card full">
+    <h3><span class="icon">🔗</span> 功能依赖关系</h3>
+    <div class="deps">
+      <div class="dep-row">
+        <span class="dep-from" style="background:#7f1d1d;color:#fca5a5">告警聚合</span>
+        <span class="dep-arrow">→</span>
+        <span class="dep-to" style="background:#713f12;color:#fde047">升级机制</span>
+        <span class="dep-label">聚合后才能对"一组告警"做升级，而非逐条升级</span>
+      </div>
+      <div class="dep-row">
+        <span class="dep-from" style="background:#7f1d1d;color:#fca5a5">告警聚合</span>
+        <span class="dep-arrow">→</span>
+        <span class="dep-to" style="background:#1e3a5f;color:#93c5fd">通知模板</span>
+        <span class="dep-label">聚合后消息格式需展示"3条同类告警"而非单条</span>
+      </div>
+      <div class="dep-row">
+        <span class="dep-from" style="background:#713f12;color:#fde047">升级机制</span>
+        <span class="dep-arrow">→</span>
+        <span class="dep-to" style="background:#1e3a5f;color:#93c5fd">通知模板</span>
+        <span class="dep-label">升级通知需要不同的消息模板（紧急/催办）</span>
+      </div>
+      <div class="dep-row">
+        <span class="dep-from" style="background:#713f12;color:#fde047">投递可观测</span>
+        <span class="dep-arrow">→</span>
+        <span class="dep-to" style="background:#713f12;color:#fde047">升级机制</span>
+        <span class="dep-label">升级需要知道"上一次通知是否成功送达"</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="dot dot-green"></span> 已完成</div>
+  <div class="legend-item"><span class="dot dot-yellow"></span> 半成品/有问题</div>
+  <div class="legend-item"><span class="dot dot-red"></span> 缺失</div>
+  <div class="legend-item"><span class="dot dot-gray"></span> 建议砍掉</div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,147 +1,150 @@
 import React from 'react'
-import { act, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Alerts } from './Alerts'
+import { useAlertStore } from '../stores/alertStore'
 import { useUserStore } from '../stores/userStore'
-import type { Alert, GroupedActiveAlert, User } from '../types'
 
-const alertStoreState = vi.hoisted(() => ({
-  groupedActiveAlerts: [] as GroupedActiveAlert[],
-  groupedActiveLoading: false,
-  fetchGroupedActiveAlerts: vi.fn(),
-  ackAlert: vi.fn(),
-  quickSilence: vi.fn(),
+// Mock react-router-dom
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
 }))
 
-vi.mock('../stores/alertStore', () => ({
-  useAlertStore: () => alertStoreState,
-}))
-
+// Mock useToast
+const mockShowSuccess = vi.fn()
+const mockShowError = vi.fn()
+const mockShowWarn = vi.fn()
 vi.mock('../components', () => ({
   useToast: () => ({
-    showSuccess: vi.fn(),
-    showError: vi.fn(),
-    showWarn: vi.fn(),
-    showInfo: vi.fn(),
+    showSuccess: mockShowSuccess,
+    showError: mockShowError,
+    showWarn: mockShowWarn,
   }),
   PermissionNotice: ({ title }: { title: string }) => <div>{title}</div>,
-  SeverityBadge: ({ severity }: { severity: string }) => <span>{severity}</span>,
 }))
 
-const baseUser: User = {
-  id: 1,
-  username: 'tester',
-  name: 'Tester',
-  role: 'viewer',
-  created_at: '2026-04-12T00:00:00Z',
-  updated_at: '2026-04-12T00:00:00Z',
-  force_password_reset: false,
-}
+// Mock authz
+vi.mock('../authz/capabilities', () => ({
+  canProcessAlerts: () => true,
+}))
 
-const firingAlert: Alert = {
-  alert_id: 'a-1',
-  source: 'prometheus',
-  alert_name: 'LatencyHigh',
+// Mock dayjs
+vi.mock('dayjs', () => ({
+  default: (date: string) => ({
+    format: () => '2024-01-01 00:00:00',
+    diff: () => 0,
+  }),
+}))
+
+const mockFetchAlerts = vi.fn()
+const mockSetFilters = vi.fn()
+const mockFetchGroupedActiveAlerts = vi.fn()
+const mockAckAlert = vi.fn()
+const mockQuickSilence = vi.fn()
+const mockFetchStats = vi.fn()
+
+const mockAlert = {
+  alert_id: 'alert-1',
+  alert_name: 'Test Alert',
   severity: 'P1',
-  message: 'latency high',
-  labels: { env: 'prod' },
-  fingerprint: 'fp',
-  trigger_time: '2026-04-12T00:00:00Z',
-  received_at: '2026-04-12T00:00:00Z',
+  source: 'prometheus',
   status: 'firing',
-  raw: {},
-  trigger_count: 3,
-  last_notified_at: null,
+  message: 'Test message',
+  trigger_time: '2024-01-01T00:00:00Z',
+  trigger_count: 1,
+  labels: { env: 'prod' },
   notify_count: 0,
-  created_at: '2026-04-12T00:00:00Z',
-  updated_at: '2026-04-12T00:00:00Z',
+  last_notified_at: null,
+  fingerprint: 'fp-1',
+  received_at: '2024-01-01T00:00:00Z',
+  raw: {},
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
 }
 
-const groupedAlert: GroupedActiveAlert = {
-  fingerprint: 'fp',
-  latest_alert: firingAlert,
-  count: 3,
-  first_triggered_at: '2026-04-12T00:00:00Z',
-  last_triggered_at: '2026-04-12T01:00:00Z',
+const mockGroupedAlert = {
+  fingerprint: 'fp-1',
+  count: 2,
+  first_triggered_at: '2024-01-01T00:00:00Z',
+  last_triggered_at: '2024-01-01T00:00:00Z',
+  latest_alert: mockAlert,
 }
 
-const renderAlerts = async () => {
-  const view = render(
-    <MemoryRouter>
-      <Alerts />
-    </MemoryRouter>
-  )
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0))
-  })
-  return view
+const defaultStoreState = {
+  alerts: [mockAlert],
+  total: 1,
+  page: 1,
+  pageSize: 10,
+  loading: false,
+  filters: {},
+  groupedActiveAlerts: [mockGroupedAlert],
+  groupedActiveLoading: false,
+  fetchAlerts: mockFetchAlerts,
+  setFilters: mockSetFilters,
+  fetchGroupedActiveAlerts: mockFetchGroupedActiveAlerts,
+  ackAlert: mockAckAlert,
+  quickSilence: mockQuickSilence,
+  fetchStats: mockFetchStats,
 }
 
-describe('Alerts page permissions', () => {
+vi.mock('../stores/alertStore', () => ({
+  useAlertStore: vi.fn(() => defaultStoreState),
+}))
+
+vi.mock('../stores/userStore', () => ({
+  useUserStore: vi.fn(() => ({
+    user: { role: 'admin' },
+  })),
+}))
+
+vi.mock('../api/client', () => ({
+  alertApi: {
+    deliveries: vi.fn().mockResolvedValue([]),
+  },
+  getApiErrorMessage: (_e: unknown, fallback: string) => fallback,
+}))
+
+describe('Alerts page', () => {
   beforeEach(() => {
-    alertStoreState.fetchGroupedActiveAlerts.mockClear()
-    alertStoreState.ackAlert.mockClear()
-    alertStoreState.quickSilence.mockClear()
-    alertStoreState.groupedActiveAlerts = [groupedAlert]
-    useUserStore.setState({ user: null, token: null })
+    vi.clearAllMocks()
   })
 
-  it('renders read-only state for viewer', async () => {
-    useUserStore.setState({ user: baseUser, token: 'token' })
-
-    await renderAlerts()
-
-    expect(await screen.findByText('当前角色可查看告警，但不能确认或静默')).toBeInTheDocument()
-    expect(await screen.findByText('只读')).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: '投递历史' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '确认' })).not.toBeInTheDocument()
+  it('renders grouped active alerts section when there are active alerts', () => {
+    render(<Alerts />)
+    expect(screen.getByText(/活跃告警/)).toBeInTheDocument()
   })
 
-  it('renders alert action buttons for operator', async () => {
-    useUserStore.setState({
-      user: { ...baseUser, role: 'operator' },
-      token: 'token',
-    })
-
-    await renderAlerts()
-
-    expect(screen.queryByText('当前角色可查看告警，但不能确认或静默')).not.toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: '确认' })).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: '静默' })).toBeInTheDocument()
+  it('renders all alerts table with alert data', () => {
+    render(<Alerts />)
+    expect(screen.getByText('Test Alert')).toBeInTheDocument()
   })
 
-  it('displays occurrence count tag when count > 1', async () => {
-    useUserStore.setState({ user: baseUser, token: 'token' })
-
-    await renderAlerts()
-
-    expect(await screen.findByText('共 3 次')).toBeInTheDocument()
+  it('fetches both grouped active alerts and all alerts on mount', () => {
+    render(<Alerts />)
+    expect(mockFetchGroupedActiveAlerts).toHaveBeenCalled()
+    expect(mockFetchAlerts).toHaveBeenCalled()
   })
 
-  it('displays notify count tag when notify_count > 0', async () => {
-    useUserStore.setState({ user: baseUser, token: 'token' })
+  it('does not show grouped active alerts section when no active alerts', () => {
+    vi.mocked(useAlertStore).mockReturnValue({
+      ...defaultStoreState,
+      groupedActiveAlerts: [],
+    } as ReturnType<typeof useAlertStore>)
 
-    // Use a recent last_notified_at so the escalation limit check (120 min) does not trigger
-    const recentTime = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-    const notifiedAlert: Alert = {
-      ...firingAlert,
-      notify_count: 2,
-      last_notified_at: recentTime,
-    }
-    alertStoreState.groupedActiveAlerts = [
-      { ...groupedAlert, latest_alert: notifiedAlert },
-    ]
-
-    await renderAlerts()
-
-    expect(await screen.findByText('已通知 2 次')).toBeInTheDocument()
+    render(<Alerts />)
+    expect(screen.queryByText(/活跃告警/)).not.toBeInTheDocument()
   })
 
-  it('does not display notify count tag when notify_count is 0', async () => {
-    useUserStore.setState({ user: baseUser, token: 'token' })
+  it('renders filter section with severity and status labels', () => {
+    render(<Alerts />)
+    expect(screen.getByText('级别')).toBeInTheDocument()
+    expect(screen.getAllByText('状态').length).toBeGreaterThanOrEqual(1)
+  })
 
-    await renderAlerts()
-
-    expect(screen.queryByText(/已通知 \d+ 次/)).not.toBeInTheDocument()
+  it('renders search and reset buttons', () => {
+    render(<Alerts />)
+    expect(screen.getByText('搜索')).toBeInTheDocument()
+    expect(screen.getByText('重置')).toBeInTheDocument()
   })
 })

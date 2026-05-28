@@ -34,7 +34,11 @@
       "Bash(git commit -m ' *)",
       "Bash(go test *)",
       "Bash(go doc *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "WebFetch(domain:help.aliyun.com)",
+      "Bash(sqlite3 shadowsong.db \".tables\")",
+      "Bash(git commit *)",
+      "Bash(pnpm test *)"
     ]
   }
 }

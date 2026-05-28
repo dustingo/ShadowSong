@@ -51,3 +51,7 @@ frontend/.vite/
 frontend/.claude/
 .claude/settings.local.json
 .planning/config.json
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json

@@ -175,6 +175,15 @@ func Setup(db *gorm.DB, redisClient *redis.Client, cfg *config.Config) *gin.Engi
 			silences.POST("/from-alert/:alertId", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.CreateSilenceFromAlert)
 		}
 
+		// SMTP config routes (protected)
+		smtpConfig := v1.Group("/smtp-config")
+		smtpConfig.Use(middleware.JWTAuth(jwtAuth, db))
+		{
+			smtpConfig.GET("", middleware.RequireCapability(authz.CapabilityViewConfig), configHandler.GetSmtpConfig)
+			smtpConfig.PUT("", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.UpdateSmtpConfig)
+			smtpConfig.POST("/test", middleware.RequireCapability(authz.CapabilityManageConfig), configHandler.TestSmtpConfig)
+		}
+
 		// Delivery routes (protected)
 		deliveries := v1.Group("/deliveries")
 		deliveries.Use(middleware.JWTAuth(jwtAuth, db))

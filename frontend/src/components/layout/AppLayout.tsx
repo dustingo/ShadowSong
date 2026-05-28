@@ -18,7 +18,8 @@ const pageTitles: Record<string, string> = {
   '/channels': '推送渠道',
   '/routes': '路由规则',
   '/silences': '静默管理',
-    '/users': '用户管理',
+  '/smtp-settings': '邮件配置',
+  '/users': '用户管理',
   '/profile': '个人资料',
 }
 

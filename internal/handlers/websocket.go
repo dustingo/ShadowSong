@@ -43,19 +43,25 @@ func NewWSHandler(db *gorm.DB, jwtAuth *auth.JWT, allowedOrigins []string) *WSHa
 }
 
 func (h *WSHandler) HandleAlerts(c *gin.Context) {
-	if !h.isAllowedOrigin(c.GetHeader("Origin")) {
+	origin := c.GetHeader("Origin")
+	log.Printf("WS connection attempt: origin=%s, remote=%s", origin, c.Request.RemoteAddr)
+
+	if !h.isAllowedOrigin(origin) {
+		log.Printf("WS rejected: origin not allowed: %s", origin)
 		c.JSON(http.StatusForbidden, gin.H{"error": "origin not allowed"})
 		return
 	}
 
 	tokenString := strings.TrimSpace(c.Query("token"))
 	if tokenString == "" {
+		log.Printf("WS rejected: no token provided")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "token query parameter required"})
 		return
 	}
 
 	user, _, err := middleware.AuthenticateToken(h.jwtAuth, h.db, tokenString)
 	if err != nil {
+		log.Printf("WS rejected: auth failed: %v", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}

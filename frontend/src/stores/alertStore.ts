@@ -118,6 +118,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       ),
       activeAlerts: state.activeAlerts.filter((a) => a.alert_id !== id),
     }))
+    get().fetchGroupedActiveAlerts()
     get().fetchStats()
   },
 
@@ -129,6 +130,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       ),
       activeAlerts: state.activeAlerts.filter((a) => a.alert_id !== id),
     }))
+    get().fetchGroupedActiveAlerts()
     get().fetchStats()
   },
 

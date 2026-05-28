@@ -38,6 +38,7 @@ interface ChannelFormValues {
       header_name?: string
       header_value?: string
     }
+    from_name?: string
   }
 }
 
@@ -180,6 +181,9 @@ export const Channels: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null)
   const [formValues, setFormValues] = useState<ChannelFormValues>(initialFormValues)
+  const [testDialogVisible, setTestDialogVisible] = useState(false)
+  const [testDialogChannel, setTestDialogChannel] = useState<Channel | null>(null)
+  const [testRecipients, setTestRecipients] = useState('')
   const canManageConfig = canUser(user, capabilityManageConfig)
   const readOnly = isReadOnlyConfigUser(user)
 

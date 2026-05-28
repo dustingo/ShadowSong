@@ -45,8 +45,10 @@ export const Dashboard: React.FC = () => {
   }
 
   const wsRef = useRef<WebSocket | null>(null)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
+    mountedRef.current = true
     fetchGroupedActiveAlerts()
     fetchStats()
 
@@ -57,7 +59,7 @@ export const Dashboard: React.FC = () => {
       if (isConnecting || wsRef.current?.readyState === WebSocket.OPEN) {
         return
       }
-      if (!token) {
+      if (!token || !mountedRef.current) {
         setWsConnected(false)
         return
       }
@@ -72,7 +74,9 @@ export const Dashboard: React.FC = () => {
 
         ws.onopen = () => {
           isConnecting = false
-          setWsConnected(true)
+          if (mountedRef.current) {
+            setWsConnected(true)
+          }
         }
 
         ws.onmessage = (event) => {
@@ -90,8 +94,10 @@ export const Dashboard: React.FC = () => {
 
         ws.onclose = () => {
           isConnecting = false
-          setWsConnected(false)
-          reconnectTimer = setTimeout(connectWS, 3000)
+          if (mountedRef.current) {
+            setWsConnected(false)
+            reconnectTimer = setTimeout(connectWS, 3000)
+          }
         }
 
         ws.onerror = () => {
@@ -99,25 +105,37 @@ export const Dashboard: React.FC = () => {
         }
       } catch {
         isConnecting = false
-        reconnectTimer = setTimeout(connectWS, 3000)
+        if (mountedRef.current) {
+          reconnectTimer = setTimeout(connectWS, 3000)
+        }
       }
     }
 
     connectWS()
 
     const interval = setInterval(() => {
-      fetchGroupedActiveAlerts()
-      fetchStats()
+      if (mountedRef.current) {
+        fetchGroupedActiveAlerts()
+        fetchStats()
+      }
     }, 10000)
 
     return () => {
+      mountedRef.current = false
       if (reconnectTimer) {
         clearTimeout(reconnectTimer)
       }
-      if (wsRef.current) {
-        wsRef.current.onclose = null
-        wsRef.current.close()
+      const ws = wsRef.current
+      if (ws) {
+        ws.onopen = null
+        ws.onmessage = null
+        ws.onclose = null
+        ws.onerror = null
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close()
+        }
       }
+      wsRef.current = null
       clearInterval(interval)
     }
   }, [fetchGroupedActiveAlerts, fetchStats, setWsConnected, token])

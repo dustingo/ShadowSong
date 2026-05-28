@@ -15,6 +15,7 @@ import {
   OpsHealth,
   ColorDemo,
 } from './pages'
+import SmtpSettings from './pages/SmtpSettings'
 import { AppLayout } from './components/layout/AppLayout'
 import {
   canUser,
@@ -94,6 +95,7 @@ export default function App() {
         <Route path="/channels" element={<RequireAuth requiredCapability={capabilityViewConfig}><Channels /></RequireAuth>} />
         <Route path="/routes" element={<RequireAuth requiredCapability={capabilityViewConfig}><RouteRules /></RequireAuth>} />
         <Route path="/silences" element={<RequireAuth requiredCapability={capabilityViewConfig}><Silences /></RequireAuth>} />
+        <Route path="/smtp-settings" element={<RequireAuth requiredCapability={capabilityViewConfig}><SmtpSettings /></RequireAuth>} />
         <Route path="/users" element={<RequireAuth requiredCapability={capabilityManageUsers}><Users /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/color-demo" element={<ColorDemo />} />

@@ -110,6 +110,12 @@ export const alertApi = {
   activeGrouped: () => apiClient.get<GroupedActiveAlert[]>('/alerts/active?grouped=true'),
 
   deliveries: (id: string) => apiClient.get(`/alerts/${id}/deliveries`).then(r => r.data as Delivery[]),
+
+  batchAck: (data: { alert_ids: string[]; comment: string }) =>
+    client.post('/alerts/batch-ack', data).then((res) => res.data),
+
+  batchSilence: (data: { alert_ids: string[]; duration: number }) =>
+    client.post('/alerts/batch-silence', data).then((res) => res.data),
 }
 
 // ============ DataSource API ============

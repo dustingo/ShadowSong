@@ -301,3 +301,18 @@ export interface AuditLogListResponse {
   page_size: number
 }
 
+export interface BatchAckRequest {
+  alert_ids: string[]
+  comment: string
+}
+
+export interface BatchSilenceRequest {
+  alert_ids: string[]
+  duration: number
+}
+
+export interface BatchResult {
+  updated: number
+  skipped: number
+  errors: string[]
+}

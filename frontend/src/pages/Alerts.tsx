@@ -40,6 +40,8 @@ export const Alerts: React.FC = () => {
     fetchGroupedActiveAlerts,
     ackAlert,
     quickSilence,
+    batchAck,
+    batchSilence,
   } = useAlertStore()
 
   const [ackModalVisible, setAckModalVisible] = useState(false)
@@ -50,6 +52,7 @@ export const Alerts: React.FC = () => {
   const [silenceDuration, setSilenceDuration] = useState(3600)
 
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+  const [selectedAlerts, setSelectedAlerts] = useState<Alert[]>([])
 
   const [activeTabIndex, setActiveTabIndex] = useState(0)
 
@@ -65,6 +68,29 @@ export const Alerts: React.FC = () => {
     setActiveTabIndex(e.index)
     const tab = statusTabs[e.index]
     setFilters({ ...filters, status: tab.status })
+  }
+
+  const handleBatchAck = async () => {
+    try {
+      const ids = selectedAlerts.map((a) => a.alert_id)
+      const result = await batchAck(ids, '批量确认')
+      toast.showSuccess(已确认  条告警)
+      setSelectedAlerts([])
+    } catch {
+      toast.showError('批量确认失败')
+    }
+  }
+
+  const handleBatchSilence = async () => {
+    try {
+      const ids = selectedAlerts.map((a) => a.alert_id)
+      const result = await batchSilence(ids, 3600)
+      toast.showSuccess(已静默  条告警)
+      setSelectedAlerts([])
+    } catch {
+      toast.showError('批量静默失败')
+    }
+  }
   }
 
   const handleRowToggle = (e: { data: GroupedActiveAlert[] }) => {
@@ -531,7 +557,7 @@ export const Alerts: React.FC = () => {
             onRowToggle={handleRowToggle}
             rowExpansionTemplate={groupedRowExpansionTemplate}
           >
-            <Column expander style={{ width: '40px' }} />
+          <Column expander style={{ width: '40px' }} />
             <Column field="latest_alert.severity" header="级别" body={groupedSeverityBodyTemplate} style={{ width: '120px' }} />
             <Column header="告警名称" body={groupedAlertNameBodyTemplate} />
             <Column field="latest_alert.source" header="来源" body={groupedSourceBodyTemplate} style={{ width: '100px' }} />
@@ -623,10 +649,21 @@ export const Alerts: React.FC = () => {
         </div>
       </Card>
 
+      {selectedAlerts.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
+          <span>已选 {selectedAlerts.length} 条</span>
+          <Button label="批量确认" icon="pi pi-check" severity="success" onClick={handleBatchAck} />
+          <Button label="批量静默" icon="pi pi-volume-off" severity="warning" onClick={handleBatchSilence} />
+          <Button label="取消选择" icon="pi pi-times" severity="secondary" onClick={() => setSelectedAlerts([])} />
+        </div>
+      )}
+
       {/* All alerts table */}
       <Card className="shadow-sm border-0">
         <DataTable
           value={alerts}
+          selection={selectedAlerts}
+          onSelectionChange={(e) => setSelectedAlerts(e.value as Alert[])}
           dataKey="alert_id"
           loading={loading}
           lazy
@@ -640,6 +677,7 @@ export const Alerts: React.FC = () => {
           onRowToggle={(e) => setExpandedRows(e.data as Record<string, boolean>)}
           rowExpansionTemplate={rowExpansionTemplate}
         >
+          <Column selectionMode="multiple" headerStyle={{ width: '3rem' }} />
           <Column expander style={{ width: '40px' }} />
           <Column field="severity" header="级别" body={severityBodyTemplate} style={{ width: '120px' }} />
           <Column field="alert_name" header="告警名称" />

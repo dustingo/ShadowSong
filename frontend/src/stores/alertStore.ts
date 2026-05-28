@@ -39,6 +39,8 @@ interface AlertState {
   setFilters: (filters: AlertFilters) => void
   ackAlert: (id: string, comment: string) => Promise<void>
   quickSilence: (id: string, duration: number) => Promise<void>
+  batchAck: (ids: string[], comment: string) => Promise<{ updated: number; skipped: number; errors: string[] }>
+  batchSilence: (ids: string[], duration: number) => Promise<{ updated: number; skipped: number; errors: string[] }>
   addAlert: (alert: Alert) => void
   updateAlert: (alert: Alert) => void
   setWsConnected: (connected: boolean) => void
@@ -120,6 +122,35 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     }))
     get().fetchGroupedActiveAlerts()
     get().fetchStats()
+  },
+
+  batchAck: async (ids, comment) => {
+    const result = await alertApi.batchAck({ alert_ids: ids, comment })
+    set((state) => ({
+      alerts: state.alerts.map((a) =>
+        ids.includes(a.alert_id)
+          ? { ...a, status: 'acked', acked_at: new Date().toISOString(), ack_comment: comment }
+          : a
+      ),
+      activeAlerts: state.activeAlerts.filter((a) => !ids.includes(a.alert_id)),
+    }))
+    get().fetchGroupedActiveAlerts()
+    get().fetchStats()
+    return result
+  },
+
+  batchSilence: async (ids, duration) => {
+    const result = await alertApi.batchSilence({ alert_ids: ids, duration })
+    set((state) => ({
+      alerts: state.alerts.map((a) =>
+        ids.includes(a.alert_id) ? { ...a, status: 'silenced' } : a
+      ),
+      activeAlerts: state.activeAlerts.filter((a) => !ids.includes(a.alert_id)),
+    }))
+    get().fetchGroupedActiveAlerts()
+    get().fetchStats()
+    return result
+  },
   },
 
   quickSilence: async (id, duration) => {

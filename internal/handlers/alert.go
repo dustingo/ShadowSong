@@ -179,6 +179,96 @@ func (h *AlertHandler) QuickSilence(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "alert silenced", "silence_id": silence.ID})
 }
 
+func (h *AlertHandler) BatchAck(c *gin.Context) {
+	var input struct {
+		AlertIDs []string `json:"alert_ids" binding:"required"`
+		Comment  string   `json:"comment"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updated := 0
+	skipped := 0
+	var errs []string
+	username := middleware.GetUsername(c)
+
+	for _, id := range input.AlertIDs {
+		var alert models.Alert
+		if err := h.db.First(&alert, "alert_id = ?", id).Error; err != nil {
+			skipped++
+			errs = append(errs, fmt.Sprintf("%s: not found", id))
+			continue
+		}
+		if err := alert.Ack(username, input.Comment); err != nil {
+			skipped++
+			errs = append(errs, fmt.Sprintf("%s: %s", id, err.Error()))
+			continue
+		}
+		if err := h.db.Save(&alert).Error; err != nil {
+			skipped++
+			errs = append(errs, fmt.Sprintf("%s: db error", id))
+			continue
+		}
+		updated++
+	}
+
+	c.JSON(http.StatusOK, gin.H{"updated": updated, "skipped": skipped, "errors": errs})
+}
+
+func (h *AlertHandler) BatchSilence(c *gin.Context) {
+	var input struct {
+		AlertIDs []string `json:"alert_ids" binding:"required"`
+		Duration int      `json:"duration" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	updated := 0
+	skipped := 0
+	var errs []string
+	username := middleware.GetUsername(c)
+	if username == "" {
+		username = "system"
+	}
+	now := time.Now()
+	alertNames := make(map[string]bool)
+
+	for _, id := range input.AlertIDs {
+		var alert models.Alert
+		if err := h.db.First(&alert, "alert_id = ?", id).Error; err != nil {
+			skipped++
+			errs = append(errs, fmt.Sprintf("%s: not found", id))
+			continue
+		}
+		alert.Status = "silenced"
+		if err := h.db.Save(&alert).Error; err != nil {
+			skipped++
+			errs = append(errs, fmt.Sprintf("%s: db error", id))
+			continue
+		}
+		alertNames[alert.AlertName] = true
+		updated++
+	}
+
+	for name := range alertNames {
+		silence := models.SilenceRule{
+			Name:             "Batch Silence - " + name,
+			AlertNamePattern: name,
+			Severities:       []byte("[]"),
+			StartsAt:         now,
+			EndsAt:           now.Add(time.Duration(input.Duration) * time.Second),
+			CreatedBy:        username,
+		}
+		h.db.Create(&silence)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"updated": updated, "skipped": skipped, "errors": errs})
+}
+
 // Get alert statistics
 func (h *AlertHandler) Stats(c *gin.Context) {
 	alertStats, err := stats.GetAlertStats(h.db)

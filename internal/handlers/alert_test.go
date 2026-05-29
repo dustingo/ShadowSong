@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -240,4 +242,157 @@ func TestActiveAlerts_EmptyResult(t *testing.T) {
 	var grouped []GroupedActiveAlert
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &grouped))
 	assert.Len(t, grouped, 0)
+}
+
+func setupBatchTestDB(t *testing.T) (*gorm.DB, *gin.Engine) {
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&models.Alert{}, &models.SilenceRule{}, &models.AuditLog{}))
+
+	handler := NewAlertHandler(db)
+	r := gin.New()
+	r.POST("/api/v1/alerts/batch-ack", handler.BatchAck)
+	r.POST("/api/v1/alerts/batch-silence", handler.BatchSilence)
+	r.Use(func(c *gin.Context) {
+		c.Set("username", "testuser")
+		c.Next()
+	})
+
+	return db, r
+}
+
+func TestBatchAck_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, r := setupBatchTestDB(t)
+
+	alert1 := models.Alert{
+		AlertID: "batch-ack-1", Source: "test", AlertName: "BatchTest1",
+		Severity: "P2", Message: "test1", Status: "firing", TriggerTime: time.Now(),
+		Labels: datatypes.JSON(`{}`),
+	}
+	alert2 := models.Alert{
+		AlertID: "batch-ack-2", Source: "test", AlertName: "BatchTest2",
+		Severity: "P2", Message: "test2", Status: "firing", TriggerTime: time.Now(),
+		Labels: datatypes.JSON(`{}`),
+	}
+	require.NoError(t, db.Create(&alert1).Error)
+	require.NoError(t, db.Create(&alert2).Error)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"alert_ids": []string{"batch-ack-1", "batch-ack-2"},
+		"comment":   "batch test",
+	})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/v1/alerts/batch-ack", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, float64(2), resp["updated"])
+	assert.Equal(t, float64(0), resp["skipped"])
+
+	var updated models.Alert
+	require.NoError(t, db.First(&updated, "alert_id = ?", "batch-ack-1").Error)
+	assert.Equal(t, "acked", updated.Status)
+}
+
+func TestBatchAck_SkipsNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, r := setupBatchTestDB(t)
+
+	alert := models.Alert{
+		AlertID: "batch-ack-3", Source: "test", AlertName: "BatchTest3",
+		Severity: "P2", Message: "test3", Status: "firing", TriggerTime: time.Now(),
+		Labels: datatypes.JSON(`{}`),
+	}
+	require.NoError(t, db.Create(&alert).Error)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"alert_ids": []string{"batch-ack-3", "nonexistent-id"},
+		"comment":   "batch test",
+	})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/v1/alerts/batch-ack", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, float64(1), resp["updated"])
+	assert.Equal(t, float64(1), resp["skipped"])
+}
+
+func TestBatchSilence_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, r := setupBatchTestDB(t)
+
+	alert1 := models.Alert{
+		AlertID: "batch-sil-1", Source: "test", AlertName: "BatchSilTest",
+		Severity: "P1", Message: "sil1", Status: "firing", TriggerTime: time.Now(),
+		Labels: datatypes.JSON(`{}`),
+	}
+	alert2 := models.Alert{
+		AlertID: "batch-sil-2", Source: "test", AlertName: "BatchSilTest",
+		Severity: "P2", Message: "sil2", Status: "acked", TriggerTime: time.Now(),
+		Labels: datatypes.JSON(`{}`),
+	}
+	require.NoError(t, db.Create(&alert1).Error)
+	require.NoError(t, db.Create(&alert2).Error)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"alert_ids": []string{"batch-sil-1", "batch-sil-2"},
+		"duration":  3600,
+	})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/v1/alerts/batch-silence", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, float64(2), resp["updated"])
+	assert.Equal(t, float64(0), resp["skipped"])
+
+	var silenced models.Alert
+	require.NoError(t, db.First(&silenced, "alert_id = ?", "batch-sil-1").Error)
+	assert.Equal(t, "silenced", silenced.Status)
+
+	var rules []models.SilenceRule
+	require.NoError(t, db.Find(&rules, "alert_name_pattern = ?", "BatchSilTest").Error)
+	assert.Len(t, rules, 1)
+}
+
+func TestBatchSilence_SkipsNonActiveAlerts(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	db, r := setupBatchTestDB(t)
+
+	alert := models.Alert{
+		AlertID: "batch-sil-resolved", Source: "test", AlertName: "BatchSilResolved",
+		Severity: "P2", Message: "resolved", Status: "resolved", TriggerTime: time.Now(),
+		Labels: datatypes.JSON(`{}`),
+	}
+	require.NoError(t, db.Create(&alert).Error)
+
+	body, _ := json.Marshal(map[string]interface{}{
+		"alert_ids": []string{"batch-sil-resolved"},
+		"duration":  3600,
+	})
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/v1/alerts/batch-silence", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, float64(0), resp["updated"])
+	assert.Equal(t, float64(1), resp["skipped"])
+	errs, _ := resp["errors"].([]interface{})
+	assert.True(t, len(errs) > 0)
+	assert.True(t, strings.Contains(errs[0].(string), "cannot silence"))
 }

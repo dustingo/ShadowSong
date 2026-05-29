@@ -74,7 +74,7 @@ export const Alerts: React.FC = () => {
     try {
       const ids = selectedAlerts.map((a) => a.alert_id)
       const result = await batchAck(ids, '批量确认')
-      toast.showSuccess(已确认  条告警)
+      toast.showSuccess(`已确认 ${result.updated} 条告警`)
       setSelectedAlerts([])
     } catch (error) {
       toast.showError('批量确认失败')
@@ -85,12 +85,11 @@ export const Alerts: React.FC = () => {
     try {
       const ids = selectedAlerts.map((a) => a.alert_id)
       const result = await batchSilence(ids, 3600)
-      toast.showSuccess(已静默  条告警)
+      toast.showSuccess(`已静默 ${result.updated} 条告警`)
       setSelectedAlerts([])
     } catch (error) {
       toast.showError('批量静默失败')
     }
-  }
   }
 
   const handleRowToggle = (e: { data: GroupedActiveAlert[] }) => {
@@ -652,8 +651,12 @@ export const Alerts: React.FC = () => {
       {selectedAlerts.length > 0 && (
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
           <span>已选 {selectedAlerts.length} 条</span>
-          <Button label="批量确认" icon="pi pi-check" severity="success" onClick={handleBatchAck} />
-          <Button label="批量静默" icon="pi pi-volume-off" severity="warning" onClick={handleBatchSilence} />
+          {canProcessAlerts && (
+            <>
+              <Button label="批量确认" icon="pi pi-check" severity="success" onClick={handleBatchAck} />
+              <Button label="批量静默" icon="pi pi-volume-off" severity="warning" onClick={handleBatchSilence} />
+            </>
+          )}
           <Button label="取消选择" icon="pi pi-times" severity="secondary" onClick={() => setSelectedAlerts([])} />
         </div>
       )}
@@ -664,6 +667,7 @@ export const Alerts: React.FC = () => {
           value={alerts}
           selection={selectedAlerts}
           onSelectionChange={(e) => setSelectedAlerts(e.value as Alert[])}
+          selectionMode="checkbox"
           dataKey="alert_id"
           loading={loading}
           lazy

@@ -12,7 +12,6 @@ import (
 	"github.com/game-ops/ai-alert-system/internal/models"
 	"github.com/game-ops/ai-alert-system/internal/notifier"
 	"github.com/game-ops/ai-alert-system/internal/template"
-	"github.com/game-ops/ai-alert-system/internal/utils"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -719,18 +718,30 @@ func (h *ConfigHandler) PreviewChannel(c *gin.Context) {
 		return
 	}
 
+	var input struct {
+		AlertID string `json:"alert_id"`
+	}
+	_ = c.ShouldBindJSON(&input)
+
 	var sampleAlert models.Alert
-	err = h.db.Where("status = ?", "firing").Order("trigger_time DESC").First(&sampleAlert).Error
-	if err != nil {
-		sampleAlert = models.Alert{
-			AlertID:     "preview-sample",
-			Source:      "preview",
-			AlertName:   "SampleAlert",
-			Severity:    "P1",
-			Message:     "This is a sample alert for template preview",
-			Status:      "firing",
-			TriggerTime: time.Now(),
-			Labels:      []byte(`{"host":"game-server-01","zone":"east-1"}`),
+	if input.AlertID != "" {
+		if err := h.db.First(&sampleAlert, "alert_id = ?", input.AlertID).Error; err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "alert not found"})
+			return
+		}
+	} else {
+		err = h.db.Where("status = ?", "firing").Order("trigger_time DESC").First(&sampleAlert).Error
+		if err != nil {
+			sampleAlert = models.Alert{
+				AlertID:     "preview-sample",
+				Source:      "preview",
+				AlertName:   "SampleAlert",
+				Severity:    "P1",
+				Message:     "This is a sample alert for template preview",
+				Status:      "firing",
+				TriggerTime: time.Now(),
+				Labels:      []byte(`{"host":"game-server-01","zone":"east-1"}`),
+			}
 		}
 	}
 
@@ -740,34 +751,18 @@ func (h *ConfigHandler) PreviewChannel(c *gin.Context) {
 
 	var ds models.DataSource
 	if err := h.db.Where("name = ?", sampleAlert.Source).First(&ds).Error; err == nil && ds.OutputTemplate != "" {
-		data := map[string]interface{}{
-			"alert_id":   sampleAlert.AlertID,
-			"alert_name": sampleAlert.AlertName,
-			"severity":   sampleAlert.Severity,
-			"message":    sampleAlert.Message,
-			"source":     sampleAlert.Source,
-			"status":     sampleAlert.Status,
-			"labels":     utils.DecodeJSONMap(sampleAlert.Labels),
+		renderedTitle, renderedContent, renderErr := renderer.RenderAlert(ds.OutputTemplate, &sampleAlert, nil)
+		if renderErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("template render error: %s", renderErr.Error())})
+			return
 		}
-		rendered, renderErr := renderer.Render(ds.OutputTemplate, data)
-		if renderErr == nil {
-			var result map[string]interface{}
-			if json.Unmarshal([]byte(rendered), &result) == nil {
-				if t, ok := result["title"].(string); ok && t != "" {
-					title = t
-				}
-				if c, ok := result["content"].(string); ok && c != "" {
-					content = c
-				}
-			}
-		}
+		title = renderedTitle
+		content = renderedContent
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"title":        title,
 		"content":      content,
 		"channel_type": ch.Type,
-		"channel_name": ch.Name,
-		"alert_source": sampleAlert.Source,
 	})
 }

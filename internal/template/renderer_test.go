@@ -585,3 +585,93 @@ func containsHelper(s, substr string) bool {
 	}
 	return false
 }
+
+func TestRenderAlert_ResolvedStatusProducesResolvedPrefix(t *testing.T) {
+	renderer := NewRenderer()
+
+	alert := &models.Alert{
+		AlertID:     "resolved-1",
+		AlertName:   "ECS监控策略",
+		Severity:    "CRITICAL",
+		Message:     "实例状态改变",
+		Source:      "aliyun",
+		Status:      "resolved",
+		TriggerTime: time.Now(),
+		Labels:      datatypes.JSON(`{}`),
+	}
+
+	tmplStr := `{"title": "{{if eq .status "resolved"}}[RESOLVED] {{end}}[{{.severity}}] {{.alert_name}}", "content": "{{.message}}"}`
+
+	title, content, err := renderer.RenderAlert(tmplStr, alert, nil)
+	if err != nil {
+		t.Fatalf("RenderAlert failed: %v", err)
+	}
+
+	if !contains(title, "[RESOLVED]") {
+		t.Errorf("Resolved alert title should contain [RESOLVED], got '%s'", title)
+	}
+	if !contains(title, "[CRITICAL]") {
+		t.Errorf("Resolved alert title should contain severity, got '%s'", title)
+	}
+	if !contains(content, "实例状态改变") {
+		t.Errorf("Content should contain message, got '%s'", content)
+	}
+}
+
+func TestRenderAlert_FiringStatusDoesNotProduceResolvedPrefix(t *testing.T) {
+	renderer := NewRenderer()
+
+	alert := &models.Alert{
+		AlertID:     "firing-1",
+		AlertName:   "ECS监控策略",
+		Severity:    "CRITICAL",
+		Message:     "实例状态改变",
+		Source:      "aliyun",
+		Status:      "firing",
+		TriggerTime: time.Now(),
+		Labels:      datatypes.JSON(`{}`),
+	}
+
+	tmplStr := `{"title": "{{if eq .status "resolved"}}[RESOLVED] {{end}}[{{.severity}}] {{.alert_name}}", "content": "{{.message}}"}`
+
+	title, content, err := renderer.RenderAlert(tmplStr, alert, nil)
+	if err != nil {
+		t.Fatalf("RenderAlert failed: %v", err)
+	}
+
+	if contains(title, "[RESOLVED]") {
+		t.Errorf("Firing alert title should NOT contain [RESOLVED], got '%s'", title)
+	}
+	if !contains(title, "[CRITICAL]") {
+		t.Errorf("Firing alert title should contain severity, got '%s'", title)
+	}
+	if !contains(content, "实例状态改变") {
+		t.Errorf("Content should contain message, got '%s'", content)
+	}
+}
+
+func TestRenderAlert_TemplateWithoutResolvedCondition(t *testing.T) {
+	renderer := NewRenderer()
+
+	alert := &models.Alert{
+		AlertID:     "resolved-2",
+		AlertName:   "ECS监控策略",
+		Severity:    "CRITICAL",
+		Message:     "实例状态改变",
+		Source:      "aliyun",
+		Status:      "resolved",
+		TriggerTime: time.Now(),
+		Labels:      datatypes.JSON(`{}`),
+	}
+
+	tmplStr := `{"title": "[{{.severity}}] {{.alert_name}}", "content": "{{.message}}"}`
+
+	title, _, err := renderer.RenderAlert(tmplStr, alert, nil)
+	if err != nil {
+		t.Fatalf("RenderAlert failed: %v", err)
+	}
+
+	if contains(title, "[RESOLVED]") {
+		t.Errorf("Template without resolved condition should NOT produce [RESOLVED], got '%s'", title)
+	}
+}

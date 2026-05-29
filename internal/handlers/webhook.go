@@ -1180,6 +1180,9 @@ func (h *WebhookHandler) sendNotification(alert *models.Alert, channel *models.C
 // sendDefaultNotification 发送默认格式的通知
 func (h *WebhookHandler) sendDefaultNotification(alert *models.Alert, channel *models.Channel, routeRule *models.RouteRule) {
 	title := fmt.Sprintf("[%s] %s", alert.Severity, alert.AlertName)
+	if alert.Status == "resolved" {
+		title = fmt.Sprintf("[RESOLVED] [%s] %s", alert.Severity, alert.AlertName)
+	}
 	content := alert.Message
 	h.sendChannelNotification(alert, channel, routeRule, title, content, models.DeliveryModeDefault)
 }
@@ -1199,6 +1202,16 @@ func (h *WebhookHandler) sendChannelNotification(
 		h.recordThrottledDelivery(alert, channel, routeRule, title, content, mode)
 		return
 	}
+	// Ensure resolved alerts always carry a clear indicator regardless of template output
+	if alert.Status == "resolved" {
+		if !strings.Contains(title, "[RESOLVED]") && !strings.Contains(title, "已恢复") {
+			title = "[RESOLVED] " + title
+		}
+		if !strings.Contains(content, "[RESOLVED]") && !strings.Contains(content, "已恢复") && !strings.Contains(content, "recovery") {
+			content = "[告警已恢复] " + content
+		}
+	}
+
 	sender := h.notificationSender()
 	deliveryRecord, deliveryErr := h.startNotificationDelivery(alert, channel, routeRule, title, content, mode)
 	if deliveryErr != nil {
@@ -1571,15 +1584,15 @@ func GetDefaultTemplates() map[string]map[string]string {
 	return map[string]map[string]string{
 		"prometheus": {
 			InputTemplate:  `{"alert_id": "{{.fingerprint}}", "alert_name": "{{.labels.alertname}}", "severity": "{{.labels.severity}}", "message": "{{.annotations.summary}}", "source": "prometheus", "status": "{{.status}}", "trigger_time": "{{.startsAt}}"}`,
-			OutputTemplate: `{"title": "[{{.severity}}] {{.alert_name}}", "content": "{{.message}}\n\nLabels: {{toJson .labels}}"}`,
+			OutputTemplate: `{"title": "{{if eq .status "resolved"}}[RESOLVED] {{end}}[{{.severity}}] {{.alert_name}}", "content": "{{.message}}\n\nLabels: {{toJson .labels}}"}`,
 		},
 		"alertmanager": {
 			InputTemplate:  `{"alert_id": "{{.fingerprint}}", "alert_name": "{{.labels.alertname}}", "severity": "{{.labels.severity}}", "message": "{{.annotations.description}}", "source": "alertmanager", "status": "{{.status}}", "trigger_time": "{{.startsAt}}"}`,
-			OutputTemplate: `{"title": "[{{.severity}}] {{.alert_name}}", "content": "{{.message}}\n\nLabels: {{toJson .labels}}"}`,
+			OutputTemplate: `{"title": "{{if eq .status "resolved"}}[RESOLVED] {{end}}[{{.severity}}] {{.alert_name}}", "content": "{{.message}}\n\nLabels: {{toJson .labels}}"}`,
 		},
 		"custom": {
 			InputTemplate:  `{"alert_id": "{{.alert_id}}", "alert_name": "{{.alert_name}}", "severity": "{{.severity}}", "message": "{{.message}}", "source": "custom", "status": "firing", "trigger_time": "{{.timestamp}}"}`,
-			OutputTemplate: `{"title": "[{{.severity}}] {{.alert_name}}", "content": "{{.message}}"}`,
+			OutputTemplate: `{"title": "{{if eq .status "resolved"}}[RESOLVED] {{end}}[{{.severity}}] {{.alert_name}}", "content": "{{.message}}"}`,
 		},
 	}
 }

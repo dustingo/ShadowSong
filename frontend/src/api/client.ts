@@ -112,10 +112,10 @@ export const alertApi = {
   deliveries: (id: string) => apiClient.get(`/alerts/${id}/deliveries`).then(r => r.data as Delivery[]),
 
   batchAck: (data: { alert_ids: string[]; comment: string }) =>
-    client.post('/alerts/batch-ack', data).then((res) => res.data),
+    apiClient.post('/alerts/batch-ack', data).then((res) => res.data),
 
   batchSilence: (data: { alert_ids: string[]; duration: number }) =>
-    client.post('/alerts/batch-silence', data).then((res) => res.data),
+    apiClient.post('/alerts/batch-silence', data).then((res) => res.data),
 }
 
 // ============ DataSource API ============
@@ -160,6 +160,9 @@ export const channelApi = {
 
   test: (id: number, recipients?: string[]) =>
     apiClient.post(`/channels/${id}/test`, recipients?.length ? { recipients } : {}),
+
+  preview: (id: number) =>
+    apiClient.post<{ title: string; content: string; channel_type: string }>(`/channels/${id}/preview`, {}),
 }
 
 // ============ SMTP Config API ============

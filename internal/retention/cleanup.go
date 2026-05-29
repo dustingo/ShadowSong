@@ -9,9 +9,10 @@ import (
 
 // CleanupResult reports how many records were deleted.
 type CleanupResult struct {
-	AlertsDeleted     int64
-	DeliveriesDeleted int64
-	AttemptsDeleted   int64
+	AlertsDeleted      int64
+	DeliveriesDeleted  int64
+	AttemptsDeleted    int64
+	RecoveriesDeleted  int64
 }
 
 // Cleanup deletes records older than retentionDays. Returns immediately if retentionDays <= 0.
@@ -29,13 +30,14 @@ func Cleanup(db *gorm.DB, retentionDays int) CleanupResult {
 	res = db.Exec("DELETE FROM notification_deliveries WHERE created_at < ?", cutoff)
 	result.DeliveriesDeleted = res.RowsAffected
 
-	db.Exec("DELETE FROM notification_delivery_recoveries WHERE created_at < ?", cutoff)
+	res = db.Exec("DELETE FROM notification_delivery_recoveries WHERE created_at < ?", cutoff)
+	result.RecoveriesDeleted = res.RowsAffected
 
 	res = db.Exec("DELETE FROM alerts WHERE created_at < ?", cutoff)
 	result.AlertsDeleted = res.RowsAffected
 
-	log.Printf("retention: cleaned alerts=%d deliveries=%d attempts=%d (retention_days=%d)",
-		result.AlertsDeleted, result.DeliveriesDeleted, result.AttemptsDeleted, retentionDays)
+	log.Printf("retention: cleaned alerts=%d deliveries=%d attempts=%d recoveries=%d (retention_days=%d)",
+		result.AlertsDeleted, result.DeliveriesDeleted, result.AttemptsDeleted, result.RecoveriesDeleted, retentionDays)
 
 	return result
 }

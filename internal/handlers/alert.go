@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -194,24 +195,33 @@ func (h *AlertHandler) BatchAck(c *gin.Context) {
 	var errs []string
 	username := middleware.GetUsername(c)
 
-	for _, id := range input.AlertIDs {
-		var alert models.Alert
-		if err := h.db.First(&alert, "alert_id = ?", id).Error; err != nil {
-			skipped++
-			errs = append(errs, fmt.Sprintf("%s: not found", id))
-			continue
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		for _, id := range input.AlertIDs {
+			var alert models.Alert
+			if err := tx.First(&alert, "alert_id = ?", id).Error; err != nil {
+				skipped++
+				errs = append(errs, fmt.Sprintf("%s: not found", id))
+				continue
+			}
+			if err := alert.Ack(username, input.Comment); err != nil {
+				skipped++
+				errs = append(errs, fmt.Sprintf("%s: %s", id, err.Error()))
+				_ = recordAudit(tx, c, "alert.batch_ack", "alert", alert.AlertID, auditResultDenied, err.Error())
+				continue
+			}
+			if err := tx.Save(&alert).Error; err != nil {
+				skipped++
+				errs = append(errs, fmt.Sprintf("%s: db error", id))
+				continue
+			}
+			_ = recordAudit(tx, c, "alert.batch_ack", "alert", alert.AlertID, auditResultAllowed, fmt.Sprintf("comment=%s", input.Comment))
+			updated++
 		}
-		if err := alert.Ack(username, input.Comment); err != nil {
-			skipped++
-			errs = append(errs, fmt.Sprintf("%s: %s", id, err.Error()))
-			continue
-		}
-		if err := h.db.Save(&alert).Error; err != nil {
-			skipped++
-			errs = append(errs, fmt.Sprintf("%s: db error", id))
-			continue
-		}
-		updated++
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"updated": updated, "skipped": skipped, "errors": errs})
@@ -235,35 +245,59 @@ func (h *AlertHandler) BatchSilence(c *gin.Context) {
 		username = "system"
 	}
 	now := time.Now()
-	alertNames := make(map[string]bool)
+	alertNameSeverities := make(map[string]map[string]bool)
 
-	for _, id := range input.AlertIDs {
-		var alert models.Alert
-		if err := h.db.First(&alert, "alert_id = ?", id).Error; err != nil {
-			skipped++
-			errs = append(errs, fmt.Sprintf("%s: not found", id))
-			continue
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		for _, id := range input.AlertIDs {
+			var alert models.Alert
+			if err := tx.First(&alert, "alert_id = ?", id).Error; err != nil {
+				skipped++
+				errs = append(errs, fmt.Sprintf("%s: not found", id))
+				continue
+			}
+			if alert.Status != "firing" && alert.Status != "acked" {
+				skipped++
+				errs = append(errs, fmt.Sprintf("%s: cannot silence %s alert", id, alert.Status))
+				_ = recordAudit(tx, c, "alert.batch_silence", "alert", alert.AlertID, auditResultDenied, fmt.Sprintf("cannot silence %s alert", alert.Status))
+				continue
+			}
+			alert.Status = "silenced"
+			if err := tx.Save(&alert).Error; err != nil {
+				skipped++
+				errs = append(errs, fmt.Sprintf("%s: db error", id))
+				continue
+			}
+			if alertNameSeverities[alert.AlertName] == nil {
+				alertNameSeverities[alert.AlertName] = make(map[string]bool)
+			}
+			alertNameSeverities[alert.AlertName][alert.Severity] = true
+			_ = recordAudit(tx, c, "alert.batch_silence", "alert", alert.AlertID, auditResultAllowed, fmt.Sprintf("duration_seconds=%d", input.Duration))
+			updated++
 		}
-		alert.Status = "silenced"
-		if err := h.db.Save(&alert).Error; err != nil {
-			skipped++
-			errs = append(errs, fmt.Sprintf("%s: db error", id))
-			continue
-		}
-		alertNames[alert.AlertName] = true
-		updated++
-	}
 
-	for name := range alertNames {
-		silence := models.SilenceRule{
-			Name:             "Batch Silence - " + name,
-			AlertNamePattern: name,
-			Severities:       []byte("[]"),
-			StartsAt:         now,
-			EndsAt:           now.Add(time.Duration(input.Duration) * time.Second),
-			CreatedBy:        username,
+		for name, severities := range alertNameSeverities {
+			var sevList []string
+			for s := range severities {
+				sevList = append(sevList, s)
+			}
+			sevJSON, _ := json.Marshal(sevList)
+			silence := models.SilenceRule{
+				Name:             "Batch Silence - " + name,
+				AlertNamePattern: name,
+				Severities:       sevJSON,
+				StartsAt:         now,
+				EndsAt:           now.Add(time.Duration(input.Duration) * time.Second),
+				CreatedBy:        username,
+			}
+			if err := tx.Create(&silence).Error; err != nil {
+				errs = append(errs, fmt.Sprintf("silence rule for %s: db error", name))
+			}
 		}
-		h.db.Create(&silence)
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"updated": updated, "skipped": skipped, "errors": errs})

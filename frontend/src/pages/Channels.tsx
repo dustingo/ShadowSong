@@ -13,7 +13,7 @@ import { Tag } from 'primereact/tag'
 import { Divider } from 'primereact/divider'
 import { confirmDialog } from 'primereact/confirmdialog'
 import { PermissionNotice, useToast } from '../components'
-import { canUser, capabilityManageConfig, isReadOnlyConfigUser } from '../authz/capabilities'
+import { canUser, capabilityManageConfig, capabilityViewConfig, isReadOnlyConfigUser } from '../authz/capabilities'
 import { useConfigStore } from '../stores/configStore'
 import { channelApi, getApiErrorMessage } from '../api/client'
 import { useUserStore } from '../stores/userStore'
@@ -196,6 +196,7 @@ export const Channels: React.FC = () => {
   const [testDialogChannel, setTestDialogChannel] = useState<Channel | null>(null)
   const [testRecipients, setTestRecipients] = useState('')
   const canManageConfig = canUser(user, capabilityManageConfig)
+  const canViewConfig = canUser(user, capabilityViewConfig)
   const readOnly = isReadOnlyConfigUser(user)
 
   useEffect(() => {
@@ -316,16 +317,16 @@ export const Channels: React.FC = () => {
     } catch (error) {
       toast.showError(getApiErrorMessage(error, '发送失败'))
     }
+  }
 
   const handlePreview = async (record: Channel) => {
     try {
-      const data = await channelApi.preview(record.id)
+      const { data } = await channelApi.preview(record.id)
       setPreviewData({ title: data.title, content: data.content })
       setPreviewVisible(true)
     } catch {
       toast.showError('预览失败')
     }
-  }
   }
 
   const handleSubmit = async () => {
@@ -386,7 +387,14 @@ export const Channels: React.FC = () => {
 
   const actionBodyTemplate = (row: Channel) => {
     if (!canManageConfig) {
-      return (
+      return canViewConfig ? (
+        <Button
+          icon="pi pi-eye"
+          className="p-button-text p-button-info"
+          tooltip="预览通知"
+          onClick={() => handlePreview(row)}
+        />
+      ) : (
         <Tag
           value="只读"
           style={{
@@ -413,12 +421,12 @@ export const Channels: React.FC = () => {
           icon="pi pi-send"
           style={{ color: 'var(--primary-color)' }}
           onClick={() => handleTest(row)}
-          <Button
-            icon="pi pi-eye"
-            className="p-button-text p-button-info"
-            tooltip="预览通知"
-            onClick={() => handlePreview(row)}
-          />
+        />
+        <Button
+          icon="pi pi-eye"
+          className="p-button-text p-button-info"
+          tooltip="预览通知"
+          onClick={() => handlePreview(row)}
         />
         <Button
           label={row.enabled ? '禁用' : '启用'}

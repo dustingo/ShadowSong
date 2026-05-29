@@ -126,13 +126,18 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
   batchAck: async (ids, comment) => {
     const result = await alertApi.batchAck({ alert_ids: ids, comment })
+    const updatedCount = (result as any).updated ?? ids.length
+    const skippedCount = (result as any).skipped ?? 0
+    const updatedIds = ids.slice(0, updatedCount)
     set((state) => ({
       alerts: state.alerts.map((a) =>
-        ids.includes(a.alert_id)
+        updatedIds.includes(a.alert_id)
           ? { ...a, status: 'acked', acked_at: new Date().toISOString(), ack_comment: comment }
           : a
       ),
-      activeAlerts: state.activeAlerts.filter((a) => !ids.includes(a.alert_id)),
+      activeAlerts: skippedCount > 0
+        ? state.activeAlerts.filter((a) => updatedIds.includes(a.alert_id) === false || !ids.includes(a.alert_id))
+        : state.activeAlerts.filter((a) => !ids.includes(a.alert_id)),
     }))
     get().fetchGroupedActiveAlerts()
     get().fetchStats()
@@ -141,11 +146,16 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
   batchSilence: async (ids, duration) => {
     const result = await alertApi.batchSilence({ alert_ids: ids, duration })
+    const updatedCount = (result as any).updated ?? ids.length
+    const skippedCount = (result as any).skipped ?? 0
+    const updatedIds = ids.slice(0, updatedCount)
     set((state) => ({
       alerts: state.alerts.map((a) =>
-        ids.includes(a.alert_id) ? { ...a, status: 'silenced' } : a
+        updatedIds.includes(a.alert_id) ? { ...a, status: 'silenced' } : a
       ),
-      activeAlerts: state.activeAlerts.filter((a) => !ids.includes(a.alert_id)),
+      activeAlerts: skippedCount > 0
+        ? state.activeAlerts.filter((a) => updatedIds.includes(a.alert_id) === false || !ids.includes(a.alert_id))
+        : state.activeAlerts.filter((a) => !ids.includes(a.alert_id)),
     }))
     get().fetchGroupedActiveAlerts()
     get().fetchStats()

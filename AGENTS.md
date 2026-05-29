@@ -259,6 +259,15 @@
 No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, or `.github/skills/` with a `SKILL.md` index file.
 <!-- GSD:skills-end -->
 
+
+<!-- GSD:agent-lifecycle-start -->
+## Agent Lifecycle
+
+- **Close completed sub-agents immediately**: After a spawned sub-agent finishes its task (status completed or ailed), call close_agent to release resources. Do not keep idle sub-agents open.
+- **Do not wait unnecessarily**: Only call wait_agent when the main task is blocked on the sub-agent result. Prefer fire-and-forget for independent sidecar tasks.
+- **Reuse before re-spawn**: If a closed sub-agent's context is needed again, use esume_agent instead of spawning a new one.
+<!-- GSD:agent-lifecycle-end -->
+
 <!-- GSD:workflow-start source:GSD defaults -->
 ## GSD Workflow Enforcement
 
